@@ -10,6 +10,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -44,11 +47,9 @@ jobs:
           generate_release_notes: true
 
       - name: Publish to the VS Code Marketplace
+        if: env.VSCE_PAT != ''
         run: npx vsce publish --packagePath "reflect-android-${GITHUB_REF_NAME}.vsix"
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       - name: Publish to Open VSX
+        if: env.OVSX_PAT != ''
         run: npx ovsx publish "reflect-android-${GITHUB_REF_NAME}.vsix"
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
