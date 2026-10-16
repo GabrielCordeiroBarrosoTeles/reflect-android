@@ -229,7 +229,7 @@
     "@types/node": "20.19.43",
     "@types/vscode": "1.106.1",
     "@types/ws": "8.18.2",
-    "@vitest/coverage-v8": "4.1.12",
+    "@vitest/coverage-v8": "5.0.4",
     "@vscode/codicons": "0.0.46-24",
     "@vscode/vsce": "3.9.2",
     "@yume-chan/fetch-scrcpy-server": "1.0.0",
@@ -237,6 +237,6 @@
     "happy-dom": "21.0.3",
     "ovsx": "1.1.1",
     "typescript": "5.9.3",
-    "vitest": "4.1.12"
+    "vitest": "5.0.4"
   }
 }
