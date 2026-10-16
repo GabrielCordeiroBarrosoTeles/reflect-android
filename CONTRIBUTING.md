@@ -159,6 +159,6 @@ For larger features, open an issue or a discussion first so we can agree on the 
 
 | Secret | Used by | How to get it |
 | --- | --- | --- |
-| `VSCE_PAT` | `release.yml` | Azure DevOps personal access token with the **Marketplace → Manage** scope for the `gabrielcordeiro` publisher. |
-| `OVSX_PAT` | `release.yml` | Access token from your [open-vsx.org](https://open-vsx.org/user-settings/tokens) account (the namespace must exist: `npx ovsx create-namespace gabrielcordeiro`). |
+| `VSCE_PAT` | `release.yml` | Azure DevOps personal access token with the **Marketplace → Manage** scope for the `GabrielCordeiro` publisher. |
+| `OVSX_PAT` | `release.yml` | Access token from your [open-vsx.org](https://open-vsx.org/user-settings/tokens) account (the namespace must exist: `npx ovsx create-namespace GabrielCordeiro`). |
 | `CODECOV_TOKEN` | `ci.yml` | Repository upload token from [codecov.io](https://codecov.io) after installing the Codecov GitHub App. |

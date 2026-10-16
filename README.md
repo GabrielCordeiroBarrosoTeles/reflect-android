@@ -11,9 +11,9 @@
 <p align="center">
   <a href="https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/actions/workflows/ci.yml"><img src="https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://codecov.io/gh/GabrielCordeiroBarrosoTeles/reflect-android"><img src="https://codecov.io/gh/GabrielCordeiroBarrosoTeles/reflect-android/branch/main/graph/badge.svg" alt="Coverage"></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=gabrielcordeiro.reflect-android"><img src="https://img.shields.io/visual-studio-marketplace/v/gabrielcordeiro.reflect-android?label=Marketplace" alt="Marketplace version"></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=gabrielcordeiro.reflect-android"><img src="https://img.shields.io/visual-studio-marketplace/i/gabrielcordeiro.reflect-android" alt="Installs"></a>
-  <a href="https://open-vsx.org/extension/gabrielcordeiro/reflect-android"><img src="https://img.shields.io/open-vsx/v/gabrielcordeiro/reflect-android?label=Open%20VSX" alt="Open VSX version"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=GabrielCordeiro.reflect-android"><img src="https://img.shields.io/visual-studio-marketplace/v/GabrielCordeiro.reflect-android?label=Marketplace" alt="Marketplace version"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=GabrielCordeiro.reflect-android"><img src="https://img.shields.io/visual-studio-marketplace/i/GabrielCordeiro.reflect-android" alt="Installs"></a>
+  <a href="https://open-vsx.org/extension/GabrielCordeiro/reflect-android"><img src="https://img.shields.io/open-vsx/v/GabrielCordeiro/reflect-android?label=Open%20VSX" alt="Open VSX version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/GabrielCordeiroBarrosoTeles/reflect-android" alt="License"></a>
 </p>
 
@@ -55,8 +55,8 @@ Toolbar (Back/Home/Recents/Rotate), hover highlight while inspecting, screenshot
 
 ## Installation
 
-- **VS Code Marketplace**: search for "Reflect for Android" in the Extensions view, or run `code --install-extension gabrielcordeiro.reflect-android`.
-- **Open VSX** (Cursor, Windsurf, VSCodium): install from [open-vsx.org](https://open-vsx.org/extension/gabrielcordeiro/reflect-android).
+- **VS Code Marketplace**: search for "Reflect for Android" in the Extensions view, or run `code --install-extension GabrielCordeiro.reflect-android`.
+- **Open VSX** (Cursor, Windsurf, VSCodium): install from [open-vsx.org](https://open-vsx.org/extension/GabrielCordeiro/reflect-android).
 
 ## Usage
 
@@ -102,9 +102,7 @@ Found a security issue? Please follow [SECURITY.md](SECURITY.md) instead of open
 Reflect is free and open source. If it saves you time, you can support its development:
 
 - [GitHub Sponsors](https://github.com/sponsors/GabrielCordeiroBarrosoTeles)
-- [Ko-fi](https://ko-fi.com/<SEU_USUARIO>)
-- [Buy Me a Coffee](https://buymeacoffee.com/<SEU_USUARIO>)
-- 🇧🇷 **PIX**: `<SUA_CHAVE_PIX>`
+- 🇧🇷 **PIX** (random key): `dff50112-642f-4f31-8409-38570ac91871`
 
 Starring the repository and sharing it with other developers helps a lot too.
 

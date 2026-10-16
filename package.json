@@ -3,7 +3,7 @@
   "displayName": "Reflect for Android",
   "description": "Mirror and control a physical Android device inside a VS Code tab. Built for React Native developers, powered by scrcpy. No emulator required.",
   "version": "0.0.1",
-  "publisher": "gabrielcordeiro",
+  "publisher": "GabrielCordeiro",
   "license": "MIT",
   "icon": "assets/icon.png",
   "galleryBanner": {
