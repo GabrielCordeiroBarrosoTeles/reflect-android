@@ -231,7 +231,7 @@
     "@types/ws": "8.18.2",
     "@vitest/coverage-v8": "4.1.12",
     "@vscode/codicons": "0.0.46-24",
-    "@vscode/vsce": "3.9.2",
+    "@vscode/vsce": "4.0.0",
     "@yume-chan/fetch-scrcpy-server": "1.0.0",
     "esbuild": "0.28.2",
     "happy-dom": "21.0.3",
