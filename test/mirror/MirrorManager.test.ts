@@ -12,6 +12,12 @@ class FakeController implements IMirrorController {
   revealed = 0;
   disposed = 0;
   inspecting: boolean[] = [];
+  actions: string[] = [];
+
+  runAction(id: string): Promise<void> {
+    this.actions.push(id);
+    return Promise.resolve();
+  }
 
   setInspectMode(active: boolean): void {
     this.inspecting.push(active);
@@ -85,6 +91,36 @@ describe('MirrorManager', () => {
     manager.setInspectMode(true);
     expect(manager.hasOpenMirror).toBe(true);
     expect(created.map((controller) => controller.inspecting)).toEqual([[true], [true]]);
+  });
+
+  it('runs actions on the most recently opened mirror', () => {
+    const { manager, created } = setup();
+    expect(manager.runAction('home')).toBe(false);
+    manager.open(deviceInfo({ serial: 'A' }), 'editor');
+    manager.open(deviceInfo({ serial: 'B' }), 'editor');
+    expect(manager.runAction('screenshot')).toBe(true);
+    expect(created.map((controller) => controller.actions)).toEqual([[], ['screenshot']]);
+  });
+
+  it('announces opened devices', () => {
+    const { manager } = setup();
+    const opened = vi.fn();
+    manager.onDidOpen(opened);
+    const device = deviceInfo();
+    manager.open(device, 'editor');
+    expect(opened).toHaveBeenCalledWith(device);
+  });
+
+  it('moves the latest mirror to another location and reveals it when already there', () => {
+    const { manager, created } = setup();
+    expect(manager.move('editor')).toBe(false);
+    manager.open(deviceInfo({ serial: 'A' }), 'secondarySidebar');
+    expect(manager.move('secondarySidebar')).toBe(true);
+    expect(created[0]?.revealed).toBe(1);
+    expect(manager.move('editor')).toBe(true);
+    expect(created[0]?.disposed).toBe(1);
+    expect(created[1]).toMatchObject({ location: 'editor', started: 1 });
+    expect(created[1]?.device.serial).toBe('A');
   });
 
   it('disposes every controller', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MetroUnavailableError, ReactNativeAppNotFoundError } from '../../src/core/errors';
 import { ComponentInspector } from '../../src/inspector/ComponentInspector';
-import { HIT_RESULT_GLOBAL } from '../../src/inspector/hitTestScript';
+import { HIT_RESULT_GLOBAL, HOVER_RESULT_GLOBAL } from '../../src/inspector/hitTestScript';
 import type { IMetroClient, MetroTarget, StackFrame } from '../../src/inspector/types';
 import { deviceInfo } from '../fakes/devices';
 import { FakeCdpSession } from '../fakes/FakeCdpSession';
@@ -29,13 +29,26 @@ class FakeMetro implements IMetroClient {
 
 const HIT = JSON.stringify({ status: 'hit', elementId: 7, rendererID: 1, stacks: ['Error\n    at Demo (http://b:1:2)'] });
 
-const createSession = (hitResults: (string | undefined)[] = [HIT]) => {
+const HOVER = JSON.stringify({
+  status: 'hit',
+  name: 'Text',
+  owners: [{ name: 'Demo', stack: 'Error\n    at Demo (http://b:1:2)' }],
+  x: 0.1,
+  y: 0.2,
+  width: 0.3,
+  height: 0.05,
+});
+
+const createSession = (hitResults: (string | undefined)[] = [HIT], hoverResult: string = HOVER) => {
   const session = new FakeCdpSession();
   session.handler = (method, params) => {
     const expression = String(params?.expression ?? '');
     if (method !== 'Runtime.evaluate') return {};
     if (expression.includes(`JSON.stringify(globalThis.${HIT_RESULT_GLOBAL})`)) {
       return { result: { value: hitResults.length > 1 ? hitResults.shift() : hitResults[0] } };
+    }
+    if (expression.includes(`JSON.stringify(globalThis.${HOVER_RESULT_GLOBAL})`)) {
+      return { result: { value: hoverResult } };
     }
     if (expression.includes('inspectElement')) {
       queueMicrotask(() =>
@@ -60,6 +73,48 @@ const setup = (session = createSession()) => {
 const device = deviceInfo({ model: 'SM F741B' });
 
 describe('ComponentInspector', () => {
+  it('highlights the component under the cursor over the same connection', async () => {
+    const { inspector, connect } = setup();
+    expect(await inspector.highlightAt(device, { x: 0.2, y: 0.3 })).toEqual({
+      name: 'Text',
+      owner: 'Demo',
+      location: 'Demo.tsx:58',
+      x: 0.1,
+      y: 0.2,
+      width: 0.3,
+      height: 0.05,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+    });
+    await inspector.inspectAt(device, { x: 0.2, y: 0.3 });
+    expect(connect).toHaveBeenCalledOnce();
+  });
+
+  it('omits the owner when it is the hovered component itself, and both when no user code owns it', async () => {
+    const own = setup();
+    own.metro.symbolicated = [{ file: '/app/src/Text.tsx', lineNumber: 2, column: 1, methodName: 'Text' }];
+    expect(await own.inspector.highlightAt(device, { x: 0, y: 0 })).toMatchObject({ owner: undefined, location: 'Text.tsx:2' });
+    const library = setup();
+    library.metro.symbolicated = [{ file: '/app/node_modules/x.js', lineNumber: 1, column: 1, methodName: 'x' }];
+    expect(await library.inspector.highlightAt(device, { x: 0, y: 0 })).toMatchObject({ owner: undefined, location: undefined });
+  });
+
+  it('forgets resolved owners when disconnecting', async () => {
+    const { inspector, metro } = setup();
+    const symbolicate = vi.spyOn(metro, 'symbolicate');
+    await inspector.highlightAt(device, { x: 0, y: 0 });
+    await inspector.highlightAt(device, { x: 0, y: 0 });
+    expect(symbolicate).toHaveBeenCalledOnce();
+    inspector.disconnect();
+    await inspector.highlightAt(device, { x: 0, y: 0 });
+    expect(symbolicate).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns nothing when no component is under the cursor', async () => {
+    const { inspector } = setup(createSession([HIT], JSON.stringify({ status: 'miss' })));
+    expect(await inspector.highlightAt(device, { x: 0, y: 0 })).toBeUndefined();
+  });
+
   it('connects to the app, hit-tests the point and resolves the user source', async () => {
     const { inspector, connect, session } = setup();
     const component = await inspector.inspectAt(device, { x: 0.5, y: 0.3 });

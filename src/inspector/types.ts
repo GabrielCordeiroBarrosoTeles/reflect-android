@@ -1,5 +1,6 @@
 import type { DeviceInfo } from '../adb/types';
 import type { Event, IDisposable } from '../core/types';
+import type { BoxEdges, InspectHighlight } from '../shared/protocol';
 
 export interface MetroTarget {
   readonly id: string;
@@ -44,6 +45,26 @@ export interface HitResult {
   readonly stacks: readonly string[];
 }
 
+export interface HoverOwner {
+  readonly name: string;
+  readonly stack: string;
+}
+
+export interface HoverRect {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly margin: BoxEdges;
+  readonly padding: BoxEdges;
+}
+
+export interface HoverResult {
+  readonly name: string;
+  readonly owners: readonly HoverOwner[];
+  readonly rect: HoverRect;
+}
+
 export interface IHttpClient {
   getJson(url: string): Promise<unknown>;
   postJson(url: string, body: unknown): Promise<unknown>;
@@ -81,5 +102,6 @@ export type CdpConnector = (url: string) => Promise<ICdpSession>;
 
 export interface IComponentInspector extends IDisposable {
   inspectAt(device: DeviceInfo, point: InspectPoint): Promise<InspectedComponent | undefined>;
+  highlightAt(device: DeviceInfo, point: InspectPoint): Promise<InspectHighlight | undefined>;
   disconnect(): void;
 }

@@ -25,6 +25,10 @@ vi.mock('../../src/webview/VideoRenderer', () => ({
     rendered: unknown[] = [];
     disposed = 0;
     framesRendered = 12;
+    snapshotResult: Promise<Uint8Array | undefined> = Promise.resolve(new Uint8Array([4]));
+    snapshot() {
+      return this.snapshotResult;
+    }
     constructor(
       readonly canvas: HTMLCanvasElement,
       readonly acceleration: string,
@@ -50,12 +54,16 @@ vi.mock('../../src/webview/decoderSupport', () => ({
 }));
 
 const MARKUP =
-  '<div class="inspect-banner" hidden></div><canvas class="screen" hidden></canvas><div class="status"><span class="status__title"></span><span class="status__detail"></span><button class="status__action" hidden></button></div>';
+  '<nav class="toolbar"></nav><div class="inspect-banner" hidden></div><main class="stage"><canvas class="screen" hidden></canvas><div class="inspect-highlight" hidden><span class="inspect-highlight__label"></span></div><div class="status"><span class="status__title"></span><span class="status__detail"></span><button class="status__action" hidden></button></div></main>';
 
 const boot = async (markup = MARKUP) => {
   document.body.innerHTML = markup;
   const posted: WebviewToHostMessage[] = [];
-  vi.stubGlobal('acquireVsCodeApi', () => ({ postMessage: (message: WebviewToHostMessage) => posted.push(message) }));
+  vi.stubGlobal('acquireVsCodeApi', () => ({
+    postMessage: (message: WebviewToHostMessage) => posted.push(message),
+    getState: () => undefined,
+    setState: vi.fn(),
+  }));
   vi.resetModules();
   await import('../../src/webview/main');
   await flushPromises();
@@ -153,6 +161,48 @@ describe('webview main', () => {
     expect(document.querySelector<HTMLElement>('.inspect-banner')?.hidden).toBe(false);
     canvas?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', cancelable: true }));
     expect(posted.at(-1)).toEqual({ type: 'inspect-cancel' });
+  });
+
+  it('draws the hovered component and clears it when inspect mode ends', async () => {
+    const { canvas } = await boot();
+    const box = document.querySelector<HTMLElement>('.inspect-highlight');
+    deliver({ type: 'inspect-mode', active: true });
+    canvas?.dispatchEvent(new PointerEvent('pointermove'));
+    deliver({ type: 'inspect-highlight', highlight: { name: 'Text', owner: undefined, location: undefined, x: 0, y: 0.5, width: 1, height: 0.1, margin: { top: 0, right: 0, bottom: 0, left: 0 }, padding: { top: 0, right: 0, bottom: 0, left: 0 } } });
+    expect(box?.hidden).toBe(false);
+    expect(box?.textContent).toBe('<Text>');
+    deliver({ type: 'inspect-mode', active: false });
+    expect(box?.hidden).toBe(true);
+  });
+
+  it('renders the toolbar, sends actions and reflects its state', async () => {
+    const { posted } = await boot();
+    document.querySelector<HTMLButtonElement>('[aria-label="Home"]')?.click();
+    deliver({ type: 'toolbar-state', state: { recordingSince: undefined, screenOff: true } });
+    expect(posted.at(-1)).toEqual({ type: 'action', id: 'home' });
+    expect(document.querySelector('[aria-label="Turn Device Screen On/Off"]')?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('answers screenshot requests with the decoded frame, or nothing on failure', async () => {
+    const { posted } = await boot();
+    deliver({ type: 'capture-screenshot', requestId: 3 });
+    await vi.waitFor(() => expect(posted.at(-1)).toEqual({ type: 'screenshot', requestId: 3, data: new Uint8Array([4]) }));
+    (fakes.renderers[0] as unknown as { snapshotResult: Promise<unknown> }).snapshotResult = Promise.reject(new Error('no frame'));
+    deliver({ type: 'capture-screenshot', requestId: 4 });
+    await vi.waitFor(() => expect(posted.at(-1)).toEqual({ type: 'screenshot', requestId: 4, data: undefined }));
+  });
+
+  it('asks the host to reconnect from the overlay', async () => {
+    const { posted } = await boot();
+    deliver({ type: 'session-state', state: 'disconnected', deviceName: 'Pixel', detail: 'gone', canReconnect: true });
+    document.querySelector<HTMLButtonElement>('.status__action')?.click();
+    expect(posted.at(-1)).toEqual({ type: 'reconnect' });
+  });
+
+  it('toggles the device frame from the toolbar', async () => {
+    await boot();
+    document.querySelector<HTMLButtonElement>('[aria-label="Show Device Frame"]')?.click();
+    expect(document.querySelector('.stage')?.classList.contains('stage--framed')).toBe(true);
   });
 
   it('releases everything on unload', async () => {

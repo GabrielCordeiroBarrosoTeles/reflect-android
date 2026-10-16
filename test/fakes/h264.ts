@@ -1,0 +1,1 @@
+export const DEVICE_CONFIGURATION = Uint8Array.from(Buffer.from('000000016764002aacb4062078d3501010106d0a13500000000168ee06f2c0', 'hex'));

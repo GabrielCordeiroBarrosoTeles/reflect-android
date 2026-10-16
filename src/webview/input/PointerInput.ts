@@ -5,6 +5,7 @@ import type { FrameScheduler } from './FrameScheduler';
 import type { Disposable, InspectModeState, MessageSink, NormalizedPoint } from './types';
 
 const MOVE_TASK = 'pointer-move';
+const HOVER_TASK = 'inspect-hover';
 
 const MouseButton = {
   Primary: 0,
@@ -67,6 +68,10 @@ export class PointerInput implements Disposable {
   }
 
   private handleMove(event: PointerEvent): void {
+    if (this.inspectMode.active && this.activePointerId === undefined) {
+      this.scheduleHover(event);
+      return;
+    }
     if (event.pointerId !== this.activePointerId) {
       return;
     }
@@ -85,6 +90,14 @@ export class PointerInput implements Disposable {
     }
     this.activePointerId = undefined;
     this.pinchCenter = undefined;
+  }
+
+  private scheduleHover(event: PointerEvent): void {
+    const point = this.mapper.map(event);
+    if (!point.inside) {
+      return;
+    }
+    this.scheduler.schedule(HOVER_TASK, () => this.send({ type: 'inspect-hover', x: point.x, y: point.y }));
   }
 
   private sendTouch(action: TouchAction, point: NormalizedPoint): void {

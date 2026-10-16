@@ -60,6 +60,11 @@ export class VideoRenderer {
     });
   }
 
+  async snapshot(): Promise<Uint8Array | undefined> {
+    const image = await this.active?.decoder.snapshot();
+    return image ? new Uint8Array(await image.arrayBuffer()) : undefined;
+  }
+
   dispose(): void {
     this.backoff.cancel();
     this.release();

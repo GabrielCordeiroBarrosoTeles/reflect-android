@@ -18,6 +18,9 @@ export class FakeDeviceControl implements IDeviceControl {
   text = (text: string) => this.record('text', text);
   back = () => this.record('back');
   home = () => this.record('home');
+  recents = () => this.record('recents');
+  rotate = () => this.record('rotate');
+  setScreenPower = (on: boolean) => this.record('setScreenPower', on);
   paste = (text: string) => this.record('paste', text);
 }
 

@@ -42,3 +42,26 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Mediabunny
+
+- Project: https://github.com/Vanilagy/mediabunny
+- Version: 1.61.5, bundled into `dist/extension.js` to write MP4 recordings
+- Copyright (c) Vanilagy
+- License: Mozilla Public License 2.0 — full text at https://www.mozilla.org/MPL/2.0/
+
+The library is distributed unmodified. Its source code is available at the project link above and in the `mediabunny` package on npm.
+
+## ws
+
+- Project: https://github.com/websockets/ws
+- Version: 8.22.0, bundled into `dist/extension.js` to talk to the Metro inspector
+- Copyright (c) 2011 Einar Otto Stangvik, (c) 2013 Arnout Kazemier and contributors, (c) 2016 Luigi Pinca and contributors
+- License: MIT (same terms as the MIT license text above)
+
+## Codicons
+
+- Project: https://github.com/microsoft/vscode-codicons
+- Icon font bundled as `dist/codicon.ttf` for the toolbar
+- Copyright (c) Microsoft Corporation
+- License: Creative Commons Attribution 4.0 International (font), MIT (code)

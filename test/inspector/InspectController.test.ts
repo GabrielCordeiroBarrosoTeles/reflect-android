@@ -6,9 +6,16 @@ import { flushPromises } from '../fakes/PushStream';
 
 const component: InspectedComponent = { name: 'Button', props: [], owners: ['Demo'], source: { file: '/app/Demo.tsx', line: 3, column: 1 } };
 
+const highlight = { name: 'Text', owner: 'Demo', location: undefined, x: 0, y: 0.2, width: 0.3, height: 0.1, margin: { top: 0, right: 0, bottom: 0, left: 0 }, padding: { top: 0, right: 0, bottom: 0, left: 0 } };
+
 const setup = (result: Promise<InspectedComponent | undefined> = Promise.resolve(component)) => {
   const services = {
-    inspector: { inspectAt: vi.fn(() => result), disconnect: vi.fn(), dispose: vi.fn() },
+    inspector: {
+      inspectAt: vi.fn(() => result),
+      highlightAt: vi.fn((_device: unknown, point: { x: number }) => Promise.resolve(point.x < 0 ? undefined : { ...highlight, x: point.x })),
+      disconnect: vi.fn(),
+      dispose: vi.fn(),
+    },
     mirrors: { setInspectMode: vi.fn() },
     view: { show: vi.fn(), reveal: vi.fn() },
     openSource: vi.fn(() => Promise.resolve()),
@@ -21,6 +28,62 @@ const setup = (result: Promise<InspectedComponent | undefined> = Promise.resolve
 };
 
 describe('InspectController', () => {
+  it('highlights only the latest hovered point', async () => {
+    const { controller, services } = setup();
+    const onHighlight = vi.fn();
+    controller.start();
+    controller.hoverAt(deviceInfo(), { x: 0.1, y: 0 }, onHighlight);
+    controller.hoverAt(deviceInfo(), { x: 0.2, y: 0 }, onHighlight);
+    controller.hoverAt(deviceInfo(), { x: 0.3, y: 0 }, onHighlight);
+    await flushPromises();
+    expect(services.inspector.highlightAt.mock.calls.map(([, point]) => point)).toEqual([
+      { x: 0.1, y: 0 },
+      { x: 0.3, y: 0 },
+    ]);
+    expect(onHighlight.mock.calls).toEqual([[{ ...highlight, x: 0.1 }], [{ ...highlight, x: 0.3 }]]);
+    controller.hoverAt(deviceInfo(), { x: -1, y: 0 }, onHighlight);
+    await flushPromises();
+    expect(onHighlight).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it('ignores hovers while inactive and drops results after leaving inspect mode', async () => {
+    const { controller, services } = setup();
+    const onHighlight = vi.fn();
+    controller.hoverAt(deviceInfo(), { x: 0.1, y: 0 }, onHighlight);
+    expect(services.inspector.highlightAt).not.toHaveBeenCalled();
+    controller.start();
+    controller.hoverAt(deviceInfo(), { x: 0.1, y: 0 }, onHighlight);
+    controller.cancel();
+    await flushPromises();
+    expect(onHighlight).not.toHaveBeenCalled();
+  });
+
+  it('treats highlight failures as nothing under the cursor', async () => {
+    const { controller, services } = setup();
+    services.inspector.highlightAt.mockReturnValueOnce(Promise.reject(new Error('metro down')));
+    const onHighlight = vi.fn();
+    controller.start();
+    controller.hoverAt(deviceInfo(), { x: 0.1, y: 0 }, onHighlight);
+    await flushPromises();
+    expect(onHighlight).toHaveBeenCalledWith(undefined);
+    expect(services.onError).not.toHaveBeenCalled();
+  });
+
+  it('skips hovers while a click is being inspected', async () => {
+    let finish!: (value: InspectedComponent) => void;
+    const { controller, services } = setup(new Promise((resolve) => (finish = resolve)));
+    const onHighlight = vi.fn();
+    controller.start();
+    controller.hoverAt(deviceInfo(), { x: 0.1, y: 0 }, onHighlight);
+    controller.inspectAt(deviceInfo(), { x: 0.1, y: 0 });
+    controller.hoverAt(deviceInfo(), { x: 0.2, y: 0 }, onHighlight);
+    await flushPromises();
+    expect(services.inspector.highlightAt).toHaveBeenCalledOnce();
+    expect(onHighlight).not.toHaveBeenCalled();
+    finish(component);
+    await flushPromises();
+  });
+
   it('enters and leaves inspect mode', () => {
     const { controller, services } = setup();
     controller.start();

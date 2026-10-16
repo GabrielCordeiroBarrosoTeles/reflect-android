@@ -11,6 +11,8 @@ describe('renderMirrorHtml', () => {
     expect(nonce).toBeTruthy();
     expect(html).toContain("default-src 'none'");
     expect(html).toContain('style-src vscode-resource:');
+    expect(html).toContain('font-src vscode-resource:');
+    expect(html).toContain('<nav class="toolbar" aria-label="Device controls"></nav>');
     expect(html).toContain(`<script type="module" nonce="${nonce}" src="webview:/dist/webview.js"></script>`);
     expect(html).toContain('<link rel="stylesheet" href="webview:/dist/webview.css">');
   });

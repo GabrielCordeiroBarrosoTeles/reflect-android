@@ -1,4 +1,4 @@
-import { AndroidKeyCode, AndroidKeyEventAction, AndroidMotionEventAction, ScrcpyPointerId } from '@yume-chan/scrcpy';
+import { AndroidKeyCode, AndroidKeyEventAction, AndroidMotionEventAction, AndroidScreenPowerMode, ScrcpyPointerId } from '@yume-chan/scrcpy';
 import { describe, expect, it } from 'vitest';
 import { ControlChannel } from '../../src/scrcpy/ControlChannel';
 import type { VideoSize } from '../../src/scrcpy/types';
@@ -84,6 +84,21 @@ describe('ControlChannel', () => {
     ]);
   });
 
+  it('opens recents, rotates and switches the screen power', async () => {
+    const { writer, channel } = setup();
+    await channel.recents();
+    await channel.rotate();
+    await channel.setScreenPower(false);
+    await channel.setScreenPower(true);
+    expect(writer.calls.map((call) => [call.method, call.args[0]])).toEqual([
+      ['injectKeyCode', expect.objectContaining({ keyCode: AndroidKeyCode.AndroidAppSwitch })],
+      ['injectKeyCode', expect.objectContaining({ keyCode: AndroidKeyCode.AndroidAppSwitch })],
+      ['rotateDevice', undefined],
+      ['setScreenPowerMode', AndroidScreenPowerMode.Off],
+      ['setScreenPowerMode', AndroidScreenPowerMode.Normal],
+    ]);
+  });
+
   it('sends the clipboard with paste enabled', async () => {
     const { writer, channel } = setup();
     await channel.paste('clip');
@@ -99,6 +114,9 @@ describe('ControlChannel', () => {
     await channel.text('x');
     await channel.back();
     await channel.home();
+    await channel.recents();
+    await channel.rotate();
+    await channel.setScreenPower(false);
     await channel.paste('x');
     expect(writer.calls).toEqual([]);
   });

@@ -7,6 +7,7 @@ import { FakeScrcpyClient } from './fakes/FakeScrcpyClient';
 import { flushPromises } from './fakes/PushStream';
 import { FakeDeviceObserver } from './fakes/FakeDeviceObserver';
 import { tangoDevice } from './fakes/devices';
+import { DEVICE_CONFIGURATION } from './fakes/h264';
 import { FakeWebviewView, commands, window, workspace } from './mocks/vscode';
 
 const io = vi.hoisted(() => ({
@@ -66,6 +67,7 @@ vi.mock('@yume-chan/adb', () => ({
     createAdb(): Promise<unknown> {
       return Promise.resolve({
         close: () => Promise.resolve(),
+        reverse: { addExternal: (device: string) => Promise.resolve(device) },
         subprocess: { noneProtocol: { spawnWaitText: () => Promise.resolve('@@props\nsamsung\nSM-F741B\n16\n36\narm64-v8a') } },
       });
     }
@@ -131,7 +133,9 @@ describe('extension', () => {
     for (const id of ['reflect.refreshDeviceInfo', 'reflect.inspect', 'reflect.stopInspecting', 'reflect.openComponentSource']) {
       expect(commands.registered.has(id)).toBe(true);
     }
-    expect(context.subscriptions).toHaveLength(23);
+    expect(commands.registered.has('reflect.action.screenshot')).toBe(true);
+    expect(commands.registered.has('reflect.moveToEditor')).toBe(true);
+    expect(context.subscriptions).toHaveLength(36);
   });
 
   it('mirrors in the secondary side bar by default', async () => {
@@ -270,6 +274,116 @@ describe('extension', () => {
     workspace.changeConfiguration('reflect.location');
     await flushPromises();
     expect(window.treeViews.some((view) => view.id === 'reflect.deviceInfo')).toBe(true);
+  });
+
+  it('saves a screenshot into the configured folder and offers to open or reveal it', async () => {
+    const folder = await createTempRoot();
+    workspace.configuration.set('reflect.capturesDirectory', folder);
+    await setup();
+    const view = resolveSidebar();
+    await openDevice();
+    window.showInformationMessage.mockImplementationOnce(() => Promise.resolve('Open'));
+    await commands.registered.get('reflect.action.screenshot')?.();
+    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ type: 'capture-screenshot', requestId: 1 }));
+    view.webview.received.fire({ type: 'screenshot', requestId: 1, data: new Uint8Array([137, 80]) });
+    await vi.waitFor(() => expect(commands.executeCommand).toHaveBeenCalledWith('vscode.open', expect.objectContaining({ fsPath: expect.stringContaining(folder) })));
+    expect(window.showInformationMessage.mock.calls[0]?.[0]).toMatch(/copied/);
+    window.showInformationMessage.mockImplementationOnce(() => Promise.resolve('Reveal'));
+    await commands.registered.get('reflect.action.screenshot')?.();
+    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ type: 'capture-screenshot', requestId: 2 }));
+    view.webview.received.fire({ type: 'screenshot', requestId: 2, data: new Uint8Array([1]) });
+    await vi.waitFor(() => expect(commands.executeCommand).toHaveBeenCalledWith('revealFileInOS', expect.anything()));
+  });
+
+  it('records into the workspace folder, reverses Metro and reloads with the key fallback', async () => {
+    const folder = await createTempRoot();
+    workspace.workspaceFolders = [{ uri: vscode.Uri.file(folder) }];
+    const { scrcpy } = await setup();
+    resolveSidebar();
+    await openDevice();
+    await commands.registered.get('reflect.action.record')?.();
+    await commands.registered.get('reflect.action.record')?.();
+    await vi.waitFor(() => expect(window.setStatusBarMessage).toHaveBeenCalledWith('$(info) Nothing was recorded', 2000));
+    await commands.registered.get('reflect.action.record')?.();
+    await flushPromises();
+    scrcpy.video.push({ type: 'configuration', data: DEVICE_CONFIGURATION });
+    scrcpy.video.push({ type: 'data', keyframe: true, pts: 0n, data: Uint8Array.from([0, 0, 0, 1, 0x65, 0x88, 0x84, 0x00]) });
+    scrcpy.video.push({ type: 'data', keyframe: false, pts: 33_333n, data: Uint8Array.from([0, 0, 0, 1, 0x41, 0x9a, 0x02]) });
+    await flushPromises();
+    await commands.registered.get('reflect.action.record')?.();
+    await vi.waitFor(() => expect(window.showInformationMessage).toHaveBeenCalledWith(expect.stringContaining('Recording saved'), 'Open', 'Reveal'));
+    await commands.registered.get('reflect.action.reverseMetro')?.();
+    await vi.waitFor(() => expect(window.setStatusBarMessage).toHaveBeenCalledWith('$(info) adb reverse tcp:8081 is active', 2000));
+    await commands.registered.get('reflect.action.reload')?.();
+    await vi.waitFor(() => expect(scrcpy.writer.methods().filter((method) => method === 'injectKeyCode').length).toBeGreaterThanOrEqual(4));
+  });
+
+  it('skips the clipboard when disabled', async () => {
+    const folder = await createTempRoot();
+    workspace.configuration.set('reflect.capturesDirectory', folder);
+    workspace.configuration.set('reflect.copyCapturesToClipboard', false);
+    await setup();
+    const view = resolveSidebar();
+    await openDevice();
+    io.execFile.mockClear();
+    await commands.registered.get('reflect.action.screenshot')?.();
+    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ type: 'capture-screenshot', requestId: 1 }));
+    view.webview.received.fire({ type: 'screenshot', requestId: 1, data: new Uint8Array([1]) });
+    await vi.waitFor(() => expect(window.showInformationMessage).toHaveBeenCalled());
+    expect(window.showInformationMessage.mock.calls[0]?.[0]).not.toMatch(/copied/);
+    expect(io.execFile).not.toHaveBeenCalled();
+  });
+
+  it('moves the mirror between the side bar and an editor tab', async () => {
+    await setup();
+    resolveSidebar();
+    await commands.registered.get('reflect.moveToSidebar')?.();
+    await flushPromises();
+    expect(commands.executeCommand).toHaveBeenCalledWith('reflect.openDevice');
+    await openDevice();
+    await commands.registered.get('reflect.moveToEditor')?.();
+    await flushPromises();
+    expect(window.panels).toHaveLength(1);
+    expect(window.statusBarItems[0]?.text).toBe('$(device-mobile) SM F741B');
+    await commands.registered.get('reflect.moveToSidebar')?.();
+    await flushPromises();
+    expect(commands.executeCommand).toHaveBeenCalledWith('reflect.deviceView.focus');
+    await commands.registered.get('reflect.moveToEditor')?.();
+    await flushPromises();
+    expect(window.panels).toHaveLength(2);
+  });
+
+  it('opens a device in an editor tab when moving with nothing mirrored', async () => {
+    await setup();
+    await commands.registered.get('reflect.moveToEditor')?.();
+    expect(commands.executeCommand).toHaveBeenCalledWith('reflect.openDeviceInEditor');
+  });
+
+  it('reconnects the mirror when the device comes back after a disconnect', async () => {
+    const observer = new FakeDeviceObserver([tangoDevice()]);
+    io.observer = observer.asObserver();
+    io.reachable = [];
+    io.trackFailure = undefined;
+    io.startFailure = undefined;
+    const scrcpy = new FakeScrcpyClient();
+    io.scrcpyClient = scrcpy.asClient();
+    activate((await createContext()) as unknown as vscode.ExtensionContext);
+    await flushPromises();
+    const view = resolveSidebar();
+    await openDevice();
+    io.scrcpyClient = new FakeScrcpyClient().asClient();
+    scrcpy.exit();
+    await vi.waitFor(() => expect(view.webview.posted).toContainEqual(expect.objectContaining({ detail: 'Reconnecting… plug the cable back in' })));
+    observer.emitList([tangoDevice()]);
+    await vi.waitFor(() =>
+      expect(view.webview.posted.filter((message) => (message as { state?: string }).state === 'streaming')).toHaveLength(2),
+    );
+  });
+
+  it('asks to open a device before running an action', async () => {
+    await setup();
+    await commands.registered.get('reflect.action.home')?.();
+    expect(window.setStatusBarMessage).toHaveBeenCalledWith('$(info) Open a device first', 2000);
   });
 
   it('logs when device tracking is unavailable', async () => {

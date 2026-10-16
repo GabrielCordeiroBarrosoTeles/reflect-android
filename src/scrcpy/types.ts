@@ -43,6 +43,9 @@ export interface IDeviceControl {
   text(text: string): Promise<void>;
   back(): Promise<void>;
   home(): Promise<void>;
+  recents(): Promise<void>;
+  rotate(): Promise<void>;
+  setScreenPower(on: boolean): Promise<void>;
   paste(text: string): Promise<void>;
 }
 

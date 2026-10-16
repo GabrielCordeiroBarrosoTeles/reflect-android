@@ -46,6 +46,10 @@ vi.mock('@yume-chan/scrcpy-decoder-webcodecs', () => {
       constructor(readonly options: never) {
         state.decoders.push(this as never);
       }
+      snapshotResult: Blob | undefined = new Blob([new Uint8Array([9, 8])]);
+      snapshot() {
+        return Promise.resolve(this.snapshotResult);
+      }
       dispose() {
         this.disposed += 1;
       }
@@ -168,6 +172,15 @@ describe('VideoRenderer', () => {
     await vi.waitFor(() => expect(listener.onDecoderFailure).toHaveBeenCalledTimes(2));
     vi.advanceTimersByTime(250);
     expect(state.decoders).toHaveLength(3);
+  });
+
+  it('captures the last decoded frame as PNG bytes', async () => {
+    const { renderer } = setup();
+    expect(await renderer.snapshot()).toBeUndefined();
+    renderer.configure({ codec: 7, width: 1, height: 1 });
+    expect(await renderer.snapshot()).toEqual(new Uint8Array([9, 8]));
+    (state.decoders[0] as unknown as { snapshotResult: Blob | undefined }).snapshotResult = undefined;
+    expect(await renderer.snapshot()).toBeUndefined();
   });
 
   it('ignores failures from a decoder that was already replaced', async () => {

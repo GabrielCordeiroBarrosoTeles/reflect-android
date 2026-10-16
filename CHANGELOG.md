@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-16
+
+### Added
+
+- Toolbar above the mirrored screen with Back, Home, Recent Apps, Rotate, physical screen on/off, screenshot, recording, Dev Menu, Reload and Reverse Metro Port.
+- Screenshots (PNG) and MP4 recordings without re-encoding, saved to `reflect.capturesDirectory` and copied to the clipboard (`reflect.copyCapturesToClipboard`), with Open and Reveal actions.
+- React Native shortcuts: Reload through Metro (falls back to pressing R twice), Dev Menu and `adb reverse` for the Metro port.
+- Keyboard shortcuts for Back, Home, Reload, Dev Menu, Screenshot and Rotate while the mirror has focus, and a `Reflect: …` command for every toolbar action.
+- Automatic reconnection when the device is unplugged and plugged back in, with a **Reconnect** button after two minutes without the device. Recordings in progress are saved before reconnecting.
+- Hover highlight while inspecting: the component under the cursor is outlined with its content, padding and margin, and labelled with the component from your code and its source line.
+- Device frame and 1:1 zoom toggles, remembered between sessions.
+- **Move to Editor Tab** and **Move to Side Bar** to switch where the mirror lives without restarting it.
+
+### Changed
+
+- The view title button now moves the open mirror to an editor tab instead of opening a second one.
+- The donation section shows a PIX QR code card.
+- More Marketplace keywords.
+
 ## [0.0.2] - 2026-10-16
 
 ### Changed
@@ -32,6 +51,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Automatic `adb` discovery with the `reflect.adbPath` setting.
 - Clear errors for missing `adb`, unauthorized or offline devices and mirroring failures.
 
-[Unreleased]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.0.2...HEAD
+[Unreleased]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.0.2...v0.1.0
 [0.0.2]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/releases/tag/v0.0.1

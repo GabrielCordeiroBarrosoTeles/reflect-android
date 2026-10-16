@@ -86,6 +86,17 @@ describe('PointerInput', () => {
     expect(messages.map((message) => message.type === 'touch' && message.input.action)).toEqual(['down', 'up']);
   });
 
+  it('sends coalesced hover positions inside the screen while inspecting', () => {
+    const { canvas, messages, inspectMode, runFrame } = setup();
+    canvas.dispatchEvent(pointer('pointermove', { x: 10, y: 20 }));
+    inspectMode.active = true;
+    canvas.dispatchEvent(pointer('pointermove', { x: 20, y: 20 }));
+    canvas.dispatchEvent(pointer('pointermove', { x: 30, y: 40 }));
+    canvas.dispatchEvent(pointer('pointermove', { x: 300, y: 40 }));
+    runFrame();
+    expect(messages).toEqual([{ type: 'inspect-hover', x: 0.3, y: 0.2 }]);
+  });
+
   it('sends inspect clicks instead of touches in inspect mode', () => {
     const { canvas, messages, inspectMode } = setup();
     inspectMode.active = true;

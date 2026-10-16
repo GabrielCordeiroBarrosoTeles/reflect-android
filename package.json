@@ -2,7 +2,7 @@
   "name": "reflect-android",
   "displayName": "Reflect for Android",
   "description": "Mirror and control a physical Android device inside a VS Code tab. Built for React Native developers, powered by scrcpy. No emulator required.",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "publisher": "GabrielCordeiro",
   "license": "MIT",
   "icon": "assets/icon.png",
@@ -43,10 +43,24 @@
     "screen mirror",
     "physical device",
     "real device",
+    "android emulator",
+    "emulator alternative",
     "device",
     "mobile",
     "usb",
-    "emulator alternative"
+    "wifi debugging",
+    "inspector",
+    "react devtools",
+    "component inspector",
+    "screenshot",
+    "screen recording",
+    "device info",
+    "debugging",
+    "mobile development",
+    "android debugging",
+    "remote control",
+    "hot reload",
+    "metro"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [],
@@ -91,6 +105,78 @@
         "command": "reflect.openComponentSource",
         "title": "Open Component Source",
         "category": "Reflect"
+      },
+      {
+        "command": "reflect.action.back",
+        "title": "Back",
+        "category": "Reflect",
+        "icon": "$(arrow-left)"
+      },
+      {
+        "command": "reflect.action.home",
+        "title": "Home",
+        "category": "Reflect",
+        "icon": "$(circle-large-outline)"
+      },
+      {
+        "command": "reflect.action.recents",
+        "title": "Recent Apps",
+        "category": "Reflect",
+        "icon": "$(multiple-windows)"
+      },
+      {
+        "command": "reflect.action.rotate",
+        "title": "Rotate",
+        "category": "Reflect",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "reflect.action.screenPower",
+        "title": "Turn Device Screen On/Off",
+        "category": "Reflect",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "reflect.action.screenshot",
+        "title": "Take Screenshot",
+        "category": "Reflect",
+        "icon": "$(device-camera)"
+      },
+      {
+        "command": "reflect.action.record",
+        "title": "Start/Stop Recording",
+        "category": "Reflect",
+        "icon": "$(record)"
+      },
+      {
+        "command": "reflect.action.devMenu",
+        "title": "Open React Native Dev Menu",
+        "category": "Reflect",
+        "icon": "$(menu)"
+      },
+      {
+        "command": "reflect.action.reload",
+        "title": "Reload React Native App",
+        "category": "Reflect",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "reflect.action.reverseMetro",
+        "title": "Reverse Metro Port (adb reverse)",
+        "category": "Reflect",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "reflect.moveToEditor",
+        "title": "Move to Editor Tab",
+        "category": "Reflect",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "reflect.moveToSidebar",
+        "title": "Move to Side Bar",
+        "category": "Reflect",
+        "icon": "$(layout-sidebar-right)"
       }
     ],
     "configuration": {
@@ -130,6 +216,16 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "Hide the last part of the device IP address in **Device Info** (useful for screenshots and recordings)."
+        },
+        "reflect.capturesDirectory": {
+          "type": "string",
+          "default": "reflect-captures",
+          "markdownDescription": "Folder for screenshots and recordings. Relative paths are resolved against the first workspace folder; without a workspace they go to `~/Pictures/Reflect`."
+        },
+        "reflect.copyCapturesToClipboard": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Copy screenshots (as images) and recordings (as files) to the system clipboard so you can paste them anywhere."
         }
       }
     },
@@ -177,7 +273,7 @@
           "group": "navigation@1"
         },
         {
-          "command": "reflect.openDeviceInEditor",
+          "command": "reflect.moveToEditor",
           "when": "view == reflect.deviceView",
           "group": "navigation@2"
         },
@@ -200,8 +296,53 @@
           "command": "reflect.stopInspecting",
           "when": "reflect.inspecting"
         }
+      ],
+      "editor/title": [
+        {
+          "command": "reflect.moveToSidebar",
+          "when": "activeWebviewPanelId == 'reflect.mirror'",
+          "group": "navigation"
+        }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "reflect.action.back",
+        "key": "ctrl+backspace",
+        "mac": "cmd+backspace",
+        "when": "activeWebviewPanelId == 'reflect.mirror' || focusedView == 'reflect.deviceView'"
+      },
+      {
+        "command": "reflect.action.home",
+        "key": "ctrl+shift+h",
+        "mac": "cmd+shift+h",
+        "when": "activeWebviewPanelId == 'reflect.mirror' || focusedView == 'reflect.deviceView'"
+      },
+      {
+        "command": "reflect.action.reload",
+        "key": "ctrl+r",
+        "mac": "cmd+r",
+        "when": "activeWebviewPanelId == 'reflect.mirror' || focusedView == 'reflect.deviceView'"
+      },
+      {
+        "command": "reflect.action.devMenu",
+        "key": "ctrl+m",
+        "mac": "cmd+m",
+        "when": "activeWebviewPanelId == 'reflect.mirror' || focusedView == 'reflect.deviceView'"
+      },
+      {
+        "command": "reflect.action.screenshot",
+        "key": "ctrl+shift+s",
+        "mac": "cmd+shift+s",
+        "when": "activeWebviewPanelId == 'reflect.mirror' || focusedView == 'reflect.deviceView'"
+      },
+      {
+        "command": "reflect.action.rotate",
+        "key": "ctrl+right",
+        "mac": "cmd+right",
+        "when": "activeWebviewPanelId == 'reflect.mirror' || focusedView == 'reflect.deviceView'"
+      }
+    ]
   },
   "scripts": {
     "build": "npm run typecheck && node esbuild.mjs",

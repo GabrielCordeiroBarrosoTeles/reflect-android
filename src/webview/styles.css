@@ -4,19 +4,79 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: var(--vscode-editor-background);
   color: var(--vscode-foreground);
   font-family: var(--vscode-font-family);
   font-size: var(--vscode-font-size);
 }
 
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 10px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-widget-border, transparent);
+}
+
+.toolbar__group {
+  display: flex;
+  gap: 2px;
+}
+
+.toolbar__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  color: var(--vscode-icon-foreground, var(--vscode-foreground));
+  background: transparent;
+  cursor: pointer;
+}
+
+.toolbar__button:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.toolbar__button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+.toolbar__button--active {
+  color: var(--vscode-errorForeground);
+  background: var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground));
+}
+
+.toolbar__button--toggled {
+  color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
+  background: var(--vscode-inputOption-activeBackground, var(--vscode-toolbar-hoverBackground));
+}
+
+.toolbar__timer {
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+  color: var(--vscode-errorForeground);
+}
+
+.toolbar__timer[hidden] {
+  display: none;
+}
+
 .stage {
   position: relative;
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 100%;
   box-sizing: border-box;
   padding: 12px;
 }
@@ -37,9 +97,34 @@ body {
   outline: none;
 }
 
+.stage--framed {
+  padding: 28px;
+}
+
+.stage--framed .screen {
+  border-radius: 28px;
+  box-shadow:
+    0 0 0 10px var(--reflect-frame-bezel),
+    0 0 0 11px var(--reflect-frame-edge),
+    0 14px 36px rgb(0 0 0 / 45%);
+}
+
+.stage--actual {
+  overflow: auto;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.stage--actual .screen {
+  flex-shrink: 0;
+  margin: auto;
+  max-width: none;
+  max-height: none;
+}
+
 .screen--inspecting {
   cursor: crosshair;
-  box-shadow: 0 0 0 2px var(--vscode-focusBorder);
+  box-shadow: 0 0 0 2px var(--reflect-highlight-border);
 }
 
 .inspect-banner {
@@ -61,8 +146,86 @@ body {
   display: none;
 }
 
+:root {
+  --reflect-frame-bezel: #111111;
+  --reflect-frame-edge: #3a3a3a;
+  --reflect-highlight-content: rgb(111 168 220 / 66%);
+  --reflect-highlight-padding: rgb(147 196 125 / 55%);
+  --reflect-highlight-margin: rgb(246 178 107 / 66%);
+  --reflect-highlight-border: rgb(61 139 253 / 90%);
+  --reflect-highlight-label: #1f1f1f;
+  --reflect-highlight-label-text: #f0f0f0;
+}
+
+.inspect-highlight {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.inspect-highlight__margin,
+.inspect-highlight__padding {
+  position: absolute;
+  box-sizing: border-box;
+  border-style: solid;
+  border-width: 0;
+}
+
+.inspect-highlight__margin {
+  inset: 0;
+  border-color: var(--reflect-highlight-margin);
+}
+
+.inspect-highlight__padding {
+  inset: 0;
+  border-color: var(--reflect-highlight-padding);
+  background: var(--reflect-highlight-content);
+  background-clip: padding-box;
+}
+
+.inspect-highlight[hidden] {
+  display: none;
+}
+
+.inspect-highlight__label {
+  position: absolute;
+  bottom: 100%;
+  left: -1px;
+  margin-bottom: 2px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--reflect-highlight-label-text);
+  background: var(--reflect-highlight-label);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+}
+
+.inspect-highlight--label-below .inspect-highlight__label {
+  top: 100%;
+  bottom: auto;
+  margin-top: 2px;
+  margin-bottom: 0;
+}
+
+.stage--framed .screen--inspecting {
+  box-shadow:
+    0 0 0 10px var(--reflect-frame-bezel),
+    0 0 0 12px var(--reflect-highlight-border),
+    0 14px 36px rgb(0 0 0 / 45%);
+}
+
 .screen:focus-visible {
   box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+.stage--framed .screen:focus-visible {
+  box-shadow:
+    0 0 0 10px var(--reflect-frame-bezel),
+    0 0 0 11px var(--vscode-focusBorder, var(--reflect-frame-edge)),
+    0 14px 36px rgb(0 0 0 / 45%);
 }
 
 .screen[hidden] {

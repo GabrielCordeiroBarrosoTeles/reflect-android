@@ -12,8 +12,21 @@ import { createAdbLocator } from './adb/locator/createAdbLocator';
 import { CommandIds } from './commands/commandIds';
 import { CopyValueCommand } from './commands/CopyValueCommand';
 import { InspectCommand, OpenComponentSourceCommand, StopInspectingCommand } from './commands/InspectCommands';
+import { MoveMirrorCommand } from './commands/MoveMirrorCommand';
 import { OpenDeviceCommand } from './commands/OpenDeviceCommand';
 import { RefreshDeviceInfoCommand } from './commands/RefreshDeviceInfoCommand';
+import { RunActionCommand } from './commands/RunActionCommand';
+import { CaptureStore } from './capture/CaptureStore';
+import { resolveCapturesDirectory } from './capture/resolveCapturesDirectory';
+import type { CaptureKind } from './capture/types';
+import type { ClipboardResult } from './capture/SystemClipboard';
+import { SystemClipboard } from './capture/SystemClipboard';
+import { AdbPortReverse } from './device/AdbPortReverse';
+import { AppReloader } from './inspector/AppReloader';
+import { MediabunnyMuxer } from './recording/MediabunnyMuxer';
+import { Mp4Recorder } from './recording/Mp4Recorder';
+import { parseH264 } from './recording/parseH264';
+import { ACTION_IDS } from './shared/actions';
 import type { ICommand } from './commands/types';
 import type { ILogger } from './core/types';
 import { ActiveDeviceContext } from './device/ActiveDeviceContext';
@@ -51,6 +64,8 @@ const COPY_FEEDBACK_MS = 2_000;
 const METRO_TIMEOUT_MS = 3_000;
 const INSPECTOR_TIMING = { pollIntervalMs: 30, pollAttempts: 50, timeoutMs: 5_000 };
 const DEFAULT_METRO_PORT = 8081;
+const CLIPBOARD_TIMEOUT_MS = 10_000;
+const RECONNECT_TIMING = { baseDelayMs: 500, maxDelayMs: 8_000, giveUpAfterMs: 120_000 };
 
 const MIRROR_OPTIONS: MirrorOptions = {
   maxSize: 1920,
@@ -67,6 +82,29 @@ const readMetroPort = (): number => reflectSetting<number>('metroPort') ?? DEFAU
 
 const readLocationSetting = (): MirrorLocation =>
   vscode.workspace.getConfiguration('reflect').get<MirrorLocation>('location') === 'editor' ? 'editor' : 'secondarySidebar';
+
+const CAPTURE_LABELS: Readonly<Record<CaptureKind, string>> = { screenshot: 'Screenshot', recording: 'Recording' };
+
+const CLIPBOARD_HINTS: Readonly<Record<ClipboardResult | 'off', string>> = {
+  copied: ' — copied, paste it anywhere',
+  'path-copied': ' — path copied',
+  off: '',
+};
+
+const announceCapture = async (kind: CaptureKind, path: string, clipboard: ClipboardResult | 'off'): Promise<void> => {
+  const uri = vscode.Uri.file(path);
+  const choice = await vscode.window.showInformationMessage(
+    `${CAPTURE_LABELS[kind]} saved: ${vscode.workspace.asRelativePath(uri)}${CLIPBOARD_HINTS[clipboard]}`,
+    'Open',
+    'Reveal',
+  );
+  if (choice === 'Open') {
+    await vscode.commands.executeCommand('vscode.open', uri);
+  }
+  if (choice === 'Reveal') {
+    await vscode.commands.executeCommand('revealFileInOS', uri);
+  }
+};
 
 const createLogger = (channel: vscode.LogOutputChannel): ILogger => ({
   info: (message) => channel.info(message),
@@ -104,13 +142,21 @@ export function activate(context: vscode.ExtensionContext): void {
   };
   const notify = (message: string): void => void vscode.window.setStatusBarMessage(`$(info) ${message}`, COPY_FEEDBACK_MS);
   const metro = new MetroClient(new FetchHttpClient(fetch, METRO_TIMEOUT_MS), readMetroPort);
+  const connectCdp = (url: string) =>
+    CdpSession.connect(url, metro.origins, (target, origin) => new WsSocket(target, origin), INSPECTOR_TIMING.timeoutMs);
+  const appReloader = new AppReloader(metro, connectCdp);
+  const portReverse = new AdbPortReverse(pool);
+  const systemClipboard = new SystemClipboard(process.platform, new ExecFileProcessRunner(promisify(execFile), CLIPBOARD_TIMEOUT_MS), clipboard.writeText);
+  const handleCapture = async (kind: CaptureKind, path: string): Promise<void> => {
+    const result = reflectSetting<boolean>('copyCapturesToClipboard') === false ? 'off' : await systemClipboard.copy(kind, path);
+    await announceCapture(kind, path, result);
+  };
+  const captures = new CaptureStore(() =>
+    resolveCapturesDirectory(reflectSetting<string>('capturesDirectory'), vscode.workspace.workspaceFolders?.[0]?.uri.fsPath),
+  );
   const componentView = new ComponentView();
   const inspectController = new InspectController({
-    inspector: new ComponentInspector(
-      metro,
-      (url) => CdpSession.connect(url, metro.origins, (target, origin) => new WsSocket(target, origin), INSPECTOR_TIMING.timeoutMs),
-      INSPECTOR_TIMING,
-    ),
+    inspector: new ComponentInspector(metro, connectCdp, INSPECTOR_TIMING),
     mirrors: { setInspectMode: (active) => mirrors.setInspectMode(active) },
     view: componentView,
     openSource,
@@ -124,6 +170,23 @@ export function activate(context: vscode.ExtensionContext): void {
     clipboard,
     onError: (error) => void errors.present(error),
     inspector: inspectController,
+    actions: {
+      reloadApp: (device) => appReloader.reload(device),
+      reverseMetro: async (device) => {
+        const port = readMetroPort();
+        await portReverse.reverse(device.serial, port);
+        return port;
+      },
+      notify,
+    },
+    captures,
+    createRecorder: (path, onFormatChange) => new Mp4Recorder(path, (file) => new MediabunnyMuxer(file), parseH264, onFormatChange),
+    onCaptured: (kind, path) => void handleCapture(kind, path),
+    availability: {
+      onDidChange: activeDevice.onDidChange,
+      isReady: (serial) => activeDevice.devices.some((device) => device.serial === serial && device.state === 'device'),
+    },
+    reconnectTiming: RECONNECT_TIMING,
   };
   const sidebar = new MirrorViewProvider(context.extensionUri);
   const createSurface = (device: DeviceInfo, location: MirrorLocation): IMirrorSurface =>
@@ -155,6 +218,7 @@ export function activate(context: vscode.ExtensionContext): void {
     new SidebarResume(mirrors, sidebar.onDidChangeVisibility),
     vscode.window.registerWebviewViewProvider(MIRROR_VIEW_ID, sidebar),
     mirrors.onDidClose(() => activeDevice.setMirroredDevice(undefined)),
+    mirrors.onDidOpen((device) => activeDevice.setMirroredDevice(device)),
     mirrors.onDidClose(() => inspectController.cancel()),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('reflect.privacy')) {
@@ -169,10 +233,17 @@ export function activate(context: vscode.ExtensionContext): void {
   registerCommands(context, [
     new OpenDeviceCommand(CommandIds.openDevice, readLocationSetting, selection, mirrors, activeDevice, errors),
     new OpenDeviceCommand(CommandIds.openDeviceInEditor, () => 'editor', selection, mirrors, activeDevice, errors),
+    new MoveMirrorCommand(CommandIds.moveToEditor, 'editor', mirrors, () =>
+      Promise.resolve(vscode.commands.executeCommand(CommandIds.openDeviceInEditor)),
+    ),
+    new MoveMirrorCommand(CommandIds.moveToSidebar, 'secondarySidebar', mirrors, () =>
+      Promise.resolve(vscode.commands.executeCommand(CommandIds.openDevice)),
+    ),
     new RefreshDeviceInfoCommand(deviceInfoView),
     new InspectCommand(inspectController, () => mirrors.hasOpenMirror, () => Promise.resolve(vscode.commands.executeCommand(CommandIds.openDevice))),
     new StopInspectingCommand(inspectController),
     new OpenComponentSourceCommand(openSource),
+    ...ACTION_IDS.map((id) => new RunActionCommand(id, mirrors, notify)),
     new CopyValueCommand(clipboard, (message) => void vscode.window.setStatusBarMessage(`$(check) ${message}`, COPY_FEEDBACK_MS)),
   ]);
 

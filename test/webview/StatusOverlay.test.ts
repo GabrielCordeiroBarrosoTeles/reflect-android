@@ -53,6 +53,21 @@ describe('StatusOverlay', () => {
     expect(action.hidden).toBe(true);
   });
 
+  it('offers a reconnect action after giving up', () => {
+    const onAction = vi.fn();
+    const overlay = new StatusOverlay(root, onAction);
+    const action = root.querySelector<HTMLButtonElement>('.status__action')!;
+    overlay.show('disconnected', 'Pixel 8', 'Device not found', true);
+    expect(action.hidden).toBe(false);
+    expect(action.textContent).toBe('Reconnect');
+    action.click();
+    expect(onAction).toHaveBeenCalledWith('reconnect');
+    overlay.showIdle();
+    expect(action.textContent).toBe('Open Device');
+    action.click();
+    expect(onAction).toHaveBeenLastCalledWith('open-device');
+  });
+
   it('requires its child elements', () => {
     expect(() => new StatusOverlay(document.createElement('div'), () => undefined)).toThrow('Missing element .status__title');
   });

@@ -48,12 +48,18 @@ src/
   extension.ts   Composition root: the only place that wires concrete classes together.
   core/          Disposable, Emitter, domain errors. No VS Code dependency.
   adb/           adb discovery (Chain of Responsibility), adb server gateway, device tracking and selection.
+  device/        Device leases, shell access, active device context and `adb reverse`.
+  deviceInfo/    Device Info view: collectors and tree provider.
   scrcpy/        Mirror session (Facade), state machine, control channel, scrcpy launcher.
-  mirror/        Webview panel, typed bridge (Mediator), controller and manager.
+  mirror/        Webview surfaces, typed bridge (Mediator), controller, manager, auto reconnection (Strategy) and screenshot requests.
+  actions/       Toolbar actions as a registry of Commands shared by the webview, commands and shortcuts.
+  capture/       Capture storage and the per-platform system clipboard (Strategy).
+  recording/     MP4 recording of the H.264 stream through Mediabunny, without re-encoding.
+  inspector/     Metro and Chrome DevTools Protocol clients, React DevTools backend, hit testing and hover highlights.
   ui/            VS Code presenters: status bar, errors, device picker.
   commands/      VS Code commands.
-  shared/        Message protocol shared by the extension host and the webview.
-  webview/       Code that runs inside the webview: WebCodecs decoding and input capture.
+  shared/        Message protocol and action ids shared by the extension host and the webview.
+  webview/       Code that runs inside the webview: WebCodecs decoding, input capture, toolbar, inspector highlight and view options.
 test/            Mirrors src/ one-to-one, plus mocks/ and fakes/.
 ```
 
@@ -63,7 +69,7 @@ Design rules used across the codebase:
 - Only `extension.ts` instantiates concrete classes.
 - Everything that holds a resource implements `IDisposable` and is released when its owner is disposed.
 - No comments in the code: prefer clear names and small functions. Explain decisions in the pull request.
-- Use the VS Code theme tokens (`--vscode-*`) in the webview CSS.
+- Use the VS Code theme tokens (`--vscode-*`) in the webview CSS for chrome around the device. Overlays drawn on top of the video (inspector highlight, device frame) use the fixed `--reflect-*` variables so they stay visible with any theme.
 
 ## Running the tests
 

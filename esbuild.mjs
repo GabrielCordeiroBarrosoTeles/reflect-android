@@ -28,6 +28,8 @@ const webviewConfig = {
   platform: 'browser',
   format: 'esm',
   target: 'chrome120',
+  loader: { '.ttf': 'file' },
+  assetNames: '[name]',
 };
 
 const configs = [extensionConfig, webviewConfig];

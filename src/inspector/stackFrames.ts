@@ -15,7 +15,11 @@ export const parseStackFrames = (stacks: readonly string[]): StackFrame[] =>
 
 const isUserCode = (file: string): boolean => file.startsWith('/') && !file.includes('/node_modules/');
 
+export const findUserFrame = (frames: readonly StackFrame[]): StackFrame | undefined => frames.find((candidate) => isUserCode(candidate.file));
+
+export const toSourceLocation = (frame: StackFrame): SourceLocation => ({ file: frame.file, line: frame.lineNumber, column: frame.column });
+
 export const findUserSource = (frames: readonly StackFrame[]): SourceLocation | undefined => {
-  const frame = frames.find((candidate) => isUserCode(candidate.file));
-  return frame ? { file: frame.file, line: frame.lineNumber, column: frame.column } : undefined;
+  const frame = findUserFrame(frames);
+  return frame && toSourceLocation(frame);
 };

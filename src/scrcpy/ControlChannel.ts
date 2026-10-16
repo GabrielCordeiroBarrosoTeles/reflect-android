@@ -5,6 +5,7 @@ import {
   AndroidKeyEventMeta,
   AndroidMotionEventAction,
   AndroidMotionEventButton,
+  AndroidScreenPowerMode,
   ScrcpyPointerId,
 } from '@yume-chan/scrcpy';
 import type { KeyInput, PointerKind, ScrollInput, TouchAction, TouchInput } from '../shared/protocol';
@@ -109,6 +110,18 @@ export class ControlChannel implements IDeviceControl {
 
   async home(): Promise<void> {
     await this.press(AndroidKeyCode.AndroidHome);
+  }
+
+  async recents(): Promise<void> {
+    await this.press(AndroidKeyCode.AndroidAppSwitch);
+  }
+
+  async rotate(): Promise<void> {
+    await this.getWriter()?.rotateDevice();
+  }
+
+  async setScreenPower(on: boolean): Promise<void> {
+    await this.getWriter()?.setScreenPowerMode(on ? AndroidScreenPowerMode.Normal : AndroidScreenPowerMode.Off);
   }
 
   async paste(text: string): Promise<void> {

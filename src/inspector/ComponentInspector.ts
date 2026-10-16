@@ -1,12 +1,13 @@
 import type { DeviceInfo } from '../adb/types';
 import { deviceLabel } from '../adb/toDeviceInfo';
 import { MetroUnavailableError, ReactNativeAppNotFoundError } from '../core/errors';
-import { buildHitTestScript, parseHitResult, READ_HIT_RESULT_SCRIPT } from './hitTestScript';
-import type { HitTestOutcome } from './hitTestScript';
+import type { InspectHighlight } from '../shared/protocol';
+import { buildHitTestScript, buildHoverScript, parseHitResult, parseHoverResult, READ_HIT_RESULT_SCRIPT, READ_HOVER_RESULT_SCRIPT } from './hitTestScript';
 import { ReactDevToolsBackend } from './ReactDevToolsBackend';
 import { selectTarget } from './selectTarget';
 import { findUserSource, parseStackFrames } from './stackFrames';
 import { toInspectedComponent } from './toInspectedComponent';
+import { UserOwnerResolver } from './UserOwnerResolver';
 import type { CdpConnector, ICdpSession, IComponentInspector, IMetroClient, InspectedComponent, InspectPoint, SourceLocation } from './types';
 
 interface Connection {
@@ -21,21 +22,28 @@ export interface InspectorTiming {
   readonly timeoutMs: number;
 }
 
+const OWNER_CACHE_SIZE = 2_000;
+
+const describeLocation = ({ file, line }: SourceLocation): string => `${file.split('/').pop()}:${line}`;
+
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class ComponentInspector implements IComponentInspector {
   private connection: Promise<Connection> | undefined;
+  private readonly owners: UserOwnerResolver;
 
   constructor(
     private readonly metro: IMetroClient,
     private readonly connect: CdpConnector,
     private readonly timing: InspectorTiming,
-  ) {}
+  ) {
+    this.owners = new UserOwnerResolver(metro, OWNER_CACHE_SIZE);
+  }
 
   async inspectAt(device: DeviceInfo, point: InspectPoint): Promise<InspectedComponent | undefined> {
     const { backend } = await this.connectionFor(device);
     await backend.evaluate(buildHitTestScript(point));
-    const hit = await this.readHit(backend);
+    const hit = await this.poll(backend, READ_HIT_RESULT_SCRIPT, parseHitResult);
     if (hit.status !== 'hit') {
       return undefined;
     }
@@ -43,9 +51,22 @@ export class ComponentInspector implements IComponentInspector {
     return toInspectedComponent(payload, await this.resolveSource(hit.stacks));
   }
 
+  async highlightAt(device: DeviceInfo, point: InspectPoint): Promise<InspectHighlight | undefined> {
+    const { backend } = await this.connectionFor(device);
+    await backend.evaluate(buildHoverScript(point));
+    const hover = await this.poll(backend, READ_HOVER_RESULT_SCRIPT, parseHoverResult);
+    if (hover.status !== 'hit') {
+      return undefined;
+    }
+    const owner = await this.owners.resolve(hover.owners);
+    const location = owner && describeLocation(owner.source);
+    return { name: hover.name, owner: owner?.name === hover.name ? undefined : owner?.name, location, ...hover.rect };
+  }
+
   disconnect(): void {
     const connection = this.connection;
     this.connection = undefined;
+    this.owners.clear();
     void connection?.then(
       ({ session, backend }) => {
         backend.dispose();
@@ -102,9 +123,9 @@ export class ComponentInspector implements IComponentInspector {
     return { serial: device.serial, session, backend };
   }
 
-  private async readHit(backend: ReactDevToolsBackend): Promise<HitTestOutcome> {
+  private async poll<T extends { readonly status: string }>(backend: ReactDevToolsBackend, script: string, parse: (raw: unknown) => T): Promise<T | { status: 'miss' }> {
     for (let attempt = 0; attempt < this.timing.pollAttempts; attempt += 1) {
-      const outcome = parseHitResult(await backend.evaluate(READ_HIT_RESULT_SCRIPT));
+      const outcome = parse(await backend.evaluate(script));
       if (outcome.status !== 'pending') {
         return outcome;
       }

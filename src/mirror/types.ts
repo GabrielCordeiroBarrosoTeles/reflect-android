@@ -1,6 +1,11 @@
 import type { DeviceInfo } from '../adb/types';
 import type { Event, IDisposable, ILogger } from '../core/types';
-import type { HostToWebviewMessage, WebviewToHostMessage } from '../shared/protocol';
+import type { ActionServices } from '../actions/types';
+import type { CaptureKind, ICaptureStore } from '../capture/types';
+import type { IRecorder } from '../recording/types';
+import type { ActionId } from '../shared/actions';
+import type { HostToWebviewMessage, InspectHighlight, WebviewToHostMessage } from '../shared/protocol';
+import type { DeviceAvailability, ReconnectTiming } from './AutoReconnect';
 
 export type MirrorErrorHandler = (error: unknown) => void;
 
@@ -21,6 +26,7 @@ export interface IClipboard {
 
 export interface IInspectHandler {
   inspectAt(device: DeviceInfo, point: { readonly x: number; readonly y: number }): void;
+  hoverAt(device: DeviceInfo, point: { readonly x: number; readonly y: number }, onHighlight: (highlight: InspectHighlight | undefined) => void): void;
   cancel(): void;
 }
 
@@ -29,6 +35,12 @@ export interface MirrorServices {
   readonly clipboard: IClipboard;
   readonly onError: MirrorErrorHandler;
   readonly inspector: IInspectHandler;
+  readonly actions: ActionServices;
+  readonly captures: ICaptureStore;
+  readonly createRecorder: (path: string, onFormatChange: () => void) => IRecorder;
+  readonly onCaptured: (kind: CaptureKind, path: string) => void;
+  readonly availability: DeviceAvailability;
+  readonly reconnectTiming: ReconnectTiming;
 }
 
 export interface IWebviewChannel {
@@ -50,6 +62,7 @@ export interface IMirrorController extends IDisposable {
   reveal(): void;
   start(): void;
   setInspectMode(active: boolean): void;
+  runAction(id: ActionId): Promise<void>;
 }
 
 export type MirrorControllerFactory = (device: DeviceInfo, location: MirrorLocation) => IMirrorController;

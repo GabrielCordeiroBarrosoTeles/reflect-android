@@ -252,6 +252,7 @@ export const window = {
     window.treeViews.push(view);
     return view;
   }),
+  showInformationMessage: vi.fn<(message: string, ...items: string[]) => Promise<string | undefined>>(() => Promise.resolve(undefined)),
   showTextDocument: vi.fn((_uri: Uri, _options?: unknown) => Promise.resolve(undefined)),
   setStatusBarMessage: vi.fn((_text: string, _timeout: number) => ({ dispose: () => undefined })),
   registerWebviewViewProvider: vi.fn((id: string, provider: { resolveWebviewView(view: unknown): void }) => {
@@ -276,10 +277,11 @@ const configurationEmitter = new EventEmitter<{ affectsConfiguration(section: st
 
 export const workspace = {
   configuration,
+  workspaceFolders: undefined as { uri: Uri }[] | undefined,
   changeConfiguration: (section: string): void =>
     configurationEmitter.fire({ affectsConfiguration: (candidate: string) => candidate === section || section.startsWith(`${candidate}.`) }),
   onDidChangeConfiguration: configurationEmitter.event,
-  asRelativePath: vi.fn((path: string) => path.replace(/^\/workspace\//, '')),
+  asRelativePath: vi.fn((target: string | Uri) => (typeof target === 'string' ? target : target.fsPath).replace(/^\/workspace\//, '')),
   getConfiguration: vi.fn((section: string) => ({
     get: <T>(key: string): T | undefined => configuration.get(`${section}.${key}`) as T | undefined,
   })),
@@ -309,5 +311,7 @@ export const resetVscodeMock = (): void => {
   clipboardText = '';
   window.showErrorMessage.mockImplementation(() => Promise.resolve(undefined));
   window.showQuickPick.mockImplementation(() => Promise.resolve(undefined));
+  window.showInformationMessage.mockImplementation(() => Promise.resolve(undefined));
+  workspace.workspaceFolders = undefined;
   commands.executeCommand.mockImplementation(() => Promise.resolve(undefined));
 };

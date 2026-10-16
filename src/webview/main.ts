@@ -1,3 +1,4 @@
+import '@vscode/codicons/dist/codicon.css';
 import './styles.css';
 import type { HostToWebviewMessage, LogLevel } from '../shared/protocol';
 import { preferredAcceleration, probeDecoderSupport } from './decoderSupport';
@@ -7,10 +8,13 @@ import { KeyboardInput } from './input/KeyboardInput';
 import { PointerInput } from './input/PointerInput';
 import { WheelInput } from './input/WheelInput';
 import { WheelPinch } from './input/WheelPinch';
+import { InspectHighlightView } from './InspectHighlightView';
 import { InspectModeView } from './InspectModeView';
 import { StatusOverlay } from './StatusOverlay';
+import { Toolbar } from './Toolbar';
 import './types';
 import { VideoRenderer } from './VideoRenderer';
+import { ViewOptions } from './ViewOptions';
 
 const FRAME_REPORT_DELAY_MS = 3000;
 
@@ -30,7 +34,7 @@ const queryElement = <T extends Element>(selector: string): T => {
 
 const bootstrap = async (): Promise<void> => {
   const canvas = queryElement<HTMLCanvasElement>('.screen');
-  const overlay = new StatusOverlay(queryElement<HTMLElement>('.status'), () => vscode.postMessage({ type: 'open-device' }));
+  const overlay = new StatusOverlay(queryElement<HTMLElement>('.status'), (action) => vscode.postMessage({ type: action }));
 
   if (!VideoRenderer.isSupported) {
     log('error', 'WebCodecs VideoDecoder is not available in this webview');
@@ -56,17 +60,37 @@ const bootstrap = async (): Promise<void> => {
     frameReport = setTimeout(() => log('info', `Frames rendered after ${FRAME_REPORT_DELAY_MS} ms: ${renderer.framesRendered}`), FRAME_REPORT_DELAY_MS);
   };
 
+  const toolbarRoot = queryElement<HTMLElement>('.toolbar');
+  const toolbar = new Toolbar(toolbarRoot, (id) => vscode.postMessage({ type: 'action', id }));
+  const viewOptions = new ViewOptions(toolbarRoot, queryElement<HTMLElement>('.stage'), canvas, vscode);
   const inspectMode = new InspectModeView(queryElement<HTMLElement>('.inspect-banner'), canvas);
+  const highlight = new InspectHighlightView(
+    queryElement<HTMLElement>('.inspect-highlight'),
+    queryElement<HTMLElement>('.inspect-highlight__label'),
+    canvas,
+    inspectMode,
+  );
 
   const handlers: { [K in HostToWebviewMessage['type']]: (message: Extract<HostToWebviewMessage, { type: K }>) => void } = {
-    'inspect-mode': ({ active }) => inspectMode.set(active),
+    'inspect-mode': ({ active }) => {
+      inspectMode.set(active);
+      highlight.hide();
+    },
+    'inspect-highlight': (message) => highlight.show(message.highlight),
+    'toolbar-state': ({ state }) => toolbar.update(state),
+    'capture-screenshot': ({ requestId }) => {
+      void renderer
+        .snapshot()
+        .catch(() => undefined)
+        .then((data) => vscode.postMessage({ type: 'screenshot', requestId, data }));
+    },
     idle: () => {
       overlay.showIdle();
       canvas.hidden = true;
       renderer.dispose();
     },
-    'session-state': ({ state, deviceName, detail }) => {
-      overlay.show(state, deviceName, detail);
+    'session-state': ({ state, deviceName, detail, canReconnect }) => {
+      overlay.show(state, deviceName, detail, canReconnect);
       canvas.hidden = state !== 'streaming';
       if (state === 'streaming') {
         scheduleFrameReport();
@@ -97,6 +121,9 @@ const bootstrap = async (): Promise<void> => {
 
   window.addEventListener('unload', () => {
     inputs.forEach((input) => input.dispose());
+    toolbar.dispose();
+    highlight.dispose();
+    viewOptions.dispose();
     scheduler.dispose();
     renderer.dispose();
   });

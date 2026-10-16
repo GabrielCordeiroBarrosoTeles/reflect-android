@@ -15,6 +15,8 @@ export class FakeControlWriter {
   backOrScreenOn = (action: number) => this.record('backOrScreenOn', action);
   setClipboard = (message: unknown) => this.record('setClipboard', message);
   resetVideo = () => this.record('resetVideo');
+  rotateDevice = () => this.record('rotateDevice');
+  setScreenPowerMode = (mode: number) => this.record('setScreenPowerMode', mode);
 
   methods(): string[] {
     return this.calls.map((call) => call.method);
