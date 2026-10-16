@@ -235,7 +235,7 @@
     "@yume-chan/fetch-scrcpy-server": "1.0.0",
     "esbuild": "0.28.2",
     "happy-dom": "21.0.3",
-    "ovsx": "1.1.1",
+    "ovsx": "1.2.0",
     "typescript": "5.9.3",
     "vitest": "4.1.12"
   }
