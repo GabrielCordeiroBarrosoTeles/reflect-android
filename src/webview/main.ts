@@ -1,0 +1,107 @@
+import './styles.css';
+import type { HostToWebviewMessage, LogLevel } from '../shared/protocol';
+import { preferredAcceleration, probeDecoderSupport } from './decoderSupport';
+import { CanvasPointMapper } from './input/CanvasPointMapper';
+import { FrameScheduler } from './input/FrameScheduler';
+import { KeyboardInput } from './input/KeyboardInput';
+import { PointerInput } from './input/PointerInput';
+import { WheelInput } from './input/WheelInput';
+import { WheelPinch } from './input/WheelPinch';
+import { InspectModeView } from './InspectModeView';
+import { StatusOverlay } from './StatusOverlay';
+import './types';
+import { VideoRenderer } from './VideoRenderer';
+
+const FRAME_REPORT_DELAY_MS = 3000;
+
+const vscode = acquireVsCodeApi();
+
+const log = (level: LogLevel, message: string): void => vscode.postMessage({ type: 'log', level, message });
+
+const describeError = (error: unknown): string => (error instanceof Error ? `${error.name}: ${error.message}` : String(error));
+
+const queryElement = <T extends Element>(selector: string): T => {
+  const element = document.querySelector<T>(selector);
+  if (!element) {
+    throw new Error(`Missing element ${selector}`);
+  }
+  return element;
+};
+
+const bootstrap = async (): Promise<void> => {
+  const canvas = queryElement<HTMLCanvasElement>('.screen');
+  const overlay = new StatusOverlay(queryElement<HTMLElement>('.status'), () => vscode.postMessage({ type: 'open-device' }));
+
+  if (!VideoRenderer.isSupported) {
+    log('error', 'WebCodecs VideoDecoder is not available in this webview');
+    overlay.showMessage('WebCodecs unavailable', 'This editor build cannot decode H.264 video.');
+    return;
+  }
+
+  const support = await probeDecoderSupport();
+  log('info', `H.264 decoder support: hardware=${support.hardware} software=${support.software}`);
+  if (!support.hardware && !support.software) {
+    overlay.showMessage('H.264 not supported', 'This editor build has no H.264 decoder available.');
+    return;
+  }
+
+  let frameReport: ReturnType<typeof setTimeout> | undefined;
+  const renderer = new VideoRenderer(canvas, preferredAcceleration(support), {
+    onDecoderFailure: (error) => log('error', `Decoder failure: ${describeError(error)}`),
+    onResyncNeeded: () => vscode.postMessage({ type: 'resync' }),
+  });
+
+  const scheduleFrameReport = (): void => {
+    clearTimeout(frameReport);
+    frameReport = setTimeout(() => log('info', `Frames rendered after ${FRAME_REPORT_DELAY_MS} ms: ${renderer.framesRendered}`), FRAME_REPORT_DELAY_MS);
+  };
+
+  const inspectMode = new InspectModeView(queryElement<HTMLElement>('.inspect-banner'), canvas);
+
+  const handlers: { [K in HostToWebviewMessage['type']]: (message: Extract<HostToWebviewMessage, { type: K }>) => void } = {
+    'inspect-mode': ({ active }) => inspectMode.set(active),
+    idle: () => {
+      overlay.showIdle();
+      canvas.hidden = true;
+      renderer.dispose();
+    },
+    'session-state': ({ state, deviceName, detail }) => {
+      overlay.show(state, deviceName, detail);
+      canvas.hidden = state !== 'streaming';
+      if (state === 'streaming') {
+        scheduleFrameReport();
+        return;
+      }
+      renderer.dispose();
+    },
+    'video-config': ({ config }) => {
+      log('info', `Video config: ${config.width}x${config.height} codec=0x${config.codec.toString(16)}`);
+      renderer.configure(config);
+    },
+    'video-packet': ({ packet }) => renderer.render(packet),
+  };
+
+  window.addEventListener('message', (event: MessageEvent<HostToWebviewMessage>) => {
+    const message = event.data;
+    (handlers[message.type] as (value: HostToWebviewMessage) => void)(message);
+  });
+
+  const send = (message: Parameters<typeof vscode.postMessage>[0]): void => vscode.postMessage(message);
+  const scheduler = new FrameScheduler();
+  const mapper = new CanvasPointMapper(canvas);
+  const inputs = [
+    new PointerInput(canvas, mapper, scheduler, send, inspectMode),
+    new WheelInput(canvas, mapper, scheduler, send, new WheelPinch(scheduler, send)),
+    new KeyboardInput(canvas, scheduler, send, inspectMode),
+  ];
+
+  window.addEventListener('unload', () => {
+    inputs.forEach((input) => input.dispose());
+    scheduler.dispose();
+    renderer.dispose();
+  });
+
+  vscode.postMessage({ type: 'ready' });
+};
+
+void bootstrap().catch((error: unknown) => log('error', `Webview bootstrap failed: ${describeError(error)}`));

@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check that the tag matches package.json
+        run: |
+          VERSION="v$(node -p "require('./package.json').version")"
+          if [ "$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $VERSION"
+            exit 1
+          fi
+
+      - run: npm run typecheck
+
+      - run: npm run coverage
+
+      - run: npm run fetch-server
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: npx vsce package --out "reflect-android-${GITHUB_REF_NAME}.vsix"
+
+      - uses: softprops/action-gh-release@v3.0.3
+        with:
+          files: reflect-android-${{ github.ref_name }}.vsix
+          generate_release_notes: true
+
+      - name: Publish to the VS Code Marketplace
+        run: npx vsce publish --packagePath "reflect-android-${GITHUB_REF_NAME}.vsix"
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to Open VSX
+        run: npx ovsx publish "reflect-android-${GITHUB_REF_NAME}.vsix"
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}

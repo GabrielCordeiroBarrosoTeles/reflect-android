@@ -1,0 +1,124 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+}
+
+.screen {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--vscode-widget-border, transparent);
+  background: #000;
+  touch-action: none;
+  user-select: none;
+  cursor: default;
+  outline: none;
+}
+
+.screen--inspecting {
+  cursor: crosshair;
+  box-shadow: 0 0 0 2px var(--vscode-focusBorder);
+}
+
+.inspect-banner {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 1;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.9em;
+  white-space: nowrap;
+  color: var(--vscode-badge-foreground);
+  background: var(--vscode-badge-background);
+  pointer-events: none;
+}
+
+.inspect-banner[hidden] {
+  display: none;
+}
+
+.screen:focus-visible {
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+.screen[hidden] {
+  display: none;
+}
+
+.status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.status[hidden] {
+  display: none;
+}
+
+.status__title {
+  font-size: 1.3em;
+  font-weight: 600;
+}
+
+.status__detail {
+  color: var(--vscode-descriptionForeground);
+}
+
+.status__action {
+  margin-top: 8px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 2px;
+  font: inherit;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.status__action:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.status__action:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.status__action[hidden] {
+  display: none;
+}
+
+.status[data-state='error'] .status__title {
+  color: var(--vscode-errorForeground);
+}

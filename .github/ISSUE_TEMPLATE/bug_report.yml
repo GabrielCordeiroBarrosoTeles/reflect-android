@@ -1,0 +1,77 @@
+name: Bug report
+description: Something does not work as expected.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please search existing issues first.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Connect the device via USB
+        2. Run "Reflect: Open Device"
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: macOS 15.4, Windows 11 24H2, Ubuntu 24.04…
+  - type: input
+    id: editor-version
+    attributes:
+      label: Editor and version
+      description: Help → About. Include the editor name if it is not VS Code (Cursor, Windsurf, VSCodium…).
+      placeholder: VS Code 1.105.0
+    validations:
+      required: true
+  - type: input
+    id: extension-version
+    attributes:
+      label: Reflect for Android version
+      placeholder: 0.0.1
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device model and Android version
+      placeholder: Samsung Galaxy Z Flip6 (SM-F741B), Android 16
+    validations:
+      required: true
+  - type: input
+    id: adb
+    attributes:
+      label: adb version
+      description: Output of `adb version`.
+      placeholder: Android Debug Bridge version 1.0.41 (37.0.0)
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Open View → Output, select "Reflect for Android" and paste the relevant lines.
+      render: text
+    validations:
+      required: true

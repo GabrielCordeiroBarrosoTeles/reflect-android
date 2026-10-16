@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and help
+    url: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/discussions/categories/q-a
+    about: Ask questions and get help from the community in GitHub Discussions.
+  - name: Ideas
+    url: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/discussions/categories/ideas
+    about: Discuss larger ideas before opening a feature request.
+  - name: Security vulnerability
+    url: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/security/advisories/new
+    about: Report security issues privately.

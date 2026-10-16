@@ -1,0 +1,97 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { DeviceInfo } from '../../src/adb/types';
+import { Emitter } from '../../src/core/Emitter';
+import { MirrorManager } from '../../src/mirror/MirrorManager';
+import type { IMirrorController, MirrorCloseReason, MirrorLocation } from '../../src/mirror/types';
+import { deviceInfo } from '../fakes/devices';
+
+class FakeController implements IMirrorController {
+  readonly closing = new Emitter<MirrorCloseReason>();
+  readonly onDidDispose = this.closing.event;
+  started = 0;
+  revealed = 0;
+  disposed = 0;
+  inspecting: boolean[] = [];
+
+  setInspectMode(active: boolean): void {
+    this.inspecting.push(active);
+  }
+
+  constructor(
+    readonly device: DeviceInfo,
+    readonly location: MirrorLocation,
+  ) {}
+
+  start(): void {
+    this.started += 1;
+  }
+
+  reveal(): void {
+    this.revealed += 1;
+  }
+
+  dispose(): void {
+    this.disposed += 1;
+    this.closing.fire('closed');
+  }
+}
+
+const setup = () => {
+  const created: FakeController[] = [];
+  const manager = new MirrorManager((device, location) => {
+    const controller = new FakeController(device, location);
+    created.push(controller);
+    return controller;
+  });
+  return { manager, created };
+};
+
+describe('MirrorManager', () => {
+  it('creates and starts a controller per device at the requested location', () => {
+    const { manager, created } = setup();
+    manager.open(deviceInfo({ serial: 'A' }), 'secondarySidebar');
+    manager.open(deviceInfo({ serial: 'B' }), 'editor');
+    expect(created.map((controller) => [controller.device.serial, controller.location, controller.started])).toEqual([
+      ['A', 'secondarySidebar', 1],
+      ['B', 'editor', 1],
+    ]);
+  });
+
+  it('reveals the existing controller when the same device is opened twice', () => {
+    const { manager, created } = setup();
+    manager.open(deviceInfo(), 'editor');
+    manager.open(deviceInfo(), 'secondarySidebar');
+    expect(created).toHaveLength(1);
+    expect(created[0]?.revealed).toBe(1);
+  });
+
+  it('forgets closed controllers and reports the device, location and reason', () => {
+    const { manager, created } = setup();
+    const closed = vi.fn();
+    manager.onDidClose(closed);
+    const device = deviceInfo();
+    manager.open(device, 'secondarySidebar');
+    created[0]?.closing.fire('hidden');
+    manager.open(device, 'secondarySidebar');
+    expect(closed).toHaveBeenCalledWith({ device, location: 'secondarySidebar', reason: 'hidden' });
+    expect(created).toHaveLength(2);
+  });
+
+  it('reports whether a mirror is open and toggles inspect mode on every controller', () => {
+    const { manager, created } = setup();
+    expect(manager.hasOpenMirror).toBe(false);
+    manager.open(deviceInfo({ serial: 'A' }), 'editor');
+    manager.open(deviceInfo({ serial: 'B' }), 'editor');
+    manager.setInspectMode(true);
+    expect(manager.hasOpenMirror).toBe(true);
+    expect(created.map((controller) => controller.inspecting)).toEqual([[true], [true]]);
+  });
+
+  it('disposes every controller', () => {
+    const { manager, created } = setup();
+    manager.open(deviceInfo({ serial: 'A' }), 'editor');
+    manager.open(deviceInfo({ serial: 'B' }), 'editor');
+    manager.dispose();
+    expect(created.map((controller) => controller.disposed)).toEqual([1, 1]);
+  });
+});

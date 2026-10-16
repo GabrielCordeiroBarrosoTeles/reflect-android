@@ -1,0 +1,242 @@
+{
+  "name": "reflect-android",
+  "displayName": "Reflect for Android",
+  "description": "Mirror and control a physical Android device inside a VS Code tab. Built for React Native developers, powered by scrcpy. No emulator required.",
+  "version": "0.0.1",
+  "publisher": "gabrielcordeiro",
+  "license": "MIT",
+  "icon": "assets/icon.png",
+  "galleryBanner": {
+    "color": "#2d5bff",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GabrielCordeiroBarrosoTeles/reflect-android.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/issues"
+  },
+  "homepage": "https://github.com/GabrielCordeiroBarrosoTeles/reflect-android#readme",
+  "qna": "https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/discussions",
+  "sponsor": {
+    "url": "https://github.com/sponsors/GabrielCordeiroBarrosoTeles"
+  },
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Testing",
+    "Other"
+  ],
+  "keywords": [
+    "android",
+    "react native",
+    "react-native",
+    "expo",
+    "flutter",
+    "scrcpy",
+    "adb",
+    "mirror",
+    "screen mirroring",
+    "screen mirror",
+    "physical device",
+    "real device",
+    "device",
+    "mobile",
+    "usb",
+    "emulator alternative"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "reflect.openDevice",
+        "title": "Open Device",
+        "category": "Reflect",
+        "icon": "$(device-mobile)"
+      },
+      {
+        "command": "reflect.openDeviceInEditor",
+        "title": "Open Device in Editor Tab",
+        "category": "Reflect",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "reflect.refreshDeviceInfo",
+        "title": "Refresh Device Info",
+        "category": "Reflect",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "reflect.copyValue",
+        "title": "Copy Value",
+        "category": "Reflect"
+      },
+      {
+        "command": "reflect.inspect",
+        "title": "Inspect Component",
+        "category": "Reflect",
+        "icon": "$(inspect)"
+      },
+      {
+        "command": "reflect.stopInspecting",
+        "title": "Stop Inspecting",
+        "category": "Reflect",
+        "icon": "$(close)"
+      },
+      {
+        "command": "reflect.openComponentSource",
+        "title": "Open Component Source",
+        "category": "Reflect"
+      }
+    ],
+    "configuration": {
+      "title": "Reflect for Android",
+      "properties": {
+        "reflect.adbPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Absolute path to the `adb` executable. Leave empty to auto-detect."
+        },
+        "reflect.location": {
+          "type": "string",
+          "enum": [
+            "secondarySidebar",
+            "editor"
+          ],
+          "enumDescriptions": [
+            "Show the device in the Secondary Side Bar.",
+            "Show the device in an editor tab."
+          ],
+          "default": "secondarySidebar",
+          "markdownDescription": "Where **Reflect: Open Device** shows the mirrored screen."
+        },
+        "reflect.metroPort": {
+          "type": "number",
+          "default": 8081,
+          "minimum": 1,
+          "maximum": 65535,
+          "markdownDescription": "Port of the Metro bundler used to inspect React Native components."
+        },
+        "reflect.inspector.openSourceOnSelect": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Open the source file of an inspected component automatically."
+        },
+        "reflect.privacy.maskIpAddress": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Hide the last part of the device IP address in **Device Info** (useful for screenshots and recordings)."
+        }
+      }
+    },
+    "viewsContainers": {
+      "secondarySidebar": [
+        {
+          "id": "reflect",
+          "title": "Reflect",
+          "icon": "assets/sidebar-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "reflect": [
+        {
+          "type": "webview",
+          "id": "reflect.deviceView",
+          "name": "Device"
+        },
+        {
+          "id": "reflect.component",
+          "name": "Component"
+        },
+        {
+          "id": "reflect.deviceInfo",
+          "name": "Device Info"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "reflect.inspect",
+          "when": "view == reflect.deviceView && !reflect.inspecting",
+          "group": "navigation@0"
+        },
+        {
+          "command": "reflect.stopInspecting",
+          "when": "view == reflect.deviceView && reflect.inspecting",
+          "group": "navigation@0"
+        },
+        {
+          "command": "reflect.openDevice",
+          "when": "view == reflect.deviceView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "reflect.openDeviceInEditor",
+          "when": "view == reflect.deviceView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "reflect.refreshDeviceInfo",
+          "when": "view == reflect.deviceInfo",
+          "group": "navigation@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "reflect.copyValue",
+          "when": "false"
+        },
+        {
+          "command": "reflect.openComponentSource",
+          "when": "false"
+        },
+        {
+          "command": "reflect.stopInspecting",
+          "when": "reflect.inspecting"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "npm run typecheck && node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "fetch-server": "node scripts/fetch-server.mjs",
+    "vscode:prepublish": "npm run typecheck && npm test && node esbuild.mjs --production",
+    "package": "vsce package",
+    "publish:vsce": "vsce publish",
+    "publish:ovsx": "ovsx publish",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@yume-chan/adb": "2.6.4",
+    "@yume-chan/adb-scrcpy": "2.3.2",
+    "@yume-chan/adb-server-node-tcp": "2.5.2",
+    "@yume-chan/scrcpy": "2.3.0",
+    "@yume-chan/scrcpy-decoder-webcodecs": "2.5.3",
+    "mediabunny": "1.61.5",
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "@types/vscode": "1.106.1",
+    "@types/ws": "8.18.2",
+    "@vitest/coverage-v8": "4.1.12",
+    "@vscode/codicons": "0.0.46-24",
+    "@vscode/vsce": "3.9.2",
+    "@yume-chan/fetch-scrcpy-server": "1.0.0",
+    "esbuild": "0.28.2",
+    "happy-dom": "21.0.3",
+    "ovsx": "1.1.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  }
+}
