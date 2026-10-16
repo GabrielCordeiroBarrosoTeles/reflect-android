@@ -58,6 +58,8 @@ jobs:
     name: Upload coverage
     needs: build
     runs-on: ubuntu-latest
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -66,7 +68,8 @@ jobs:
           name: coverage-report
           path: coverage/
 
-      - uses: codecov/codecov-action@v7.1.1
+      - if: env.CODECOV_TOKEN != ''
+        uses: codecov/codecov-action@v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
