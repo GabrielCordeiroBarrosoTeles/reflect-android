@@ -236,7 +236,7 @@
     "esbuild": "0.28.2",
     "happy-dom": "21.0.3",
     "ovsx": "1.1.1",
-    "typescript": "5.9.3",
+    "typescript": "7.0.2",
     "vitest": "4.1.12"
   }
 }
