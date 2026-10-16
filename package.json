@@ -226,7 +226,7 @@
     "ws": "8.22.0"
   },
   "devDependencies": {
-    "@types/node": "20.19.43",
+    "@types/node": "26.6.5",
     "@types/vscode": "1.106.1",
     "@types/ws": "8.18.2",
     "@vitest/coverage-v8": "4.1.12",
