@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-19
+
+### Fixed
+
+- Removed the broken Marketplace, Open VSX and Codecov badges from the README and added working release and stars badges.
+- The README no longer links to Open VSX before the extension is published there.
+
 ## [0.1.0] - 2026-10-16
 
 ### Added
@@ -51,7 +58,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Automatic `adb` discovery with the `reflect.adbPath` setting.
 - Clear errors for missing `adb`, unauthorized or offline devices and mirroring failures.
 
-[Unreleased]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.0.2...v0.1.0
 [0.0.2]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/releases/tag/v0.0.1

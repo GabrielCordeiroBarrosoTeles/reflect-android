@@ -10,11 +10,9 @@
 
 <p align="center">
   <a href="https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/actions/workflows/ci.yml"><img src="https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-  <a href="https://codecov.io/gh/GabrielCordeiroBarrosoTeles/reflect-android"><img src="https://codecov.io/gh/GabrielCordeiroBarrosoTeles/reflect-android/branch/main/graph/badge.svg" alt="Coverage"></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=GabrielCordeiro.reflect-android"><img src="https://img.shields.io/visual-studio-marketplace/v/GabrielCordeiro.reflect-android?label=Marketplace" alt="Marketplace version"></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=GabrielCordeiro.reflect-android"><img src="https://img.shields.io/visual-studio-marketplace/i/GabrielCordeiro.reflect-android" alt="Installs"></a>
-  <a href="https://open-vsx.org/extension/GabrielCordeiro/reflect-android"><img src="https://img.shields.io/open-vsx/v/GabrielCordeiro/reflect-android?label=Open%20VSX" alt="Open VSX version"></a>
+  <a href="https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/releases/latest"><img src="https://img.shields.io/github/v/release/GabrielCordeiroBarrosoTeles/reflect-android?label=release" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/GabrielCordeiroBarrosoTeles/reflect-android" alt="License"></a>
+  <a href="https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/stargazers"><img src="https://img.shields.io/github/stars/GabrielCordeiroBarrosoTeles/reflect-android" alt="GitHub stars"></a>
 </p>
 
 <p align="center">
@@ -67,14 +65,14 @@ Annotated screenshots and GIF export, Wi-Fi connections, dev tools (deep links, 
 
 ## Requirements
 
-- **VS Code 1.106** or newer (also Cursor, Windsurf and VSCodium builds based on 1.106+, through Open VSX).
+- **VS Code 1.106** or newer (Cursor, Windsurf and VSCodium support through Open VSX is coming soon).
 - **Android platform-tools** (`adb`). Install them with Android Studio or download them from [developer.android.com](https://developer.android.com/tools/releases/platform-tools).
 - An Android device with **USB debugging enabled** ([how to enable](https://developer.android.com/studio/debug/dev-options#enable)) and Android 5.0 or newer.
 
 ## Installation
 
 - **VS Code Marketplace**: search for "Reflect for Android" in the Extensions view, or run `code --install-extension GabrielCordeiro.reflect-android`.
-- **Open VSX** (Cursor, Windsurf, VSCodium): install from [open-vsx.org](https://open-vsx.org/extension/GabrielCordeiro/reflect-android).
+- **Open VSX** (Cursor, Windsurf, VSCodium): coming soon.
 
 ## Usage
 
