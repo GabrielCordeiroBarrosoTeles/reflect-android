@@ -70,13 +70,15 @@ describe('TabBar', () => {
     expect(document.activeElement).toBe($('#tab-logs'));
     press('logs', 'ArrowRight');
     press('device', 'ArrowRight');
+    press('actions', 'ArrowRight');
     expect(bar.current).toBe('component');
     press('component', 'ArrowLeft');
     press('device', 'Home');
     expect(bar.current).toBe('component');
     bar.setAvailable('storage', true);
     press('component', 'End');
-    expect(bar.current).toBe('device');
+    expect(bar.current).toBe('actions');
+    press('actions', 'ArrowLeft');
     press('device', 'ArrowLeft');
     expect(bar.current).toBe('storage');
     press('storage', 'Enter');
@@ -142,6 +144,9 @@ describe('tools webview entry', () => {
     deliver({ type: 'network-entries', reset: true, entries: [] });
     deliver({ type: 'logs-status', status: { kind: 'no-app' } });
     deliver({ type: 'logs-lines', reset: true, lines: [] });
+    deliver({ type: 'actions-state', state: { kind: 'idle' } });
+    deliver({ type: 'actions-result', ok: true, message: 'Done' });
+    expect([document.querySelector('.actions__message')?.textContent, document.querySelector('.actions-result')?.textContent]).toEqual(['Open a device to run actions on it.', 'Done']);
     expect(document.querySelector('.logs__message')?.textContent).toBe('No app in the foreground yet.');
     expect(document.querySelector('.network__message')?.textContent).toBe('Waiting for requests. Use the app to see them here.');
     expect([document.querySelector('.storage .summary')?.textContent, $<HTMLElement>('.new-key').hidden, $<HTMLElement>('#panel-storage').hidden]).toEqual(['1 key', false, false]);

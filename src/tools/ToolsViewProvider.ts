@@ -4,6 +4,8 @@ import type { Event, IDisposable } from '../core/types';
 import type { IClipboard } from '../mirror/types';
 import type { HostToToolsMessage, ToolsTab, ToolsToHostMessage } from '../shared/toolsProtocol';
 import type { ComponentTab } from './ComponentTab';
+import { isAppAction } from '../appActions/deviceCommands';
+import type { ActionsTab } from './ActionsTab';
 import type { DeviceTab } from './DeviceTab';
 import type { LogsTab } from './LogsTab';
 import type { NetworkTab } from './NetworkTab';
@@ -19,6 +21,7 @@ export interface ToolsTabs {
   readonly storage: Pick<StorageTab, 'refresh' | 'write' | 'remove' | 'sync'>;
   readonly network: Pick<NetworkTab, 'setActive' | 'setPaused' | 'clear' | 'sync'>;
   readonly logs: Pick<LogsTab, 'setActive' | 'setPaused' | 'clear' | 'sync'>;
+  readonly actions: Pick<ActionsTab, 'setActive' | 'run' | 'refresh' | 'sync'>;
 }
 
 export interface AppAvailability {
@@ -37,7 +40,7 @@ type Handlers = {
   [K in ToolsToHostMessage['type']]: (message: Extract<ToolsToHostMessage, { type: K }>) => Promise<void> | void;
 };
 
-const TABS: readonly ToolsTab[] = ['component', 'network', 'logs', 'storage', 'device'];
+const TABS: readonly ToolsTab[] = ['component', 'network', 'logs', 'storage', 'device', 'actions'];
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
@@ -59,6 +62,8 @@ const VALIDATORS: Readonly<Record<ToolsToHostMessage['type'], (message: Record<s
   'network-clear': () => true,
   'logs-pause': ({ paused }) => typeof paused === 'boolean',
   'logs-clear': () => true,
+  'actions-run': ({ action }) => isAppAction(action),
+  'actions-refresh': () => true,
 };
 
 const isToolsMessage = (value: unknown): value is ToolsToHostMessage =>
@@ -90,6 +95,8 @@ export class ToolsViewProvider<T extends ToolsTabs = ToolsTabs> implements vscod
     'network-clear': () => this.tabs.network.clear(),
     'logs-pause': ({ paused }) => this.tabs.logs.setPaused(paused),
     'logs-clear': () => this.tabs.logs.clear(),
+    'actions-run': ({ action }) => this.tabs.actions.run(action),
+    'actions-refresh': () => this.tabs.actions.refresh(),
   };
 
   constructor(
@@ -153,6 +160,7 @@ export class ToolsViewProvider<T extends ToolsTabs = ToolsTabs> implements vscod
     this.tabs.storage.sync();
     this.tabs.network.sync();
     this.tabs.logs.sync();
+    this.tabs.actions.sync();
   }
 
   private setActiveTab(tab: ToolsTab): void {
@@ -165,6 +173,7 @@ export class ToolsViewProvider<T extends ToolsTabs = ToolsTabs> implements vscod
     this.tabs.device.setActive(this.isActive('device'));
     this.tabs.network.setActive(this.isActive('network'));
     this.tabs.logs.setActive(this.isActive('logs'));
+    this.tabs.actions.setActive(this.isActive('actions'));
     if (this.isActive('storage')) {
       void this.tabs.storage.refresh();
     }

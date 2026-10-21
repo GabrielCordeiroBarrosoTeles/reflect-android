@@ -93,7 +93,9 @@ const createContext = async () => {
   const root = await createTempRoot();
   await mkdir(join(root, 'assets'));
   await writeFile(join(root, 'assets', 'scrcpy-server.jar'), Buffer.from([1]));
-  return { subscriptions: [] as { dispose(): unknown }[], extensionUri: vscode.Uri.file(root) };
+  const stored = new Map<string, unknown>();
+  const globalState = { get: <T>(key: string, fallback: T): T => (stored.has(key) ? (stored.get(key) as T) : fallback), update: (key: string, value: unknown) => (stored.set(key, value), Promise.resolve()) };
+  return { subscriptions: [] as { dispose(): unknown }[], extensionUri: vscode.Uri.file(root), globalState };
 };
 
 const setup = async (devices = [tangoDevice()]) => {

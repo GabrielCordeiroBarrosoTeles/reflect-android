@@ -43,6 +43,8 @@ import { NetworkTab } from './tools/NetworkTab';
 import { NetworkReader } from './network/NetworkReader';
 import { LogReader } from './logs/LogReader';
 import { LogsTab } from './tools/LogsTab';
+import { ActionsTab } from './tools/ActionsTab';
+import { MementoLinkHistory } from './tools/MementoLinkHistory';
 import { StorageTab } from './tools/StorageTab';
 import { TOOLS_VIEW_ID, ToolsViewProvider } from './tools/ToolsViewProvider';
 import { CdpSession } from './inspector/CdpSession';
@@ -91,6 +93,7 @@ const reflectSetting = <T>(key: string): T | undefined => vscode.workspace.getCo
 const APP_WATCH_INTERVAL_MS = 5_000;
 const NETWORK_POLL_MS = 1_000;
 const LOGS_POLL_MS = 1_000;
+const DEEP_LINKS_KEY = 'reflect.recentDeepLinks';
 const readMetroPort = (): number => reflectSetting<number>('metroPort') ?? DEFAULT_METRO_PORT;
 
 const readLocationSetting = (): MirrorLocation =>
@@ -180,6 +183,15 @@ export function activate(context: vscode.ExtensionContext): void {
       component: new ComponentTab(channel, openSource),
       network: new NetworkTab(new NetworkReader(appConnection), activeDevice, channel, NETWORK_POLL_MS),
       logs: new LogsTab(new LogReader(deviceShell), activeDevice, channel, LOGS_POLL_MS),
+      actions: new ActionsTab(
+        {
+          shell: deviceShell,
+          context: activeDevice,
+          confirm,
+          links: new MementoLinkHistory(context.globalState, DEEP_LINKS_KEY),
+        },
+        channel,
+      ),
       device: new DeviceTab(deviceInfoPoller, activeDevice, () => ({ maskIpAddress: reflectSetting<boolean>('privacy.maskIpAddress') === true }), channel),
       storage: new StorageTab(
         {

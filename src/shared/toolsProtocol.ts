@@ -1,10 +1,11 @@
 import type { InfoGroup } from '../deviceInfo/types';
 import type { SourceLocation } from '../inspector/types';
+import type { ActionsSnapshot, AppAction } from '../appActions/types';
 import type { LogLine } from '../logs/types';
 import type { NetworkEntry } from '../network/types';
 import type { StorageEntry } from '../storage/types';
 
-export type ToolsTab = 'component' | 'network' | 'logs' | 'storage' | 'device';
+export type ToolsTab = 'component' | 'network' | 'logs' | 'storage' | 'device' | 'actions';
 
 export interface ComponentPanelView {
   readonly name: string;
@@ -37,6 +38,11 @@ export type LogsStatus =
   | { readonly kind: 'no-app' }
   | { readonly kind: 'failed'; readonly message: string };
 
+export type ActionsState =
+  | { readonly kind: 'idle' }
+  | ({ readonly kind: 'ready'; readonly links: readonly string[]; readonly wirelessAdb: boolean } & ActionsSnapshot)
+  | { readonly kind: 'failed'; readonly message: string };
+
 export type HostToToolsMessage =
   | { readonly type: 'app-available'; readonly available: boolean }
   | { readonly type: 'select-tab'; readonly tab: ToolsTab }
@@ -48,7 +54,9 @@ export type HostToToolsMessage =
   | { readonly type: 'network-status'; readonly status: NetworkStatus }
   | { readonly type: 'network-entries'; readonly entries: readonly NetworkEntry[]; readonly reset: boolean }
   | { readonly type: 'logs-status'; readonly status: LogsStatus }
-  | { readonly type: 'logs-lines'; readonly lines: readonly LogLine[]; readonly reset: boolean };
+  | { readonly type: 'logs-lines'; readonly lines: readonly LogLine[]; readonly reset: boolean }
+  | { readonly type: 'actions-state'; readonly state: ActionsState }
+  | { readonly type: 'actions-result'; readonly ok: boolean; readonly message: string };
 
 export type ToolsToHostMessage =
   | { readonly type: 'ready' }
@@ -63,4 +71,6 @@ export type ToolsToHostMessage =
   | { readonly type: 'network-pause'; readonly paused: boolean }
   | { readonly type: 'network-clear' }
   | { readonly type: 'logs-pause'; readonly paused: boolean }
-  | { readonly type: 'logs-clear' };
+  | { readonly type: 'logs-clear' }
+  | { readonly type: 'actions-run'; readonly action: AppAction }
+  | { readonly type: 'actions-refresh' };

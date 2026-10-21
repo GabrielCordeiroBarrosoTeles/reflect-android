@@ -7,6 +7,11 @@ import { ComponentTab, displayPath } from '../../src/tools/ComponentTab';
 import { DeviceTab } from '../../src/tools/DeviceTab';
 import { NetworkTab } from '../../src/tools/NetworkTab';
 import { LogsTab, MAX_LOG_LINES } from '../../src/tools/LogsTab';
+import { ActionsTab } from '../../src/tools/ActionsTab';
+import { MementoLinkHistory } from '../../src/tools/MementoLinkHistory';
+import { BATTERY_MODES, STATE_COMMAND } from '../../src/appActions/deviceCommands';
+import type { AppAction } from '../../src/appActions/types';
+import { ACTIONS_STATE_OUTPUT } from '../appActions/fixtures';
 import type { LogRead } from '../../src/logs/types';
 import type { NetworkResult } from '../../src/network/types';
 import { renderToolsHtml } from '../../src/tools/toolsHtml';
@@ -106,12 +111,13 @@ const setupProvider = () => {
   const storage = { refresh: vi.fn(() => Promise.resolve()), write: vi.fn(() => Promise.resolve()), remove: vi.fn(() => Promise.resolve()), sync: vi.fn() };
   const network = { setActive: vi.fn(), setPaused: vi.fn(), clear: vi.fn(() => Promise.resolve()), sync: vi.fn() };
   const logs = { setActive: vi.fn(), setPaused: vi.fn(), clear: vi.fn(), sync: vi.fn() };
+  const actions = { setActive: vi.fn(), run: vi.fn(() => Promise.resolve()), refresh: vi.fn(() => Promise.resolve()), sync: vi.fn() };
   const app = new Emitter<boolean>();
   let connected = false;
   const clipboard = new FakeClipboard();
   const notify = vi.fn();
   const setTabContext = vi.fn();
-  const provider = new ToolsViewProvider(Uri.file('/ext') as unknown as vscode.Uri, { app: { get isConnected() { return connected; }, onDidChange: app.event }, clipboard, notify, setTabContext }, () => ({ component, device, storage, network, logs }));
+  const provider = new ToolsViewProvider(Uri.file('/ext') as unknown as vscode.Uri, { app: { get isConnected() { return connected; }, onDidChange: app.event }, clipboard, notify, setTabContext }, () => ({ component, device, storage, network, logs, actions }));
   const view = new FakeWebviewView();
   provider.resolveWebviewView(view as unknown as vscode.WebviewView);
   const send = async (message: unknown) => {
@@ -122,7 +128,7 @@ const setupProvider = () => {
     connected = value;
     app.fire(value);
   };
-  return { provider, view, send, component, device, storage, network, logs, clipboard, notify, setTabContext, setConnected };
+  return { provider, view, send, component, device, storage, network, logs, actions, clipboard, notify, setTabContext, setConnected };
 };
 
 describe('ToolsViewProvider', () => {
@@ -135,8 +141,8 @@ describe('ToolsViewProvider', () => {
     expect(view.webview.posted[0]).toEqual({ type: 'app-available', available: false });
   });
 
-  it('tells the page when the app connects and drives the network and logs tabs', async () => {
-    const { view, send, setConnected, network, logs, provider } = setupProvider();
+  it('tells the page when the app connects and drives the network, logs and actions tabs', async () => {
+    const { view, send, setConnected, network, logs, actions, provider } = setupProvider();
     setConnected(true);
     expect(view.webview.posted.at(-1)).toEqual({ type: 'app-available', available: true });
     await send({ type: 'tab-changed', tab: 'network' });
@@ -150,6 +156,11 @@ describe('ToolsViewProvider', () => {
     await send({ type: 'logs-pause', paused: 1 });
     await send({ type: 'logs-clear' });
     expect([logs.setActive.mock.lastCall, network.setActive.mock.lastCall, logs.setPaused.mock.calls, logs.clear.mock.calls.length, logs.sync.mock.calls.length]).toEqual([[true], [false], [[false]], 1, 0]);
+    await send({ type: 'tab-changed', tab: 'actions' });
+    await send({ type: 'actions-run', action: { kind: 'restart' } });
+    await send({ type: 'actions-run', action: { kind: 'reboot' } });
+    await send({ type: 'actions-refresh' });
+    expect([actions.setActive.mock.lastCall, actions.run.mock.calls, actions.refresh.mock.calls.length, actions.sync.mock.calls.length]).toEqual([[true], [[{ kind: 'restart' }]], 1, 0]);
     provider.dispose();
     setConnected(false);
     expect(view.webview.posted.at(-1)).toEqual({ type: 'app-available', available: true });
@@ -436,5 +447,140 @@ describe('LogsTab', () => {
     expect(channel.last('logs-lines')).toBeUndefined();
     tab.dispose();
     vi.useRealTimers();
+  });
+});
+
+describe('ActionsTab', () => {
+  const setupActions = (state = ACTIONS_STATE_OUTPUT, serial = 'A') => {
+    const commands: string[] = [];
+    const outputs: string[] = [];
+    const shell = {
+      run: vi.fn((_serial: string, command: string) => {
+        commands.push(command);
+        return Promise.resolve(command === STATE_COMMAND ? state : (outputs.shift() ?? 'Success'));
+      }),
+    };
+    const context = new FakeActiveDeviceContext();
+    context.mirroredDevice = deviceInfo({ serial });
+    const channel = new FakeToolsChannel();
+    const confirm = vi.fn((_message: string, _action: string) => Promise.resolve(true));
+    let links: readonly string[] = [];
+    const tab = new ActionsTab({ shell, context, confirm, links: { get: () => links, set: (value) => (links = value) } }, channel);
+    return { shell, commands, outputs, context, channel, confirm, tab, links: () => links };
+  };
+
+  it('loads the device state when the tab opens', async () => {
+    const { tab, channel, shell } = setupActions();
+    tab.setActive(false);
+    expect(shell.run).not.toHaveBeenCalled();
+    tab.setActive(true);
+    await flushPromises();
+    expect(channel.last('actions-state')?.state).toMatchObject({ kind: 'ready', app: 'br.com.client.hmlqa', links: [], wirelessAdb: false, battery: { level: 26 } });
+  });
+
+  it('runs actions, reports the result and reloads the state', async () => {
+    const { tab, channel, commands, links } = setupActions();
+    await tab.refresh();
+    await tab.run({ kind: 'deep-link', url: 'mobilidade://trip/1' });
+    await tab.run({ kind: 'deep-link', url: 'mobilidade://trip/2' });
+    await tab.run({ kind: 'deep-link', url: 'mobilidade://trip/1' });
+    expect(links()).toEqual(['mobilidade://trip/1', 'mobilidade://trip/2']);
+    expect(channel.last('actions-result')).toEqual({ type: 'actions-result', ok: true, message: 'Opened mobilidade://trip/1' });
+    const results: string[] = [];
+    const actions: AppAction[] = [
+      { kind: 'restart' },
+      { kind: 'app-settings' },
+      { kind: 'app-language', locale: 'en-US' },
+      { kind: 'app-language', locale: '' },
+      { kind: 'permission', permissions: ['android.permission.CAMERA'], granted: false },
+      { kind: 'permission', permissions: ['android.permission.ACCESS_FINE_LOCATION', 'android.permission.ACCESS_COARSE_LOCATION'], granted: true },
+      { kind: 'toggle', setting: 'darkMode', on: true },
+      { kind: 'toggle', setting: 'wifi', on: false },
+      { kind: 'font-scale', scale: 1.15 },
+      ...BATTERY_MODES.map((mode): AppAction => ({ kind: 'battery', mode })),
+    ];
+    for (const action of actions) {
+      await tab.run(action);
+      results.push(String(channel.last('actions-result')?.message));
+    }
+    expect(results).toEqual([
+      'Restarted br.com.client.hmlqa',
+      'Opened the app settings on the device',
+      'App language set to en-US',
+      'App language back to the system default',
+      'Revoked Camera',
+      'Granted Access fine location, Access coarse location',
+      'Dark mode on',
+      'Wi-Fi off',
+      'Font size 1.15×',
+      'Battery back to the real state',
+      'Battery set to 5%, unplugged',
+      'Battery set to 15%, unplugged',
+      'Battery set to 50%, charging',
+      'Battery set to full',
+    ]);
+    expect(commands.filter((command) => command === STATE_COMMAND).length).toBeGreaterThan(10);
+    for (let index = 0; index < 10; index += 1) await tab.run({ kind: 'deep-link', url: `x://${index}` });
+    expect(links()).toHaveLength(8);
+  });
+
+  it('keeps Wi-Fi and airplane mode on while connected over Wi-Fi', async () => {
+    const { tab, channel, commands } = setupActions(ACTIONS_STATE_OUTPUT, '192.168.1.20:5555');
+    await tab.refresh();
+    expect(channel.last('actions-state')?.state).toMatchObject({ wirelessAdb: true });
+    await tab.run({ kind: 'toggle', setting: 'airplane', on: true });
+    expect(channel.last('actions-result')?.ok).toBe(false);
+    expect(commands).not.toContain('cmd connectivity airplane-mode enable');
+    await tab.run({ kind: 'toggle', setting: 'mobileData', on: false });
+    expect(channel.last('actions-result')?.message).toBe('Mobile data off');
+  });
+
+  it('asks before clearing data and reports failures', async () => {
+    const { tab, channel, confirm, commands, outputs } = setupActions();
+    await tab.refresh();
+    confirm.mockResolvedValueOnce(false);
+    await tab.run({ kind: 'clear-data' });
+    expect(commands).not.toContain('pm clear br.com.client.hmlqa');
+    await tab.run({ kind: 'clear-data' });
+    expect(channel.last('actions-result')?.message).toBe('Cleared the data of br.com.client.hmlqa');
+    expect(confirm).toHaveBeenCalledWith('Clear all data of br.com.client.hmlqa? The app goes back to its first launch.', 'Clear Data');
+    outputs.push('Error: Activity not started, unable to resolve Intent');
+    await tab.run({ kind: 'deep-link', url: 'nothing://here' });
+    expect(channel.last('actions-result')).toEqual({ type: 'actions-result', ok: false, message: 'Error: Activity not started, unable to resolve Intent' });
+    await tab.run({ kind: 'deep-link', url: 'bad link' });
+    expect(channel.last('actions-result')?.message).toBe('Enter a link like myapp://screen or https://example.com/page.');
+  });
+
+  it('handles a missing device, a missing app and shell failures', async () => {
+    const { tab, channel, context, shell } = setupActions('@@app \n');
+    await tab.refresh();
+    await tab.run({ kind: 'restart' });
+    expect(channel.last('actions-result')?.message).toBe('This action needs an app in the foreground.');
+    shell.run.mockRejectedValueOnce(new Error('adb gone')).mockRejectedValueOnce('device offline');
+    await tab.refresh();
+    expect(channel.last('actions-state')?.state).toEqual({ kind: 'failed', message: 'adb gone' });
+    await tab.run({ kind: 'toggle', setting: 'darkMode', on: true });
+    expect(channel.last('actions-result')).toEqual({ type: 'actions-result', ok: false, message: 'Error: device offline' });
+    context.mirroredDevice = undefined;
+    await tab.refresh();
+    await tab.run({ kind: 'toggle', setting: 'darkMode', on: true });
+    expect([channel.last('actions-state')?.state, channel.last('actions-result')?.message]).toEqual([{ kind: 'idle' }, 'Open a device first.']);
+    tab.sync();
+    expect(channel.posted.at(-1)).toEqual({ type: 'actions-state', state: { kind: 'idle' } });
+  });
+});
+
+describe('MementoLinkHistory', () => {
+  it('stores recent links in the memento and ignores corrupted values', () => {
+    const values = new Map<string, unknown>();
+    const memento = { get: <T>(key: string, fallback: T): T => (values.has(key) ? (values.get(key) as T) : fallback), update: (key: string, value: unknown) => (values.set(key, value), Promise.resolve()) };
+    const history = new MementoLinkHistory(memento, 'links');
+    expect(history.get()).toEqual([]);
+    history.set(['a://1', 'b://2']);
+    expect(history.get()).toEqual(['a://1', 'b://2']);
+    values.set('links', ['ok://1', 5]);
+    expect(history.get()).toEqual(['ok://1']);
+    values.set('links', 'broken');
+    expect(history.get()).toEqual([]);
   });
 });

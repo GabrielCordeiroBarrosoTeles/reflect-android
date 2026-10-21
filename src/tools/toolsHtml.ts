@@ -1,4 +1,7 @@
+import { APP_LOCALES, BATTERY_MODES, FONT_SCALES } from '../appActions/deviceCommands';
 import { createNonce } from '../ui/webviewHtml';
+
+const FONT_LABELS: Readonly<Record<number, string>> = { 0.85: 'Small', 1: 'Default', 1.15: 'Large', 1.3: 'Larger', 1.5: 'Largest', 2: 'Huge' };
 
 export interface ToolsHtmlAssets {
   readonly cspSource: string;
@@ -88,6 +91,64 @@ const logsPanel = `
       <ol class="log" aria-label="Log lines"></ol>
     </section>`;
 
+const TOGGLE_TILES: readonly (readonly [setting: string, label: string, icon: string])[] = [
+  ['darkMode', 'Dark mode', 'color-mode'],
+  ['animations', 'Animations', 'sparkle'],
+  ['showTouches', 'Show touches', 'target'],
+  ['layoutBounds', 'Layout bounds', 'layout'],
+  ['wifi', 'Wi-Fi', 'broadcast'],
+  ['mobileData', 'Mobile data', 'radio-tower'],
+  ['airplane', 'Airplane mode', 'rocket'],
+];
+
+const LOCALE_LABELS: Readonly<Record<string, string>> = { '': 'System default', 'pt-BR': 'Português (Brasil)', 'en-US': 'English (US)', 'es-ES': 'Español', 'fr-FR': 'Français' };
+
+const BATTERY_LABELS: Readonly<Record<string, string>> = { reset: 'Real battery', critical: '5% · unplugged', low: '15% · unplugged', charging: '50% · charging', full: '100% · full' };
+
+const toggleTile = ([setting, label, icon]: readonly [string, string, string]): string =>
+  `<button class="tile" type="button" data-toggle="${setting}" aria-pressed="false"><i class="codicon codicon-${icon}"></i><span class="tile__label">${label}</span><span class="tile__state">Off</span></button>`;
+
+const actionsPanel = `
+    <section class="app-actions" aria-label="Actions">
+      <p class="actions-result" role="status" hidden></p>
+      <div class="placeholder actions__empty">
+        <i class="codicon codicon-tools"></i>
+        <p class="actions__message"></p>
+      </div>
+      <div class="actions__content" hidden>
+        <details class="block" open>
+          <summary class="subtitle">Deep link</summary>
+          <form class="deep-link">
+            <input class="deep-link__url field" type="text" placeholder="myapp://trip/42 or https://…" aria-label="Deep link" spellcheck="false" autocomplete="off">
+            <button class="button" type="submit">Open</button>
+          </form>
+          <ul class="recent-links"></ul>
+        </details>
+        <details class="block" open>
+          <summary class="subtitle">App <span class="actions__app"></span></summary>
+          <div class="actions">
+            <button class="button button--secondary app-control app__restart" type="button">Restart</button>
+            <button class="button button--secondary app-control app__settings" type="button">App settings</button>
+            <button class="button button--danger app-control app__clear" type="button">Clear data</button>
+          </div>
+          <label class="field-row"><span><i class="codicon codicon-globe"></i> App language</span><select class="setting-locale field field--narrow app-control">${APP_LOCALES.map((locale) => `<option value="${locale}">${String(LOCALE_LABELS[locale])}</option>`).join('')}</select></label>
+        </details>
+        <details class="block" open>
+          <summary class="subtitle">Permissions <span class="permissions__summary"></span></summary>
+          <ul class="permission-groups"></ul>
+        </details>
+        <details class="block" open>
+          <summary class="subtitle">System</summary>
+          <div class="tiles">
+            ${TOGGLE_TILES.map(toggleTile).join('\n            ')}
+            <label class="tile tile--select"><i class="codicon codicon-text-size"></i><span class="tile__label">Font size</span><select class="setting-font field">${FONT_SCALES.map((scale) => `<option value="${scale}">${String(FONT_LABELS[scale])}</option>`).join('')}</select></label>
+            <label class="tile tile--select"><i class="codicon codicon-zap"></i><span class="tile__label">Battery <span class="battery__state"></span></span><select class="setting-battery field">${BATTERY_MODES.map((mode) => `<option value="${mode}">${String(BATTERY_LABELS[mode])}</option>`).join('')}</select></label>
+          </div>
+        </details>
+        <div class="actions"><button class="button button--secondary actions__refresh" type="button">Refresh</button></div>
+      </div>
+    </section>`;
+
 const devicePanel = `
     <section class="device" aria-label="Device info">
       <div class="placeholder device__empty">
@@ -146,6 +207,7 @@ const TABS = [
   { id: 'logs', label: 'Logs', icon: 'output', panel: logsPanel },
   { id: 'storage', label: 'Storage', icon: 'database', panel: storagePanel },
   { id: 'device', label: 'Device', icon: 'device-mobile', panel: devicePanel },
+  { id: 'actions', label: 'Actions', icon: 'tools', panel: actionsPanel },
 ] as const;
 
 export const renderToolsHtml = ({ cspSource, scriptUri, styleUri }: ToolsHtmlAssets): string => {
