@@ -1,9 +1,10 @@
 import type { InfoGroup } from '../deviceInfo/types';
 import type { SourceLocation } from '../inspector/types';
+import type { LogLine } from '../logs/types';
 import type { NetworkEntry } from '../network/types';
 import type { StorageEntry } from '../storage/types';
 
-export type ToolsTab = 'component' | 'network' | 'storage' | 'device';
+export type ToolsTab = 'component' | 'network' | 'logs' | 'storage' | 'device';
 
 export interface ComponentPanelView {
   readonly name: string;
@@ -29,6 +30,13 @@ export type NetworkStatus =
   | { readonly kind: 'unavailable' }
   | { readonly kind: 'failed'; readonly message: string };
 
+export type LogsStatus =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'capturing'; readonly app: string }
+  | { readonly kind: 'paused' }
+  | { readonly kind: 'no-app' }
+  | { readonly kind: 'failed'; readonly message: string };
+
 export type HostToToolsMessage =
   | { readonly type: 'app-available'; readonly available: boolean }
   | { readonly type: 'select-tab'; readonly tab: ToolsTab }
@@ -38,7 +46,9 @@ export type HostToToolsMessage =
   | { readonly type: 'storage-saved'; readonly key: string }
   | { readonly type: 'storage-new-key' }
   | { readonly type: 'network-status'; readonly status: NetworkStatus }
-  | { readonly type: 'network-entries'; readonly entries: readonly NetworkEntry[]; readonly reset: boolean };
+  | { readonly type: 'network-entries'; readonly entries: readonly NetworkEntry[]; readonly reset: boolean }
+  | { readonly type: 'logs-status'; readonly status: LogsStatus }
+  | { readonly type: 'logs-lines'; readonly lines: readonly LogLine[]; readonly reset: boolean };
 
 export type ToolsToHostMessage =
   | { readonly type: 'ready' }
@@ -51,4 +61,6 @@ export type ToolsToHostMessage =
   | { readonly type: 'storage-create'; readonly key: string; readonly value: string }
   | { readonly type: 'storage-delete'; readonly key: string }
   | { readonly type: 'network-pause'; readonly paused: boolean }
-  | { readonly type: 'network-clear' };
+  | { readonly type: 'network-clear' }
+  | { readonly type: 'logs-pause'; readonly paused: boolean }
+  | { readonly type: 'logs-clear' };

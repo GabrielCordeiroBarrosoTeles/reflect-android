@@ -3,6 +3,7 @@ import './tools.css';
 import type { HostToToolsMessage } from '../shared/toolsProtocol';
 import { ComponentTab } from './ComponentTab';
 import { DeviceTab } from './DeviceTab';
+import { LogsPanel } from './logs/LogsPanel';
 import { NetworkPanel } from './network/NetworkPanel';
 import { query } from './dom';
 import { StoragePanel } from './storage/StoragePanel';
@@ -15,6 +16,7 @@ const component = new ComponentTab(query(document, '.component'), post);
 const device = new DeviceTab(query(document, '.device'), post);
 const storage = new StoragePanel(query(document, '.storage'), post);
 const network = new NetworkPanel(query(document, '.network'), post);
+const logs = new LogsPanel(query(document, '.logs'), post);
 const tabs = new TabBar(document, { get: () => api.getState(), set: (state) => api.setState(state) }, (tab) => post({ type: 'tab-changed', tab }));
 
 const receive = (message: HostToToolsMessage): void => {
@@ -46,6 +48,12 @@ const receive = (message: HostToToolsMessage): void => {
       break;
     case 'network-entries':
       network.update(message.entries, message.reset);
+      break;
+    case 'logs-status':
+      logs.setStatus(message.status);
+      break;
+    case 'logs-lines':
+      logs.add(message.lines, message.reset);
       break;
   }
 };

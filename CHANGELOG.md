@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Logs** tab: JavaScript and native logs of the app in the foreground (logcat filtered by its process), with text and level filters, a JavaScript-only toggle, pause, copy and clear. Multi-line entries such as stack traces are grouped, errors are highlighted, and the view follows new lines only while scrolled to the bottom. It reads only new lines once a second while the tab is open and starts over when the app restarts.
 - **Network** tab: captures the app's HTTP requests (fetch and XMLHttpRequest) through Metro, without installing anything in the app. Filter by URL and status, inspect headers, request and response bodies (JSON formatted, image responses previewed, bodies over 256 KB truncated), copy as cURL, copy the response, pause and clear. It only polls while the tab is open and survives app reloads.
 - **Storage** panel for the AsyncStorage of the React Native app in development mode: filter keys, see each value's type and size, edit values with JSON formatting and validation (<kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>S</kbd> to save), create keys, delete one or all keys with confirmation, preview values that are image links or `data:image` strings, and copy a value or everything as JSON. The panel only appears while an app on the mirrored device is connected to Metro, and Reflect only checks Metro while a device is mirrored.
 

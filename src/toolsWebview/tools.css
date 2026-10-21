@@ -629,3 +629,94 @@ body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.logs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.toggle-button[aria-pressed='true'] {
+  color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
+  background: var(--vscode-inputOption-activeBackground, var(--vscode-toolbar-hoverBackground));
+  outline: 1px solid var(--vscode-inputOption-activeBorder, transparent);
+}
+
+.log {
+  height: 60vh;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.log:empty {
+  display: none;
+}
+
+.log-line {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 0 6px;
+  padding: 3px 6px;
+  border-left: 2px solid transparent;
+}
+
+.log-line:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.log-line__time,
+.log-line__tag {
+  color: var(--vscode-descriptionForeground);
+}
+
+.log-line__tag {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-line__level {
+  font-weight: 700;
+}
+
+.log-line__message {
+  grid-column: 1 / -1;
+  color: var(--vscode-foreground);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.level--V .log-line__level,
+.level--D .log-line__level {
+  color: var(--vscode-descriptionForeground);
+}
+
+.level--I .log-line__level {
+  color: var(--vscode-charts-blue, #75beff);
+}
+
+.level--W {
+  border-left-color: var(--vscode-charts-yellow, #cca700);
+}
+
+.level--W .log-line__level {
+  color: var(--vscode-charts-yellow, #cca700);
+}
+
+.level--E,
+.level--F {
+  border-left-color: var(--vscode-charts-red, #f48771);
+  background: color-mix(in srgb, var(--vscode-charts-red, #f48771) 8%, transparent);
+}
+
+.level--E .log-line__level,
+.level--F .log-line__level,
+.level--E .log-line__message,
+.level--F .log-line__message {
+  color: var(--vscode-errorForeground, #f48771);
+}

@@ -66,8 +66,9 @@ describe('TabBar', () => {
     const { bar, press } = setup(undefined);
     bar.start();
     press('component', 'ArrowRight');
-    expect(bar.current).toBe('device');
-    expect(document.activeElement).toBe($('#tab-device'));
+    expect(bar.current).toBe('logs');
+    expect(document.activeElement).toBe($('#tab-logs'));
+    press('logs', 'ArrowRight');
     press('device', 'ArrowRight');
     expect(bar.current).toBe('component');
     press('component', 'ArrowLeft');
@@ -139,6 +140,9 @@ describe('tools webview entry', () => {
     deliver({ type: 'storage-new-key' });
     deliver({ type: 'network-status', status: { kind: 'capturing' } });
     deliver({ type: 'network-entries', reset: true, entries: [] });
+    deliver({ type: 'logs-status', status: { kind: 'no-app' } });
+    deliver({ type: 'logs-lines', reset: true, lines: [] });
+    expect(document.querySelector('.logs__message')?.textContent).toBe('No app in the foreground yet.');
     expect(document.querySelector('.network__message')?.textContent).toBe('Waiting for requests. Use the app to see them here.');
     expect([document.querySelector('.storage .summary')?.textContent, $<HTMLElement>('.new-key').hidden, $<HTMLElement>('#panel-storage').hidden]).toEqual(['1 key', false, false]);
     $<HTMLButtonElement>('#tab-component').click();

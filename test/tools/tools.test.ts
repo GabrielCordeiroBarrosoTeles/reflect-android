@@ -6,6 +6,8 @@ import type { InspectedComponent } from '../../src/inspector/types';
 import { ComponentTab, displayPath } from '../../src/tools/ComponentTab';
 import { DeviceTab } from '../../src/tools/DeviceTab';
 import { NetworkTab } from '../../src/tools/NetworkTab';
+import { LogsTab, MAX_LOG_LINES } from '../../src/tools/LogsTab';
+import type { LogRead } from '../../src/logs/types';
 import type { NetworkResult } from '../../src/network/types';
 import { renderToolsHtml } from '../../src/tools/toolsHtml';
 import { TOOLS_VIEW_ID, ToolsViewProvider } from '../../src/tools/ToolsViewProvider';
@@ -103,12 +105,13 @@ const setupProvider = () => {
   const device = { setActive: vi.fn(), refresh: vi.fn(), sync: vi.fn() };
   const storage = { refresh: vi.fn(() => Promise.resolve()), write: vi.fn(() => Promise.resolve()), remove: vi.fn(() => Promise.resolve()), sync: vi.fn() };
   const network = { setActive: vi.fn(), setPaused: vi.fn(), clear: vi.fn(() => Promise.resolve()), sync: vi.fn() };
+  const logs = { setActive: vi.fn(), setPaused: vi.fn(), clear: vi.fn(), sync: vi.fn() };
   const app = new Emitter<boolean>();
   let connected = false;
   const clipboard = new FakeClipboard();
   const notify = vi.fn();
   const setTabContext = vi.fn();
-  const provider = new ToolsViewProvider(Uri.file('/ext') as unknown as vscode.Uri, { app: { get isConnected() { return connected; }, onDidChange: app.event }, clipboard, notify, setTabContext }, () => ({ component, device, storage, network }));
+  const provider = new ToolsViewProvider(Uri.file('/ext') as unknown as vscode.Uri, { app: { get isConnected() { return connected; }, onDidChange: app.event }, clipboard, notify, setTabContext }, () => ({ component, device, storage, network, logs }));
   const view = new FakeWebviewView();
   provider.resolveWebviewView(view as unknown as vscode.WebviewView);
   const send = async (message: unknown) => {
@@ -119,7 +122,7 @@ const setupProvider = () => {
     connected = value;
     app.fire(value);
   };
-  return { provider, view, send, component, device, storage, network, clipboard, notify, setTabContext, setConnected };
+  return { provider, view, send, component, device, storage, network, logs, clipboard, notify, setTabContext, setConnected };
 };
 
 describe('ToolsViewProvider', () => {
@@ -132,8 +135,8 @@ describe('ToolsViewProvider', () => {
     expect(view.webview.posted[0]).toEqual({ type: 'app-available', available: false });
   });
 
-  it('tells the page when the app connects and drives the network tab', async () => {
-    const { view, send, setConnected, network, provider } = setupProvider();
+  it('tells the page when the app connects and drives the network and logs tabs', async () => {
+    const { view, send, setConnected, network, logs, provider } = setupProvider();
     setConnected(true);
     expect(view.webview.posted.at(-1)).toEqual({ type: 'app-available', available: true });
     await send({ type: 'tab-changed', tab: 'network' });
@@ -142,6 +145,11 @@ describe('ToolsViewProvider', () => {
     await send({ type: 'network-pause', paused: 'yes' });
     await send({ type: 'network-clear' });
     expect([network.setPaused.mock.calls, network.clear.mock.calls.length]).toEqual([[[true]], 1]);
+    await send({ type: 'tab-changed', tab: 'logs' });
+    await send({ type: 'logs-pause', paused: false });
+    await send({ type: 'logs-pause', paused: 1 });
+    await send({ type: 'logs-clear' });
+    expect([logs.setActive.mock.lastCall, network.setActive.mock.lastCall, logs.setPaused.mock.calls, logs.clear.mock.calls.length, logs.sync.mock.calls.length]).toEqual([[true], [false], [[false]], 1, 0]);
     provider.dispose();
     setConnected(false);
     expect(view.webview.posted.at(-1)).toEqual({ type: 'app-available', available: true });
@@ -319,6 +327,113 @@ describe('NetworkTab', () => {
     resolve({ status: 'ok', revision: 1, entries: [entry(1)] });
     await vi.advanceTimersByTimeAsync(0);
     expect(channel.last('network-entries')).toBeUndefined();
+    tab.dispose();
+    vi.useRealTimers();
+  });
+});
+
+describe('LogsTab', () => {
+  const line = (time: string, message: string, tid = 1): LogRead['lines'][number] => ({ time, pid: 7, tid, level: 'I', tag: 'ReactNativeJS', message });
+
+  const setupLogs = () => {
+    vi.useFakeTimers();
+    const reads: (LogRead | Error)[] = [];
+    const reader = {
+      read: vi.fn((_serial: string, _since: string | undefined) => {
+        const next = reads.shift() ?? { app: 'com.app', pid: 7, lines: [] };
+        return next instanceof Error ? Promise.reject(next) : Promise.resolve(next);
+      }),
+    };
+    const context = new FakeActiveDeviceContext();
+    context.mirroredDevice = deviceInfo({ serial: 'A' });
+    const channel = new FakeToolsChannel();
+    const tab = new LogsTab(reader, context, channel, 1000);
+    return { reader, context, channel, tab, reads };
+  };
+
+  it('reads new lines once a second only while active, without repeating lines at the same timestamp', async () => {
+    const { reader, channel, tab, reads } = setupLogs();
+    reads.push(
+      { app: 'com.app', pid: 7, lines: [line('10-21 09:00:00.000', 'a'), line('10-21 09:00:01.000', 'b')] },
+      { app: 'com.app', pid: 7, lines: [line('10-21 09:00:01.000', 'b'), line('10-21 09:00:01.000', 'c', 2)] },
+      { app: 'com.app', pid: 7, lines: [line('10-21 09:00:01.000', 'b')] },
+    );
+    tab.setActive(true);
+    tab.setActive(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(channel.posted[0]).toEqual({ type: 'logs-status', status: { kind: 'capturing', app: 'com.app' } });
+    expect(channel.last('logs-lines')?.lines.map((entry) => [entry.id, entry.message])).toEqual([[1, 'a'], [2, 'b']]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(channel.last('logs-lines')?.lines.map((entry) => entry.message)).toEqual(['c']);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(reader.read.mock.calls.map(([, since]) => since)).toEqual([undefined, '10-21 09:00:01.000', '10-21 09:00:01.000']);
+    expect(channel.posted.filter((message) => message.type === 'logs-lines')).toHaveLength(2);
+    tab.setActive(false);
+    const calls = reader.read.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(reader.read).toHaveBeenCalledTimes(calls);
+    tab.sync();
+    expect(channel.last('logs-lines')).toMatchObject({ reset: true, lines: [{ message: 'a' }, { message: 'b' }, { message: 'c' }] });
+    tab.dispose();
+    vi.useRealTimers();
+  });
+
+  it('starts over when the app restarts or the device changes, and keeps the newest lines', async () => {
+    const { channel, tab, reads, context } = setupLogs();
+    reads.push(
+      { app: 'com.app', pid: 7, lines: Array.from({ length: MAX_LOG_LINES + 10 }, (_, index) => line('10-21 09:00:00.000', `m${index}`, index)) },
+      { app: 'com.app', pid: 8, lines: [line('10-21 09:01:00.000', 'fresh')] },
+    );
+    tab.setActive(true);
+    await vi.advanceTimersByTimeAsync(0);
+    tab.sync();
+    expect(channel.last('logs-lines')?.lines).toHaveLength(MAX_LOG_LINES);
+    await vi.advanceTimersByTimeAsync(1000);
+    tab.sync();
+    expect(channel.last('logs-lines')?.lines.map((entry) => entry.message)).toEqual(['fresh']);
+    context.setMirroredDevice(undefined);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(channel.posted.slice(-2)).toEqual([
+      { type: 'logs-lines', lines: [], reset: true },
+      { type: 'logs-status', status: { kind: 'idle' } },
+    ]);
+    tab.dispose();
+    vi.useRealTimers();
+  });
+
+  it('reports a missing app and failures, pauses and clears', async () => {
+    const { reader, channel, tab, reads } = setupLogs();
+    reads.push({ app: undefined, pid: undefined, lines: [] }, { app: 'com.app', pid: undefined, lines: [] }, new Error('adb gone'), 'plain' as unknown as Error);
+    reader.read.mockImplementationOnce(() => Promise.resolve({ app: undefined, pid: undefined, lines: [] }));
+    tab.setActive(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(channel.last('logs-status')?.status).toEqual({ kind: 'no-app' });
+    reader.read.mockRejectedValueOnce(new Error('adb gone')).mockRejectedValueOnce('plain');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(channel.last('logs-status')?.status).toEqual({ kind: 'failed', message: 'adb gone' });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(channel.last('logs-status')?.status).toEqual({ kind: 'failed', message: 'plain' });
+    tab.setPaused(true);
+    expect(channel.last('logs-status')?.status).toEqual({ kind: 'paused' });
+    const calls = reader.read.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(reader.read).toHaveBeenCalledTimes(calls);
+    tab.setPaused(false);
+    tab.clear();
+    expect(channel.last('logs-lines')).toEqual({ type: 'logs-lines', lines: [], reset: true });
+    tab.dispose();
+    vi.useRealTimers();
+  });
+
+  it('drops answers that arrive after it stopped', async () => {
+    let resolve: (read: LogRead) => void = () => undefined;
+    const { reader, channel, tab } = setupLogs();
+    reader.read.mockReturnValueOnce(new Promise<LogRead>((done) => (resolve = done)));
+    tab.setActive(true);
+    tab.setActive(false);
+    resolve({ app: 'com.app', pid: 7, lines: [line('10-21 09:00:00.000', 'late')] });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(channel.last('logs-lines')).toBeUndefined();
     tab.dispose();
     vi.useRealTimers();
   });

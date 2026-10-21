@@ -64,6 +64,30 @@ const networkPanel = `
       </div>
     </section>`;
 
+const logsPanel = `
+    <section class="logs" aria-label="Logs">
+      <div class="bar">
+        <input class="logs__search field" type="search" placeholder="Filter logs" aria-label="Filter logs" spellcheck="false">
+        <select class="logs__level field field--narrow" aria-label="Minimum level">
+          <option value="V">Verbose</option>
+          <option value="D">Debug</option>
+          <option value="I">Info</option>
+          <option value="W">Warn</option>
+          <option value="E">Error</option>
+        </select>
+        <button class="icon-button toggle-button logs__js" type="button" title="Only JavaScript logs" aria-label="Only JavaScript logs" aria-pressed="false"><i class="codicon codicon-symbol-event"></i></button>
+        <button class="icon-button logs__pause" type="button" title="Pause logs" aria-label="Pause logs"><i class="codicon codicon-debug-pause"></i></button>
+        <button class="icon-button logs__copy" type="button" title="Copy visible logs" aria-label="Copy visible logs"><i class="codicon codicon-copy"></i></button>
+        <button class="icon-button logs__clear" type="button" title="Clear" aria-label="Clear"><i class="codicon codicon-clear-all"></i></button>
+      </div>
+      <p class="summary logs__summary" role="status"></p>
+      <div class="placeholder logs__empty">
+        <i class="codicon codicon-output"></i>
+        <p class="logs__message"></p>
+      </div>
+      <ol class="log" aria-label="Log lines"></ol>
+    </section>`;
+
 const devicePanel = `
     <section class="device" aria-label="Device info">
       <div class="placeholder device__empty">
@@ -119,6 +143,7 @@ const storagePanel = `
 const TABS = [
   { id: 'component', label: 'Component', icon: 'inspect', panel: componentPanel },
   { id: 'network', label: 'Network', icon: 'globe', panel: networkPanel },
+  { id: 'logs', label: 'Logs', icon: 'output', panel: logsPanel },
   { id: 'storage', label: 'Storage', icon: 'database', panel: storagePanel },
   { id: 'device', label: 'Device', icon: 'device-mobile', panel: devicePanel },
 ] as const;
