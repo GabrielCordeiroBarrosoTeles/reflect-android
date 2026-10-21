@@ -39,6 +39,8 @@ import { AppConnectionWatcher } from './storage/AppConnectionWatcher';
 import { AsyncStorageReader } from './storage/AsyncStorageReader';
 import { ComponentTab } from './tools/ComponentTab';
 import { DeviceTab } from './tools/DeviceTab';
+import { NetworkTab } from './tools/NetworkTab';
+import { NetworkReader } from './network/NetworkReader';
 import { StorageTab } from './tools/StorageTab';
 import { TOOLS_VIEW_ID, ToolsViewProvider } from './tools/ToolsViewProvider';
 import { CdpSession } from './inspector/CdpSession';
@@ -85,6 +87,7 @@ const readAdbPathSetting = (): string | undefined =>
 const reflectSetting = <T>(key: string): T | undefined => vscode.workspace.getConfiguration('reflect').get<T>(key);
 
 const APP_WATCH_INTERVAL_MS = 5_000;
+const NETWORK_POLL_MS = 1_000;
 const readMetroPort = (): number => reflectSetting<number>('metroPort') ?? DEFAULT_METRO_PORT;
 
 const readLocationSetting = (): MirrorLocation =>
@@ -168,16 +171,16 @@ export function activate(context: vscode.ExtensionContext): void {
   const confirm = async (message: string, action: string): Promise<boolean> => (await vscode.window.showWarningMessage(message, { modal: true }, action)) === action;
   const tools = new ToolsViewProvider(
     context.extensionUri,
-    { clipboard, notify: showCopied, setTabContext: (tab) => void vscode.commands.executeCommand('setContext', 'reflect.toolsTab', tab) },
+    { app: appWatcher, clipboard, notify: showCopied, setTabContext: (tab) => void vscode.commands.executeCommand('setContext', 'reflect.toolsTab', tab) },
     (channel) => ({
       component: new ComponentTab(channel, openSource),
+      network: new NetworkTab(new NetworkReader(appConnection), activeDevice, channel, NETWORK_POLL_MS),
       device: new DeviceTab(deviceInfoPoller, activeDevice, () => ({ maskIpAddress: reflectSetting<boolean>('privacy.maskIpAddress') === true }), channel),
       storage: new StorageTab(
         {
           reader: new AsyncStorageReader(appConnection, INSPECTOR_TIMING),
           context: activeDevice,
           onDidChangeConnection: appWatcher.onDidChange,
-          isConnected: () => appWatcher.isConnected,
           confirm,
           notify: showCopied,
         },
@@ -185,7 +188,7 @@ export function activate(context: vscode.ExtensionContext): void {
       ),
     }),
   );
-  const { component: componentTab, device: deviceTab, storage: storageTab } = tools.tabs;
+  const { component: componentTab, device: deviceTab, storage: storageTab, network: networkTab } = tools.tabs;
   const inspectController = new InspectController({
     inspector: new ComponentInspector(appConnection, metro, INSPECTOR_TIMING),
     mirrors: { setInspectMode: (active) => mirrors.setInspectMode(active) },
@@ -239,6 +242,7 @@ export function activate(context: vscode.ExtensionContext): void {
     tools,
     deviceTab,
     storageTab,
+    networkTab,
     vscode.window.registerWebviewViewProvider(TOOLS_VIEW_ID, tools),
     appConnection,
     tracker,

@@ -5,6 +5,8 @@ import type { PollerState } from '../../src/deviceInfo/DeviceInfoPoller';
 import type { InspectedComponent } from '../../src/inspector/types';
 import { ComponentTab, displayPath } from '../../src/tools/ComponentTab';
 import { DeviceTab } from '../../src/tools/DeviceTab';
+import { NetworkTab } from '../../src/tools/NetworkTab';
+import type { NetworkResult } from '../../src/network/types';
 import { renderToolsHtml } from '../../src/tools/toolsHtml';
 import { TOOLS_VIEW_ID, ToolsViewProvider } from '../../src/tools/ToolsViewProvider';
 import { deviceInfo } from '../fakes/devices';
@@ -100,26 +102,49 @@ const setupProvider = () => {
   const component = { open: vi.fn(() => Promise.resolve()), sync: vi.fn() };
   const device = { setActive: vi.fn(), refresh: vi.fn(), sync: vi.fn() };
   const storage = { refresh: vi.fn(() => Promise.resolve()), write: vi.fn(() => Promise.resolve()), remove: vi.fn(() => Promise.resolve()), sync: vi.fn() };
+  const network = { setActive: vi.fn(), setPaused: vi.fn(), clear: vi.fn(() => Promise.resolve()), sync: vi.fn() };
+  const app = new Emitter<boolean>();
+  let connected = false;
   const clipboard = new FakeClipboard();
   const notify = vi.fn();
   const setTabContext = vi.fn();
-  const provider = new ToolsViewProvider(Uri.file('/ext') as unknown as vscode.Uri, { clipboard, notify, setTabContext }, () => ({ component, device, storage }));
+  const provider = new ToolsViewProvider(Uri.file('/ext') as unknown as vscode.Uri, { app: { get isConnected() { return connected; }, onDidChange: app.event }, clipboard, notify, setTabContext }, () => ({ component, device, storage, network }));
   const view = new FakeWebviewView();
   provider.resolveWebviewView(view as unknown as vscode.WebviewView);
   const send = async (message: unknown) => {
     view.webview.received.fire(message);
     await flushPromises();
   };
-  return { provider, view, send, component, device, storage, clipboard, notify, setTabContext };
+  const setConnected = (value: boolean) => {
+    connected = value;
+    app.fire(value);
+  };
+  return { provider, view, send, component, device, storage, network, clipboard, notify, setTabContext, setConnected };
 };
 
 describe('ToolsViewProvider', () => {
   it('serves the tools page and syncs every tab when ready', async () => {
-    const { view, send, component, device, storage } = setupProvider();
+    const { view, send, component, device, storage, network } = setupProvider();
     expect(view.webview.options).toEqual({ enableScripts: true, localResourceRoots: [Uri.file('/ext/dist')] });
     expect(view.webview.html).toContain('webview:/ext/dist/tools.js');
     await send({ type: 'ready' });
-    expect([component.sync, device.sync, storage.sync].map((fn) => fn.mock.calls.length)).toEqual([1, 1, 1]);
+    expect([component.sync, device.sync, storage.sync, network.sync].map((fn) => fn.mock.calls.length)).toEqual([1, 1, 1, 1]);
+    expect(view.webview.posted[0]).toEqual({ type: 'app-available', available: false });
+  });
+
+  it('tells the page when the app connects and drives the network tab', async () => {
+    const { view, send, setConnected, network, provider } = setupProvider();
+    setConnected(true);
+    expect(view.webview.posted.at(-1)).toEqual({ type: 'app-available', available: true });
+    await send({ type: 'tab-changed', tab: 'network' });
+    expect(network.setActive).toHaveBeenLastCalledWith(true);
+    await send({ type: 'network-pause', paused: true });
+    await send({ type: 'network-pause', paused: 'yes' });
+    await send({ type: 'network-clear' });
+    expect([network.setPaused.mock.calls, network.clear.mock.calls.length]).toEqual([[[true]], 1]);
+    provider.dispose();
+    setConnected(false);
+    expect(view.webview.posted.at(-1)).toEqual({ type: 'app-available', available: true });
   });
 
   it('tracks the active tab, polls the device only while its tab is visible and refreshes storage when opened', async () => {
@@ -176,5 +201,125 @@ describe('ToolsViewProvider', () => {
     provider.dispose();
     provider.post({ type: 'select-tab', tab: 'device' });
     expect(view.webview.posted.at(-1)).toEqual({ type: 'select-tab', tab: 'component' });
+  });
+});
+
+describe('NetworkTab', () => {
+  const entry = (id: number, url = `https://a/${id}`) => ({
+    id,
+    method: 'GET',
+    url,
+    state: 'done' as const,
+    status: 200,
+    startedAt: 0,
+    duration: 5,
+    requestHeaders: {},
+    requestBody: { text: '', truncated: false },
+    responseHeaders: {},
+    responseBody: { text: 'ok', truncated: false },
+    responseSize: 2,
+  });
+
+  const setupNetwork = () => {
+    vi.useFakeTimers();
+    const results: NetworkResult[] = [];
+    const reader = {
+      read: vi.fn((_device: unknown, _since: number) => Promise.resolve(results.shift() ?? ({ status: 'ok', revision: 2, entries: [] } as NetworkResult))),
+      clear: vi.fn(() => Promise.resolve()),
+    };
+    const context = new FakeActiveDeviceContext();
+    context.mirroredDevice = deviceInfo({ serial: 'A' });
+    const channel = new FakeToolsChannel();
+    const tab = new NetworkTab(reader, context, channel, 1000);
+    return { reader, context, channel, tab, results };
+  };
+
+  it('polls only while active, sends new entries and keeps the latest revision', async () => {
+    const { reader, channel, tab, results } = setupNetwork();
+    results.push({ status: 'ok', revision: 2, entries: [entry(1), entry(2)] }, { status: 'ok', revision: 2, entries: [] }, { status: 'ok', revision: 3, entries: [{ ...entry(2), status: 404 }] });
+    tab.setActive(true);
+    tab.setActive(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(channel.posted).toEqual([
+      { type: 'network-status', status: { kind: 'capturing' } },
+      { type: 'network-entries', entries: [entry(1), entry(2)], reset: false },
+    ]);
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(reader.read.mock.calls.map(([, since]) => since)).toEqual([0, 2, 2]);
+    expect(channel.last('network-entries')).toEqual({ type: 'network-entries', entries: [{ ...entry(2), status: 404 }], reset: false });
+    tab.setActive(false);
+    const calls = reader.read.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(reader.read).toHaveBeenCalledTimes(calls);
+    tab.sync();
+    expect(channel.posted.slice(-2)).toEqual([
+      { type: 'network-status', status: { kind: 'capturing' } },
+      { type: 'network-entries', entries: [entry(1), { ...entry(2), status: 404 }], reset: true },
+    ]);
+    tab.dispose();
+    vi.useRealTimers();
+  });
+
+  it('resends everything when the app reloads and resets when the device changes', async () => {
+    const { channel, tab, results, context } = setupNetwork();
+    results.push({ status: 'ok', revision: 5, entries: [entry(1)] }, { status: 'ok', revision: 1, entries: [entry(1, 'https://b/1')] });
+    tab.setActive(true);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(channel.last('network-entries')).toEqual({ type: 'network-entries', entries: [entry(1, 'https://b/1')], reset: true });
+    context.setMirroredDevice(undefined);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(channel.posted.slice(-2)).toEqual([
+      { type: 'network-entries', entries: [], reset: true },
+      { type: 'network-status', status: { kind: 'idle' } },
+    ]);
+    tab.dispose();
+    vi.useRealTimers();
+  });
+
+  it('pauses, clears and reports problems', async () => {
+    const { reader, channel, tab, results, context } = setupNetwork();
+    results.push({ status: 'unavailable' }, { status: 'error', message: 'boom' });
+    tab.setActive(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(channel.last('network-status')).toEqual({ type: 'network-status', status: { kind: 'unavailable' } });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(channel.last('network-status')).toEqual({ type: 'network-status', status: { kind: 'failed', message: 'boom' } });
+    reader.read.mockRejectedValueOnce(new Error('metro down')).mockRejectedValueOnce('plain');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(channel.last('network-status')?.status).toEqual({ kind: 'failed', message: 'metro down' });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(channel.last('network-status')?.status).toEqual({ kind: 'failed', message: 'plain' });
+    tab.setPaused(true);
+    expect(channel.last('network-status')?.status).toEqual({ kind: 'paused' });
+    const calls = reader.read.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(reader.read).toHaveBeenCalledTimes(calls);
+    tab.setPaused(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(reader.read).toHaveBeenCalledTimes(calls + 1);
+    await tab.clear();
+    expect(reader.clear).toHaveBeenCalledOnce();
+    reader.clear.mockRejectedValueOnce(new Error('x'));
+    await tab.clear();
+    context.mirroredDevice = undefined;
+    await tab.clear();
+    expect(reader.clear).toHaveBeenCalledTimes(2);
+    tab.dispose();
+    vi.useRealTimers();
+  });
+
+  it('drops answers that arrive after it stopped', async () => {
+    let resolve: (result: NetworkResult) => void = () => undefined;
+    const { reader, channel, tab } = setupNetwork();
+    reader.read.mockReturnValueOnce(new Promise<NetworkResult>((done) => (resolve = done)));
+    tab.setActive(true);
+    tab.setActive(false);
+    resolve({ status: 'ok', revision: 1, entries: [entry(1)] });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(channel.last('network-entries')).toBeUndefined();
+    tab.dispose();
+    vi.useRealTimers();
   });
 });

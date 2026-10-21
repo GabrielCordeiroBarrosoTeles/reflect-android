@@ -75,6 +75,8 @@ describe('TabBar', () => {
     expect(bar.current).toBe('component');
     bar.setAvailable('storage', true);
     press('component', 'End');
+    expect(bar.current).toBe('device');
+    press('device', 'ArrowLeft');
     expect(bar.current).toBe('storage');
     press('storage', 'Enter');
     expect(bar.current).toBe('storage');
@@ -128,13 +130,16 @@ describe('tools webview entry', () => {
     await import('../../src/toolsWebview/main');
     expect(posted).toEqual([{ type: 'ready' }, { type: 'tab-changed', tab: 'device' }]);
     const deliver = (data: unknown) => window.dispatchEvent(new MessageEvent('message', { data }));
-    deliver({ type: 'storage-available', available: true });
+    deliver({ type: 'app-available', available: true });
     deliver({ type: 'select-tab', tab: 'storage' });
     deliver({ type: 'component', view: undefined });
     deliver({ type: 'device', state: { kind: 'idle' } });
     deliver({ type: 'storage-state', state: { kind: 'loaded', entries: [{ key: 'a', value: '1' }] } });
     deliver({ type: 'storage-saved', key: 'a' });
     deliver({ type: 'storage-new-key' });
+    deliver({ type: 'network-status', status: { kind: 'capturing' } });
+    deliver({ type: 'network-entries', reset: true, entries: [] });
+    expect(document.querySelector('.network__message')?.textContent).toBe('Waiting for requests. Use the app to see them here.');
     expect([document.querySelector('.storage .summary')?.textContent, $<HTMLElement>('.new-key').hidden, $<HTMLElement>('#panel-storage').hidden]).toEqual(['1 key', false, false]);
     $<HTMLButtonElement>('#tab-component').click();
     expect([posted.at(-1), state]).toEqual([{ type: 'tab-changed', tab: 'component' }, { tab: 'component' }]);

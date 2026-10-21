@@ -21,8 +21,8 @@ const setup = () => {
     if (message.type === 'storage-saved') panel.saved(message.key);
     if (message.type === 'storage-new-key') panel.openNewKeyForm();
   };
-  const $ = <T extends Element>(selector: string) => query<T>(document, selector);
-  const rows = () => [...document.querySelectorAll('.key')].map((row) => row.querySelector('.key__name')?.textContent);
+  const $ = <T extends Element>(selector: string) => query<T>(query(document, '.storage'), selector);
+  const rows = () => [...document.querySelectorAll('.storage .key')].map((row) => row.querySelector('.key__name')?.textContent);
   const type = (field: HTMLInputElement | HTMLTextAreaElement, value: string) => {
     field.value = value;
     field.dispatchEvent(new Event('input'));
@@ -40,8 +40,8 @@ describe('StoragePanel', () => {
     deliver({ type: 'storage-state', state: { kind: 'loaded', entries: ENTRIES } });
     expect(rows()).toEqual(['auth.token', 'cart', 'user']);
     expect($('.summary').textContent).toBe('3 keys');
-    expect([...document.querySelectorAll('.key__type')].map((cell) => cell.textContent)).toEqual(['""', '[]', '{}']);
-    expect(document.querySelector('.key__size')?.textContent).toBe('3 B');
+    expect([...document.querySelectorAll('.storage .key__type')].map((cell) => cell.textContent)).toEqual(['""', '[]', '{}']);
+    expect(document.querySelector('.storage .key__size')?.textContent).toBe('3 B');
     type($('.search'), 'US');
     expect(rows()).toEqual(['user']);
     expect($('.summary').textContent).toBe('1 of 3 keys');
@@ -53,7 +53,7 @@ describe('StoragePanel', () => {
   it('opens a key in the editor, warns about invalid JSON and saves with the shortcut', () => {
     const { deliver, $, posted, type } = setup();
     deliver({ type: 'storage-state', state: { kind: 'loaded', entries: ENTRIES } });
-    document.querySelectorAll<HTMLElement>('.key')[2]?.click();
+    document.querySelectorAll<HTMLElement>('.storage .key')[2]?.click();
     expect($<HTMLElement>('.editor').hidden).toBe(false);
     expect([$('.editor__key').textContent, $('.editor__type').textContent]).toEqual(['user', 'JSON object']);
     expect($<HTMLTextAreaElement>('.editor__value').value).toBe('{\n  "name": "Ana"\n}');
@@ -88,7 +88,7 @@ describe('StoragePanel', () => {
   it('keeps unsaved edits across refreshes, then shows the saved value', () => {
     const { deliver, $, type } = setup();
     deliver({ type: 'storage-state', state: { kind: 'loaded', entries: ENTRIES } });
-    document.querySelectorAll<HTMLElement>('.key')[0]?.click();
+    document.querySelectorAll<HTMLElement>('.storage .key')[0]?.click();
     $<HTMLButtonElement>('.editor__edit').click();
     type($('.editor__value'), 'abc edited');
     deliver({ type: 'storage-state', state: { kind: 'loading' } });
@@ -106,9 +106,9 @@ describe('StoragePanel', () => {
     const { deliver, $, type } = setup();
     const logo = 'https://minio.example.com/hmlqa/driverLogo.png';
     deliver({ type: 'storage-state', state: { kind: 'loaded', entries: [{ key: 'logo', value: logo }, ...ENTRIES] } });
-    document.querySelectorAll<HTMLElement>('.key')[1]?.click();
+    document.querySelectorAll<HTMLElement>('.storage .key')[1]?.click();
     expect($<HTMLElement>('.preview').hidden).toBe(true);
-    document.querySelectorAll<HTMLElement>('.key')[0]?.click();
+    document.querySelectorAll<HTMLElement>('.storage .key')[0]?.click();
     const image = $<HTMLImageElement>('.preview__image');
     expect([$<HTMLElement>('.preview').hidden, image.getAttribute('src'), $('.preview__caption').textContent]).toEqual([false, logo, 'Loading preview…']);
     Object.defineProperty(image, 'naturalWidth', { value: 512 });

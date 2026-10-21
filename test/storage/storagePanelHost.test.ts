@@ -49,23 +49,19 @@ const setup = (results: (StorageResult | Error | string)[] = [loaded([{ key: 'a'
   const context = new FakeActiveDeviceContext();
   context.mirroredDevice = device;
   const connection = new Emitter<boolean>();
-  let connected = true;
   const confirm = vi.fn((_message: string, _action: string) => Promise.resolve(true));
   const notify = vi.fn();
   const channel = new FakeToolsChannel();
-  const tab = new StorageTab({ reader, context, onDidChangeConnection: connection.event, isConnected: () => connected, confirm, notify }, channel);
-  const setConnected = (value: boolean) => {
-    connected = value;
-    connection.fire(value);
-  };
+  const tab = new StorageTab({ reader, context, onDidChangeConnection: connection.event, confirm, notify }, channel);
+  const setConnected = (value: boolean) => connection.fire(value);
   return { tab, reader, context, setConnected, confirm, notify, channel };
 };
 
 describe('StorageTab', () => {
-  it('syncs availability and state, and loads on refresh', async () => {
+  it('syncs its state and loads on refresh', async () => {
     const { tab, channel } = setup();
     tab.sync();
-    expect(channel.posted).toEqual([{ type: 'storage-available', available: true }, { type: 'storage-state', state: { kind: 'idle' } }]);
+    expect(channel.posted).toEqual([{ type: 'storage-state', state: { kind: 'idle' } }]);
     await tab.refresh();
     expect(channel.posted).toContainEqual({ type: 'storage-state', state: { kind: 'loading' } });
     expect(channel.last('storage-state')).toEqual({ type: 'storage-state', state: { kind: 'loaded', entries: [{ key: 'a', value: '{"x":1}' }] } });
@@ -147,10 +143,8 @@ describe('StorageTab', () => {
     context.setMirroredDevice(device);
     await flushPromises();
     expect(reader.readAll).not.toHaveBeenCalled();
-    expect(channel.last('storage-available')).toEqual({ type: 'storage-available', available: true });
     channel.active = 'storage';
     setConnected(false);
-    expect(channel.last('storage-available')).toEqual({ type: 'storage-available', available: false });
     setConnected(true);
     context.setMirroredDevice(device);
     await flushPromises();

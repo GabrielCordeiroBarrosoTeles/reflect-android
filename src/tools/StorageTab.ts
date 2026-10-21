@@ -10,7 +10,6 @@ export interface StorageServices {
   readonly reader: IStorageReader;
   readonly context: IActiveDeviceContext;
   readonly onDidChangeConnection: Event<boolean>;
-  readonly isConnected: () => boolean;
   readonly confirm: (message: string, action: string) => Promise<boolean>;
   readonly notify: (message: string) => void;
 }
@@ -45,7 +44,6 @@ export class StorageTab implements IDisposable {
   ) {
     this.store.add(
       services.onDidChangeConnection((connected) => {
-        this.syncAvailability();
         if (connected && channel.isActive('storage')) {
           void this.refresh();
         }
@@ -89,16 +87,11 @@ export class StorageTab implements IDisposable {
   }
 
   sync(): void {
-    this.syncAvailability();
     this.channel.post({ type: 'storage-state', state: this.state });
   }
 
   dispose(): void {
     this.store.dispose();
-  }
-
-  private syncAvailability(): void {
-    this.channel.post({ type: 'storage-available', available: this.services.isConnected() });
   }
 
   private entries(): readonly StorageEntry[] {

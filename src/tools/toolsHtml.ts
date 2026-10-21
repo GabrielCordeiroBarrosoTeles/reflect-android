@@ -24,6 +24,46 @@ const componentPanel = `
       </div>
     </section>`;
 
+const networkPanel = `
+    <section class="network" aria-label="Network">
+      <div class="bar">
+        <input class="network__search field" type="search" placeholder="Filter URL" aria-label="Filter URL" spellcheck="false">
+        <select class="network__filter field field--narrow" aria-label="Status filter">
+          <option value="all">All</option>
+          <option value="2">2xx</option>
+          <option value="3">3xx</option>
+          <option value="4">4xx</option>
+          <option value="5">5xx</option>
+          <option value="failed">Failed</option>
+        </select>
+        <button class="icon-button network__pause" type="button" title="Pause capture" aria-label="Pause capture"><i class="codicon codicon-debug-pause"></i></button>
+        <button class="icon-button network__clear" type="button" title="Clear" aria-label="Clear"><i class="codicon codicon-clear-all"></i></button>
+      </div>
+      <p class="summary network__summary" role="status"></p>
+      <div class="placeholder network__empty">
+        <i class="codicon codicon-globe"></i>
+        <p class="network__message"></p>
+      </div>
+      <ul class="requests" role="listbox" aria-label="Requests" tabindex="0"></ul>
+      <div class="request" hidden>
+        <header class="request__header">
+          <span class="request__method"></span>
+          <span class="request__url"></span>
+        </header>
+        <p class="request__meta"></p>
+        <nav class="segments" aria-label="Request details">
+          <button class="segment" type="button" data-section="headers">Headers</button>
+          <button class="segment" type="button" data-section="request">Request</button>
+          <button class="segment" type="button" data-section="response">Response</button>
+        </nav>
+        <div class="request__body"></div>
+        <div class="actions">
+          <button class="button request__curl" type="button">Copy as cURL</button>
+          <button class="button button--secondary request__copy" type="button">Copy response</button>
+        </div>
+      </div>
+    </section>`;
+
 const devicePanel = `
     <section class="device" aria-label="Device info">
       <div class="placeholder device__empty">
@@ -78,15 +118,16 @@ const storagePanel = `
 
 const TABS = [
   { id: 'component', label: 'Component', icon: 'inspect', panel: componentPanel },
-  { id: 'device', label: 'Device', icon: 'device-mobile', panel: devicePanel },
+  { id: 'network', label: 'Network', icon: 'globe', panel: networkPanel },
   { id: 'storage', label: 'Storage', icon: 'database', panel: storagePanel },
+  { id: 'device', label: 'Device', icon: 'device-mobile', panel: devicePanel },
 ] as const;
 
 export const renderToolsHtml = ({ cspSource, scriptUri, styleUri }: ToolsHtmlAssets): string => {
   const nonce = createNonce();
   const buttons = TABS.map(
     ({ id, label, icon }) =>
-      `<button id="tab-${id}" class="tab" type="button" role="tab" data-tab="${id}" aria-controls="panel-${id}" aria-selected="false" tabindex="-1" title="${label}" aria-label="${label}"${id === 'storage' ? ' hidden' : ''}><i class="codicon codicon-${icon}" aria-hidden="true"></i><span class="tab__label">${label}</span></button>`,
+      `<button id="tab-${id}" class="tab" type="button" role="tab" data-tab="${id}" aria-controls="panel-${id}" aria-selected="false" tabindex="-1" title="${label}" aria-label="${label}"${id === 'storage' || id === 'network' ? ' hidden' : ''}><i class="codicon codicon-${icon}" aria-hidden="true"></i><span class="tab__label">${label}</span></button>`,
   ).join('\n    ');
   const panels = TABS.map(({ id, panel }) => `<div id="panel-${id}" class="panel" role="tabpanel" aria-labelledby="tab-${id}" data-tab="${id}" hidden>${panel}\n  </div>`).join('\n  ');
   return `<!DOCTYPE html>

@@ -3,6 +3,7 @@ import './tools.css';
 import type { HostToToolsMessage } from '../shared/toolsProtocol';
 import { ComponentTab } from './ComponentTab';
 import { DeviceTab } from './DeviceTab';
+import { NetworkPanel } from './network/NetworkPanel';
 import { query } from './dom';
 import { StoragePanel } from './storage/StoragePanel';
 import { TabBar } from './TabBar';
@@ -13,11 +14,13 @@ const post = api.postMessage.bind(api);
 const component = new ComponentTab(query(document, '.component'), post);
 const device = new DeviceTab(query(document, '.device'), post);
 const storage = new StoragePanel(query(document, '.storage'), post);
+const network = new NetworkPanel(query(document, '.network'), post);
 const tabs = new TabBar(document, { get: () => api.getState(), set: (state) => api.setState(state) }, (tab) => post({ type: 'tab-changed', tab }));
 
 const receive = (message: HostToToolsMessage): void => {
   switch (message.type) {
-    case 'storage-available':
+    case 'app-available':
+      tabs.setAvailable('network', message.available);
       tabs.setAvailable('storage', message.available);
       break;
     case 'select-tab':
@@ -37,6 +40,12 @@ const receive = (message: HostToToolsMessage): void => {
       break;
     case 'storage-new-key':
       storage.openNewKeyForm();
+      break;
+    case 'network-status':
+      network.setStatus(message.status);
+      break;
+    case 'network-entries':
+      network.update(message.entries, message.reset);
       break;
   }
 };

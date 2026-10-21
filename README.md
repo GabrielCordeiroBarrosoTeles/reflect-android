@@ -47,11 +47,12 @@ Under the hood Reflect uses the [scrcpy](https://github.com/Genymobile/scrcpy) p
 
 ### Tools panel
 
-Below the mirror, a single **Tools** panel groups everything about the device and the app in tabs: **Component** (inspected component), **Device** (hardware and battery details) and **Storage** (AsyncStorage, only while an app in development mode is connected). It remembers the last tab, works with the arrow keys, and shows only the icons when the sidebar is narrow.
+Below the mirror, a single **Tools** panel groups everything about the device and the app in tabs: **Component** (inspected component), **Network** (the app's HTTP requests), **Storage** (AsyncStorage) and **Device** (hardware and battery details). Network and Storage appear while an app in development mode is connected. The active tab shows its name and the others just their icon; the panel remembers the last tab and works with the arrow keys.
 
 ### React Native tools
 
 - **Component inspector**: click **Inspect** and move the mouse over the screen. The component under the cursor is highlighted like in the browser DevTools — content in blue, padding in green, margin in orange — with a label such as `<Text> in ProfileCard · ProfileCard.tsx:42`. Click to see its props and owners and jump straight to the line in your code. Works with React Native 0.76+ (including Expo) in development mode, with Metro running.
+- **Network inspector**: every `fetch`/`XMLHttpRequest` the app makes, with method, status, time and size. Filter by URL or status, open a request to see headers, request body and response (JSON formatted, images previewed), copy it **as cURL** or copy the response, pause and clear. Nothing to install in the app — Reflect hooks into it through Metro while the Network tab is open.
 - **AsyncStorage editor**: a **Storage** tab appears in the **Tools** panel as soon as a React Native app in development mode is connected to Metro. Filter keys, see each value's type and size, edit it (JSON is formatted for you, <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>S</kbd> saves to the phone), create new keys, delete one or all, and copy a value or everything as JSON. Nothing to install in the app — it also works in Expo Go.
 - **Reload** the app and open the **Dev Menu** from the toolbar or with <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>R</kbd> and <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>M</kbd>, just like in an emulator.
 - **Reverse Metro port**: runs `adb reverse tcp:8081 tcp:8081` (or your `reflect.metroPort`) so the app on the phone reaches Metro over USB.

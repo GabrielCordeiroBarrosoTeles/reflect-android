@@ -5,7 +5,7 @@ export interface TabStore {
   set(state: unknown): void;
 }
 
-const TABS: readonly ToolsTab[] = ['component', 'device', 'storage'];
+const TABS: readonly ToolsTab[] = ['component', 'network', 'storage', 'device'];
 
 const STEPS: Readonly<Record<string, (index: number, count: number) => number>> = {
   ArrowRight: (index, count) => (index + 1) % count,
