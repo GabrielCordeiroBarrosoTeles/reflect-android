@@ -34,13 +34,19 @@ import { AdbDeviceShell } from './device/AdbDeviceShell';
 import { DeviceLeasePool } from './device/DeviceLeasePool';
 import { DeviceInfoCollector } from './deviceInfo/DeviceInfoCollector';
 import { DeviceInfoPoller } from './deviceInfo/DeviceInfoPoller';
-import { DeviceInfoView } from './deviceInfo/DeviceInfoView';
+import { AddStorageKeyCommand, ClearStorageCommand, CopyStorageJsonCommand, RefreshStorageCommand } from './commands/StorageCommands';
+import { AppConnectionWatcher } from './storage/AppConnectionWatcher';
+import { AsyncStorageReader } from './storage/AsyncStorageReader';
+import { ComponentTab } from './tools/ComponentTab';
+import { DeviceTab } from './tools/DeviceTab';
+import { StorageTab } from './tools/StorageTab';
+import { TOOLS_VIEW_ID, ToolsViewProvider } from './tools/ToolsViewProvider';
 import { CdpSession } from './inspector/CdpSession';
 import { ComponentInspector } from './inspector/ComponentInspector';
-import { ComponentView } from './inspector/ComponentView';
 import { FetchHttpClient } from './inspector/FetchHttpClient';
 import { InspectController } from './inspector/InspectController';
 import { MetroClient } from './inspector/MetroClient';
+import { MetroConnection } from './inspector/MetroConnection';
 import { openSource } from './inspector/openSource';
 import { WsSocket } from './inspector/WsSocket';
 import { MirrorController } from './mirror/MirrorController';
@@ -78,6 +84,7 @@ const readAdbPathSetting = (): string | undefined =>
 
 const reflectSetting = <T>(key: string): T | undefined => vscode.workspace.getConfiguration('reflect').get<T>(key);
 
+const APP_WATCH_INTERVAL_MS = 5_000;
 const readMetroPort = (): number => reflectSetting<number>('metroPort') ?? DEFAULT_METRO_PORT;
 
 const readLocationSetting = (): MirrorLocation =>
@@ -145,6 +152,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const connectCdp = (url: string) =>
     CdpSession.connect(url, metro.origins, (target, origin) => new WsSocket(target, origin), INSPECTOR_TIMING.timeoutMs);
   const appReloader = new AppReloader(metro, connectCdp);
+  const appConnection = new MetroConnection(metro, connectCdp, INSPECTOR_TIMING.timeoutMs);
   const portReverse = new AdbPortReverse(pool);
   const systemClipboard = new SystemClipboard(process.platform, new ExecFileProcessRunner(promisify(execFile), CLIPBOARD_TIMEOUT_MS), clipboard.writeText);
   const handleCapture = async (kind: CaptureKind, path: string): Promise<void> => {
@@ -154,11 +162,34 @@ export function activate(context: vscode.ExtensionContext): void {
   const captures = new CaptureStore(() =>
     resolveCapturesDirectory(reflectSetting<string>('capturesDirectory'), vscode.workspace.workspaceFolders?.[0]?.uri.fsPath),
   );
-  const componentView = new ComponentView();
+  const deviceInfoPoller = new DeviceInfoPoller(new DeviceInfoCollector(new AdbDeviceShell(pool)), DEVICE_INFO_INTERVAL_MS);
+  const appWatcher = new AppConnectionWatcher(metro, activeDevice, (connected) => void vscode.commands.executeCommand('setContext', 'reflect.appConnected', connected), APP_WATCH_INTERVAL_MS);
+  const showCopied = (message: string): void => void vscode.window.setStatusBarMessage(`$(check) ${message}`, COPY_FEEDBACK_MS);
+  const confirm = async (message: string, action: string): Promise<boolean> => (await vscode.window.showWarningMessage(message, { modal: true }, action)) === action;
+  const tools = new ToolsViewProvider(
+    context.extensionUri,
+    { clipboard, notify: showCopied, setTabContext: (tab) => void vscode.commands.executeCommand('setContext', 'reflect.toolsTab', tab) },
+    (channel) => ({
+      component: new ComponentTab(channel, openSource),
+      device: new DeviceTab(deviceInfoPoller, activeDevice, () => ({ maskIpAddress: reflectSetting<boolean>('privacy.maskIpAddress') === true }), channel),
+      storage: new StorageTab(
+        {
+          reader: new AsyncStorageReader(appConnection, INSPECTOR_TIMING),
+          context: activeDevice,
+          onDidChangeConnection: appWatcher.onDidChange,
+          isConnected: () => appWatcher.isConnected,
+          confirm,
+          notify: showCopied,
+        },
+        channel,
+      ),
+    }),
+  );
+  const { component: componentTab, device: deviceTab, storage: storageTab } = tools.tabs;
   const inspectController = new InspectController({
-    inspector: new ComponentInspector(metro, connectCdp, INSPECTOR_TIMING),
+    inspector: new ComponentInspector(appConnection, metro, INSPECTOR_TIMING),
     mirrors: { setInspectMode: (active) => mirrors.setInspectMode(active) },
-    view: componentView,
+    view: componentTab,
     openSource,
     onError: (error) => void errors.present(error),
     notify,
@@ -201,17 +232,18 @@ export function activate(context: vscode.ExtensionContext): void {
       ),
   );
   const selection = new DeviceSelectionService(tracker, new QuickPickDevicePicker());
-  const deviceInfoPoller = new DeviceInfoPoller(new DeviceInfoCollector(new AdbDeviceShell(pool)), DEVICE_INFO_INTERVAL_MS);
-  const deviceInfoView = new DeviceInfoView(deviceInfoPoller, activeDevice, () => ({
-    maskIpAddress: reflectSetting<boolean>('privacy.maskIpAddress') === true,
-  }));
 
   context.subscriptions.push(
     outputChannel,
+    appWatcher,
+    tools,
+    deviceTab,
+    storageTab,
+    vscode.window.registerWebviewViewProvider(TOOLS_VIEW_ID, tools),
+    appConnection,
     tracker,
     activeDevice,
     statusBar,
-    deviceInfoView,
     deviceInfoPoller,
     mirrors,
     sidebar,
@@ -222,10 +254,9 @@ export function activate(context: vscode.ExtensionContext): void {
     mirrors.onDidClose(() => inspectController.cancel()),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('reflect.privacy')) {
-        deviceInfoView.refresh();
+        deviceTab.refresh();
       }
     }),
-    componentView,
     inspectController,
     pool,
   );
@@ -239,12 +270,16 @@ export function activate(context: vscode.ExtensionContext): void {
     new MoveMirrorCommand(CommandIds.moveToSidebar, 'secondarySidebar', mirrors, () =>
       Promise.resolve(vscode.commands.executeCommand(CommandIds.openDevice)),
     ),
-    new RefreshDeviceInfoCommand(deviceInfoView),
+    new RefreshDeviceInfoCommand(deviceTab),
     new InspectCommand(inspectController, () => mirrors.hasOpenMirror, () => Promise.resolve(vscode.commands.executeCommand(CommandIds.openDevice))),
     new StopInspectingCommand(inspectController),
     new OpenComponentSourceCommand(openSource),
     ...ACTION_IDS.map((id) => new RunActionCommand(id, mirrors, notify)),
-    new CopyValueCommand(clipboard, (message) => void vscode.window.setStatusBarMessage(`$(check) ${message}`, COPY_FEEDBACK_MS)),
+    new CopyValueCommand(clipboard, showCopied),
+    new RefreshStorageCommand(storageTab),
+    new AddStorageKeyCommand(storageTab),
+    new ClearStorageCommand(storageTab),
+    new CopyStorageJsonCommand(storageTab, clipboard, showCopied),
   ]);
 
   void tracker.start().catch((error: unknown) => logger.error('Device tracking unavailable', error));

@@ -45,15 +45,20 @@ Under the hood Reflect uses the [scrcpy](https://github.com/Genymobile/scrcpy) p
 - **Screenshot** (PNG) and **MP4 recording** straight from the toolbar. Recordings keep the original H.264 stream, so there is no re-encoding and no extra CPU load.
 - Files are saved to `reflect-captures/` in your workspace (configurable) and **copied to the clipboard**, ready to paste into Slack, a pull request or an issue. A notification lets you open the file or reveal it in Finder/Explorer.
 
+### Tools panel
+
+Below the mirror, a single **Tools** panel groups everything about the device and the app in tabs: **Component** (inspected component), **Device** (hardware and battery details) and **Storage** (AsyncStorage, only while an app in development mode is connected). It remembers the last tab, works with the arrow keys, and shows only the icons when the sidebar is narrow.
+
 ### React Native tools
 
 - **Component inspector**: click **Inspect** and move the mouse over the screen. The component under the cursor is highlighted like in the browser DevTools — content in blue, padding in green, margin in orange — with a label such as `<Text> in ProfileCard · ProfileCard.tsx:42`. Click to see its props and owners and jump straight to the line in your code. Works with React Native 0.76+ (including Expo) in development mode, with Metro running.
+- **AsyncStorage editor**: a **Storage** tab appears in the **Tools** panel as soon as a React Native app in development mode is connected to Metro. Filter keys, see each value's type and size, edit it (JSON is formatted for you, <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>S</kbd> saves to the phone), create new keys, delete one or all, and copy a value or everything as JSON. Nothing to install in the app — it also works in Expo Go.
 - **Reload** the app and open the **Dev Menu** from the toolbar or with <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>R</kbd> and <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>M</kbd>, just like in an emulator.
 - **Reverse Metro port**: runs `adb reverse tcp:8081 tcp:8081` (or your `reflect.metroPort`) so the app on the phone reaches Metro over USB.
 
 ### Everything else
 
-- **Device Info** panel: model, Android version, display, battery level/temperature, memory, storage, Wi-Fi IP and the foreground app, refreshed every 5 seconds while visible.
+- **Device** tab: model, Android version, display, battery level/temperature, memory, storage, Wi-Fi IP and the foreground app, refreshed every 5 seconds while visible.
 - **Status bar item** showing the connected device — click it to open the mirror.
 - **Clear errors** when `adb` is missing, the device is unauthorized or USB debugging is off.
 - **Nothing left running**: closing the mirror stops the scrcpy server, closes the sockets, finishes any recording and releases the decoder. If the side bar stays hidden for 30 seconds the session is paused, and it resumes when you show it again.
@@ -87,7 +92,16 @@ Prefer a bigger screen? Click **Move to Editor Tab** in the view title (or run *
 
 1. Start your app in development mode (`npx expo start` or `npx react-native start`) with Metro on `reflect.metroPort`.
 2. Click the **Inspect** button in the Device view title, or run **Reflect: Inspect Component**.
-3. Move the mouse over the screen to see each component highlighted, then click one. Its props and owners appear in the **Component** view and its source line opens in the editor. Press <kbd>Esc</kbd> to stop inspecting.
+3. Move the mouse over the screen to see each component highlighted, then click one. The **Tools** panel switches to the **Component** tab with its props and owners, and its source line opens in the editor. Press <kbd>Esc</kbd> to stop inspecting.
+
+### Editing AsyncStorage
+
+1. Open the device and start your app in development mode with Metro running.
+2. The **Storage** tab shows up in the **Tools** panel with every key, its type (`{}` object, `[]` array, `""` text, `#` number…) and size. Type in the box at the top to filter.
+3. Click a key (or use the arrow keys) to open its value. Edit it and press **Save** or <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>S</kbd>; invalid JSON is flagged before saving. **Copy** and **Delete** are right there. Values that are image links (`.png`, `.jpg`, `.webp`, `.svg`…) or `data:image` strings show a preview with the image size.
+4. Use **+** to create a key, and the view title for **Refresh**, **Copy AsyncStorage as JSON** and **Delete All AsyncStorage Keys**. Deleting always asks first.
+
+Reflect talks to `@react-native-async-storage/async-storage` inside your running app, so changes are real: the app sees them immediately (reload the screen to re-read them). MMKV and SecureStore are not supported yet.
 
 ### Keyboard shortcuts
 
@@ -118,7 +132,7 @@ Every toolbar action is also a command (**Reflect: Back**, **Reflect: Take Scree
 | `reflect.location` | `secondarySidebar` | Where **Reflect: Open Device** shows the device: `secondarySidebar` or `editor`. |
 | `reflect.metroPort` | `8081` | Metro port used by the component inspector. |
 | `reflect.inspector.openSourceOnSelect` | `true` | Open the source file of an inspected component automatically. |
-| `reflect.privacy.maskIpAddress` | `false` | Hide the last part of the IP address in Device Info (handy for screenshots). |
+| `reflect.privacy.maskIpAddress` | `false` | Hide the last part of the IP address in the Device tab (handy for screenshots). |
 | `reflect.capturesDirectory` | `reflect-captures` | Folder for screenshots and recordings. Relative paths use the first workspace folder; without a workspace they go to `~/Pictures/Reflect`. |
 | `reflect.copyCapturesToClipboard` | `true` | Copy screenshots (as images) and recordings (as files) to the clipboard. |
 

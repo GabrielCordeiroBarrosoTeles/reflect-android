@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MetroUnavailableError, ReactNativeAppNotFoundError } from '../../src/core/errors';
 import { ComponentInspector } from '../../src/inspector/ComponentInspector';
+import { MetroConnection } from '../../src/inspector/MetroConnection';
 import { HIT_RESULT_GLOBAL, HOVER_RESULT_GLOBAL } from '../../src/inspector/hitTestScript';
 import type { IMetroClient, MetroTarget, StackFrame } from '../../src/inspector/types';
 import { deviceInfo } from '../fakes/devices';
@@ -67,7 +68,7 @@ const createSession = (hitResults: (string | undefined)[] = [HIT], hoverResult: 
 const setup = (session = createSession()) => {
   const metro = new FakeMetro();
   const connect = vi.fn((_url: string) => Promise.resolve(session));
-  return { metro, connect, session, inspector: new ComponentInspector(metro, connect, timing) };
+  return { metro, connect, session, inspector: new ComponentInspector(new MetroConnection(metro, connect, timing.timeoutMs), metro, timing) };
 };
 
 const device = deviceInfo({ model: 'SM F741B' });
@@ -152,7 +153,7 @@ describe('ComponentInspector', () => {
     const second = createSession();
     const metro = new FakeMetro();
     const connect = vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(second);
-    const inspector = new ComponentInspector(metro, connect, timing);
+    const inspector = new ComponentInspector(new MetroConnection(metro, connect, timing.timeoutMs), metro, timing);
     await inspector.inspectAt(device, { x: 0, y: 0 });
     await inspector.inspectAt(deviceInfo({ serial: 'other', model: 'SM F741B' }), { x: 0, y: 0 });
     first.closes.fire();

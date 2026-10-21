@@ -58,7 +58,7 @@
     "debugging",
     "mobile development",
     "android debugging",
-    "remote control",
+    "asyncstorage",
     "hot reload",
     "metro"
   ],
@@ -177,6 +177,30 @@
         "title": "Move to Side Bar",
         "category": "Reflect",
         "icon": "$(layout-sidebar-right)"
+      },
+      {
+        "command": "reflect.refreshStorage",
+        "title": "Refresh AsyncStorage",
+        "category": "Reflect",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "reflect.copyStorageJson",
+        "title": "Copy AsyncStorage as JSON",
+        "category": "Reflect",
+        "icon": "$(json)"
+      },
+      {
+        "command": "reflect.addStorageKey",
+        "title": "Add AsyncStorage Key",
+        "category": "Reflect",
+        "icon": "$(add)"
+      },
+      {
+        "command": "reflect.clearStorage",
+        "title": "Delete All AsyncStorage Keys",
+        "category": "Reflect",
+        "icon": "$(clear-all)"
       }
     ],
     "configuration": {
@@ -246,12 +270,9 @@
           "name": "Device"
         },
         {
-          "id": "reflect.component",
-          "name": "Component"
-        },
-        {
-          "id": "reflect.deviceInfo",
-          "name": "Device Info"
+          "type": "webview",
+          "id": "reflect.tools",
+          "name": "Tools"
         }
       ]
     },
@@ -279,8 +300,28 @@
         },
         {
           "command": "reflect.refreshDeviceInfo",
-          "when": "view == reflect.deviceInfo",
+          "when": "view == reflect.tools && reflect.toolsTab == device",
           "group": "navigation@1"
+        },
+        {
+          "command": "reflect.addStorageKey",
+          "when": "view == reflect.tools && reflect.toolsTab == storage",
+          "group": "navigation@0"
+        },
+        {
+          "command": "reflect.copyStorageJson",
+          "when": "view == reflect.tools && reflect.toolsTab == storage",
+          "group": "navigation@1"
+        },
+        {
+          "command": "reflect.refreshStorage",
+          "when": "view == reflect.tools && reflect.toolsTab == storage",
+          "group": "navigation@2"
+        },
+        {
+          "command": "reflect.clearStorage",
+          "when": "view == reflect.tools && reflect.toolsTab == storage",
+          "group": "9_danger@1"
         }
       ],
       "commandPalette": [
@@ -295,6 +336,22 @@
         {
           "command": "reflect.stopInspecting",
           "when": "reflect.inspecting"
+        },
+        {
+          "command": "reflect.refreshStorage",
+          "when": "reflect.appConnected"
+        },
+        {
+          "command": "reflect.copyStorageJson",
+          "when": "reflect.appConnected"
+        },
+        {
+          "command": "reflect.addStorageKey",
+          "when": "reflect.appConnected"
+        },
+        {
+          "command": "reflect.clearStorage",
+          "when": "reflect.appConnected"
         }
       ],
       "editor/title": [

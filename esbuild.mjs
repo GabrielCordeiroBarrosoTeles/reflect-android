@@ -32,7 +32,13 @@ const webviewConfig = {
   assetNames: '[name]',
 };
 
-const configs = [extensionConfig, webviewConfig];
+const toolsConfig = {
+  ...webviewConfig,
+  entryPoints: ['src/toolsWebview/main.ts'],
+  entryNames: 'tools',
+};
+
+const configs = [extensionConfig, webviewConfig, toolsConfig];
 
 if (watch) {
   const contexts = await Promise.all(configs.map((config) => esbuild.context(config)));

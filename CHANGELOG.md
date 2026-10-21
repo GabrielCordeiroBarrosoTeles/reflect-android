@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Component**, **Device Info** and the new **Storage** now live in one **Tools** panel with tabs (with icons, and only icons when the sidebar is narrow) instead of three stacked views. The panel remembers the last tab, opens on Component after an inspection, and only polls device info while the Device tab is visible.
+
+### Added
+
+- **Storage** panel for the AsyncStorage of the React Native app in development mode: filter keys, see each value's type and size, edit values with JSON formatting and validation (<kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>S</kbd> to save), create keys, delete one or all keys with confirmation, preview values that are image links or `data:image` strings, and copy a value or everything as JSON. The panel only appears while an app on the mirrored device is connected to Metro, and Reflect only checks Metro while a device is mirrored.
+
+### Fixed
+
+- The component inspector and other tools now share a single debugger connection to the app, so two features asking at the same time no longer open a second connection that drops the first.
+
 ## [0.1.1] - 2026-10-19
 
 ### Fixed

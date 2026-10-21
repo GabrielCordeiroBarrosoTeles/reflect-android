@@ -8,4 +8,8 @@ export const CommandIds = {
   inspect: 'reflect.inspect',
   stopInspecting: 'reflect.stopInspecting',
   openComponentSource: 'reflect.openComponentSource',
+  refreshStorage: 'reflect.refreshStorage',
+  copyStorageJson: 'reflect.copyStorageJson',
+  addStorageKey: 'reflect.addStorageKey',
+  clearStorage: 'reflect.clearStorage',
 } as const;

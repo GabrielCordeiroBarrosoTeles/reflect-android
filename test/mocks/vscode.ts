@@ -72,6 +72,7 @@ export class TreeItem {
   tooltip: string | undefined;
   iconPath: ThemeIcon | undefined;
   command: { command: string; title: string; arguments?: unknown[] } | undefined;
+  contextValue: string | undefined;
 
   constructor(
     readonly label: string,
@@ -81,6 +82,7 @@ export class TreeItem {
 
 export class FakeTreeView {
   visible = true;
+  message: string | undefined;
   disposed = false;
   private readonly visibilityEmitter = new EventEmitter<{ visible: boolean }>();
   readonly onDidChangeVisibility = this.visibilityEmitter.event;
@@ -253,6 +255,7 @@ export const window = {
     return view;
   }),
   showInformationMessage: vi.fn<(message: string, ...items: string[]) => Promise<string | undefined>>(() => Promise.resolve(undefined)),
+  showWarningMessage: vi.fn<(message: string, options: unknown, ...items: string[]) => Promise<string | undefined>>(() => Promise.resolve(undefined)),
   showTextDocument: vi.fn((_uri: Uri, _options?: unknown) => Promise.resolve(undefined)),
   setStatusBarMessage: vi.fn((_text: string, _timeout: number) => ({ dispose: () => undefined })),
   registerWebviewViewProvider: vi.fn((id: string, provider: { resolveWebviewView(view: unknown): void }) => {
@@ -312,6 +315,7 @@ export const resetVscodeMock = (): void => {
   window.showErrorMessage.mockImplementation(() => Promise.resolve(undefined));
   window.showQuickPick.mockImplementation(() => Promise.resolve(undefined));
   window.showInformationMessage.mockImplementation(() => Promise.resolve(undefined));
+  window.showWarningMessage.mockImplementation(() => Promise.resolve(undefined));
   workspace.workspaceFolders = undefined;
   commands.executeCommand.mockImplementation(() => Promise.resolve(undefined));
 };

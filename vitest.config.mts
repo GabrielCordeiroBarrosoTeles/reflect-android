@@ -21,6 +21,8 @@ export default defineConfig({
         '**/types.ts',
         // protocol.ts só declara tipos das mensagens host↔webview; não gera código em runtime
         'src/shared/protocol.ts',
+        'src/shared/toolsProtocol.ts',
+        'src/tools/ToolsChannel.ts',
       ],
       reporter: [['text', { skipFull: false }], 'html', 'lcov', 'json-summary'],
       thresholds: {

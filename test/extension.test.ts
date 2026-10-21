@@ -129,13 +129,14 @@ describe('extension', () => {
     expect(window.viewProviders.has('reflect.deviceView')).toBe(true);
     expect(window.createOutputChannel).toHaveBeenCalledWith('Reflect for Android', { log: true });
     expect(window.statusBarItems[0]?.text).toBe('$(device-mobile) SM F741B');
-    expect(window.treeViews.map((view) => view.id)).toEqual(['reflect.component', 'reflect.deviceInfo']);
+    expect(window.treeViews).toEqual([]);
+    expect(window.viewProviders.has('reflect.tools')).toBe(true);
     for (const id of ['reflect.refreshDeviceInfo', 'reflect.inspect', 'reflect.stopInspecting', 'reflect.openComponentSource']) {
       expect(commands.registered.has(id)).toBe(true);
     }
     expect(commands.registered.has('reflect.action.screenshot')).toBe(true);
     expect(commands.registered.has('reflect.moveToEditor')).toBe(true);
-    expect(context.subscriptions).toHaveLength(36);
+    expect(context.subscriptions).toHaveLength(44);
   });
 
   it('mirrors in the secondary side bar by default', async () => {
@@ -163,6 +164,20 @@ describe('extension', () => {
     expect(commands.registered.has('reflect.openDevice')).toBe(false);
     expect(window.statusBarItems[0]?.disposed).toBe(true);
     expect(channel.disposed).toBe(true);
+  });
+
+  it('wires the AsyncStorage panel, its commands and the confirmation', async () => {
+    await setup();
+    expect(commands.executeCommand).toHaveBeenCalledWith('setContext', 'reflect.appConnected', false);
+    await commands.registered.get('reflect.refreshStorage')?.();
+    await commands.registered.get('reflect.copyStorageJson')?.();
+    expect(await vscode.env.clipboard.readText()).toBe('{}');
+    await commands.registered.get('reflect.addStorageKey')?.();
+    expect(commands.executeCommand).toHaveBeenCalledWith('reflect.tools.focus');
+    window.showWarningMessage.mockResolvedValueOnce('Delete All').mockResolvedValueOnce(undefined);
+    await commands.registered.get('reflect.clearStorage')?.();
+    await commands.registered.get('reflect.clearStorage')?.();
+    expect(window.showWarningMessage).toHaveBeenCalledWith("Delete all 0 keys from the app's AsyncStorage?", { modal: true }, 'Delete All');
   });
 
   it('copies device info values through the copy command', async () => {
@@ -273,7 +288,14 @@ describe('extension', () => {
     workspace.changeConfiguration('reflect.privacy.maskIpAddress');
     workspace.changeConfiguration('reflect.location');
     await flushPromises();
-    expect(window.treeViews.some((view) => view.id === 'reflect.deviceInfo')).toBe(true);
+    const view = new FakeWebviewView();
+    window.viewProviders.get('reflect.tools')?.resolveWebviewView(view);
+    view.webview.received.fire({ type: 'tab-changed', tab: 'device' });
+    for (let attempt = 0; attempt < 20 && !view.webview.posted.some((message) => (message as { state?: { kind?: string } }).state?.kind === 'loaded'); attempt += 1) {
+      await flushPromises();
+    }
+    const loaded = view.webview.posted.find((message) => (message as { type: string; state?: { kind?: string } }).type === 'device' && (message as { state: { kind: string } }).state.kind === 'loaded');
+    expect(loaded).toMatchObject({ type: 'device', state: { kind: 'loaded' } });
   });
 
   it('saves a screenshot into the configured folder and offers to open or reveal it', async () => {
