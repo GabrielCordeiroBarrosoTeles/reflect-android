@@ -6,9 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-21
+
 ### Changed
 
-- **Component**, **Device Info** and the new **Storage** now live in one **Tools** panel with tabs (with icons, and only icons when the sidebar is narrow) instead of three stacked views. The panel remembers the last tab, opens on Component after an inspection, and only polls device info while the Device tab is visible.
+- **Component**, **Device Info** and the new tools now live in one **Tools** panel with tabs (Component, Network, Logs, Storage, Device, Performance, Actions; the active tab shows its name, the others their icon) instead of stacked views. The panel remembers the last tab, opens on Component after an inspection, and only polls device info while the Device tab is visible.
 
 ### Added
 
@@ -74,7 +76,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Automatic `adb` discovery with the `reflect.adbPath` setting.
 - Clear errors for missing `adb`, unauthorized or offline devices and mirroring failures.
 
-[Unreleased]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.0.2...v0.1.0
 [0.0.2]: https://github.com/GabrielCordeiroBarrosoTeles/reflect-android/compare/v0.0.1...v0.0.2
