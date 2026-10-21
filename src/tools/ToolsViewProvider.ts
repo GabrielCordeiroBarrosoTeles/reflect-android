@@ -9,6 +9,7 @@ import type { ActionsTab } from './ActionsTab';
 import type { DeviceTab } from './DeviceTab';
 import type { LogsTab } from './LogsTab';
 import type { NetworkTab } from './NetworkTab';
+import type { PerformanceTab } from './PerformanceTab';
 import type { StorageTab } from './StorageTab';
 import type { IToolsChannel } from './ToolsChannel';
 import { renderToolsHtml } from './toolsHtml';
@@ -22,6 +23,7 @@ export interface ToolsTabs {
   readonly network: Pick<NetworkTab, 'setActive' | 'setPaused' | 'clear' | 'sync'>;
   readonly logs: Pick<LogsTab, 'setActive' | 'setPaused' | 'clear' | 'sync'>;
   readonly actions: Pick<ActionsTab, 'setActive' | 'run' | 'refresh' | 'sync'>;
+  readonly performance: Pick<PerformanceTab, 'setActive' | 'setPaused' | 'resetFrames' | 'sync'>;
 }
 
 export interface AppAvailability {
@@ -40,7 +42,7 @@ type Handlers = {
   [K in ToolsToHostMessage['type']]: (message: Extract<ToolsToHostMessage, { type: K }>) => Promise<void> | void;
 };
 
-const TABS: readonly ToolsTab[] = ['component', 'network', 'logs', 'storage', 'device', 'actions'];
+const TABS: readonly ToolsTab[] = ['component', 'network', 'logs', 'storage', 'device', 'performance', 'actions'];
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
@@ -64,6 +66,8 @@ const VALIDATORS: Readonly<Record<ToolsToHostMessage['type'], (message: Record<s
   'logs-clear': () => true,
   'actions-run': ({ action }) => isAppAction(action),
   'actions-refresh': () => true,
+  'performance-pause': ({ paused }) => typeof paused === 'boolean',
+  'performance-reset': () => true,
 };
 
 const isToolsMessage = (value: unknown): value is ToolsToHostMessage =>
@@ -97,6 +101,8 @@ export class ToolsViewProvider<T extends ToolsTabs = ToolsTabs> implements vscod
     'logs-clear': () => this.tabs.logs.clear(),
     'actions-run': ({ action }) => this.tabs.actions.run(action),
     'actions-refresh': () => this.tabs.actions.refresh(),
+    'performance-pause': ({ paused }) => this.tabs.performance.setPaused(paused),
+    'performance-reset': () => this.tabs.performance.resetFrames(),
   };
 
   constructor(
@@ -161,6 +167,7 @@ export class ToolsViewProvider<T extends ToolsTabs = ToolsTabs> implements vscod
     this.tabs.network.sync();
     this.tabs.logs.sync();
     this.tabs.actions.sync();
+    this.tabs.performance.sync();
   }
 
   private setActiveTab(tab: ToolsTab): void {
@@ -174,6 +181,7 @@ export class ToolsViewProvider<T extends ToolsTabs = ToolsTabs> implements vscod
     this.tabs.network.setActive(this.isActive('network'));
     this.tabs.logs.setActive(this.isActive('logs'));
     this.tabs.actions.setActive(this.isActive('actions'));
+    this.tabs.performance.setActive(this.isActive('performance'));
     if (this.isActive('storage')) {
       void this.tabs.storage.refresh();
     }

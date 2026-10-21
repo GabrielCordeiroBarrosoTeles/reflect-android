@@ -9,6 +9,8 @@ import { NetworkTab } from '../../src/tools/NetworkTab';
 import { LogsTab, MAX_LOG_LINES } from '../../src/tools/LogsTab';
 import { ActionsTab } from '../../src/tools/ActionsTab';
 import { MementoLinkHistory } from '../../src/tools/MementoLinkHistory';
+import { MAX_POINTS, PerformanceTab } from '../../src/tools/PerformanceTab';
+import type { PerformanceReading } from '../../src/performance/types';
 import { BATTERY_MODES, STATE_COMMAND } from '../../src/appActions/deviceCommands';
 import type { AppAction } from '../../src/appActions/types';
 import { ACTIONS_STATE_OUTPUT } from '../appActions/fixtures';
@@ -112,12 +114,13 @@ const setupProvider = () => {
   const network = { setActive: vi.fn(), setPaused: vi.fn(), clear: vi.fn(() => Promise.resolve()), sync: vi.fn() };
   const logs = { setActive: vi.fn(), setPaused: vi.fn(), clear: vi.fn(), sync: vi.fn() };
   const actions = { setActive: vi.fn(), run: vi.fn(() => Promise.resolve()), refresh: vi.fn(() => Promise.resolve()), sync: vi.fn() };
+  const performance = { setActive: vi.fn(), setPaused: vi.fn(), resetFrames: vi.fn(() => Promise.resolve()), sync: vi.fn() };
   const app = new Emitter<boolean>();
   let connected = false;
   const clipboard = new FakeClipboard();
   const notify = vi.fn();
   const setTabContext = vi.fn();
-  const provider = new ToolsViewProvider(Uri.file('/ext') as unknown as vscode.Uri, { app: { get isConnected() { return connected; }, onDidChange: app.event }, clipboard, notify, setTabContext }, () => ({ component, device, storage, network, logs, actions }));
+  const provider = new ToolsViewProvider(Uri.file('/ext') as unknown as vscode.Uri, { app: { get isConnected() { return connected; }, onDidChange: app.event }, clipboard, notify, setTabContext }, () => ({ component, device, storage, network, logs, actions, performance }));
   const view = new FakeWebviewView();
   provider.resolveWebviewView(view as unknown as vscode.WebviewView);
   const send = async (message: unknown) => {
@@ -128,7 +131,7 @@ const setupProvider = () => {
     connected = value;
     app.fire(value);
   };
-  return { provider, view, send, component, device, storage, network, logs, actions, clipboard, notify, setTabContext, setConnected };
+  return { provider, view, send, component, device, storage, network, logs, actions, performance, clipboard, notify, setTabContext, setConnected };
 };
 
 describe('ToolsViewProvider', () => {
@@ -142,7 +145,7 @@ describe('ToolsViewProvider', () => {
   });
 
   it('tells the page when the app connects and drives the network, logs and actions tabs', async () => {
-    const { view, send, setConnected, network, logs, actions, provider } = setupProvider();
+    const { view, send, setConnected, network, logs, actions, performance, provider } = setupProvider();
     setConnected(true);
     expect(view.webview.posted.at(-1)).toEqual({ type: 'app-available', available: true });
     await send({ type: 'tab-changed', tab: 'network' });
@@ -161,6 +164,11 @@ describe('ToolsViewProvider', () => {
     await send({ type: 'actions-run', action: { kind: 'reboot' } });
     await send({ type: 'actions-refresh' });
     expect([actions.setActive.mock.lastCall, actions.run.mock.calls, actions.refresh.mock.calls.length, actions.sync.mock.calls.length]).toEqual([[true], [[{ kind: 'restart' }]], 1, 0]);
+    await send({ type: 'tab-changed', tab: 'performance' });
+    await send({ type: 'performance-pause', paused: true });
+    await send({ type: 'performance-pause', paused: null });
+    await send({ type: 'performance-reset' });
+    expect([performance.setActive.mock.lastCall, performance.setPaused.mock.calls, performance.resetFrames.mock.calls.length, performance.sync.mock.calls.length]).toEqual([[true], [[true]], 1, 0]);
     provider.dispose();
     setConnected(false);
     expect(view.webview.posted.at(-1)).toEqual({ type: 'app-available', available: true });
@@ -582,5 +590,127 @@ describe('MementoLinkHistory', () => {
     expect(history.get()).toEqual(['ok://1']);
     values.set('links', 'broken');
     expect(history.get()).toEqual([]);
+  });
+});
+
+describe('PerformanceTab', () => {
+  const reading = (overrides: Partial<PerformanceReading> = {}): PerformanceReading => ({
+    app: 'com.app',
+    pid: 7,
+    cpu: 12.5,
+    memoryKb: 51558,
+    frames: { total: 1000, janky: 100, p50: 9, p90: 17, p99: 41 },
+    ...overrides,
+  });
+
+  const setupPerformance = () => {
+    vi.useFakeTimers();
+    let clock = 0;
+    const readings: (PerformanceReading | Error)[] = [];
+    const reader = {
+      read: vi.fn((_serial: string) => {
+        const next = readings.shift() ?? reading();
+        return next instanceof Error ? Promise.reject(next) : Promise.resolve(next);
+      }),
+      resetFrames: vi.fn((_serial: string, _app: string) => Promise.resolve()),
+    };
+    const context = new FakeActiveDeviceContext();
+    context.mirroredDevice = deviceInfo({ serial: 'A' });
+    const channel = new FakeToolsChannel();
+    const tab = new PerformanceTab(reader, context, channel, 2000, () => (clock += 2000));
+    const points = () => channel.posted.filter((message) => message.type === 'performance-points' && !message.reset).flatMap((message) => (message.type === 'performance-points' ? message.points : []));
+    return { reader, context, channel, tab, readings, points };
+  };
+
+  it('samples only while active and derives frames per second and jank between samples', async () => {
+    const { reader, channel, tab, readings, points } = setupPerformance();
+    readings.push(reading(), reading({ frames: { total: 1120, janky: 106, p50: 9, p90: 18, p99: 40 } }), reading({ frames: { total: 1120, janky: 106, p50: 9, p90: 18, p99: 40 } }), reading({ frames: undefined, memoryKb: undefined, cpu: undefined }));
+    tab.setActive(true);
+    tab.setActive(true);
+    for (let index = 0; index < 4; index += 1) await vi.advanceTimersByTimeAsync(index === 0 ? 0 : 2000);
+    expect(channel.posted.find((message) => message.type === 'performance-status')).toEqual({ type: 'performance-status', status: { kind: 'sampling', app: 'com.app' } });
+    expect(points().map(({ cpu, memoryMb, fps, jank, p90 }) => [cpu, memoryMb, fps, jank, p90])).toEqual([
+      [12.5, 50.3, undefined, undefined, 17],
+      [12.5, 50.3, 60, 5, 18],
+      [12.5, 50.3, 0, 0, 18],
+      [undefined, undefined, undefined, undefined, undefined],
+    ]);
+    tab.setActive(false);
+    const calls = reader.read.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(reader.read).toHaveBeenCalledTimes(calls);
+    tab.sync();
+    expect(channel.last('performance-points')).toMatchObject({ reset: true, points: { length: 4 } });
+    tab.dispose();
+    vi.useRealTimers();
+  });
+
+  it('starts over for another app, a restarted process, a reset or another device', async () => {
+    const { tab, readings, points, reader, context, channel } = setupPerformance();
+    readings.push(reading(), reading({ pid: 8, frames: { total: 50, janky: 1, p50: 9, p90: 17, p99: 41 } }), reading({ app: 'com.other' }), reading({ app: 'com.other', frames: { total: 1200, janky: 100, p50: 9, p90: 17, p99: 41 } }));
+    tab.setActive(true);
+    for (let index = 0; index < 4; index += 1) await vi.advanceTimersByTimeAsync(index === 0 ? 0 : 2000);
+    expect(points().map(({ fps }) => fps)).toEqual([undefined, undefined, undefined, 100]);
+    await tab.resetFrames();
+    expect(reader.resetFrames).toHaveBeenCalledWith('A', 'com.other');
+    readings.push(reading({ app: 'com.other', frames: { total: 10, janky: 0, p50: 9, p90: 17, p99: 41 } }));
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(points().at(-1)?.fps).toBeUndefined();
+    reader.resetFrames.mockRejectedValueOnce(new Error('x'));
+    await tab.resetFrames();
+    context.setMirroredDevice(undefined);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(channel.posted.slice(-2)).toEqual([
+      { type: 'performance-points', points: [], reset: true },
+      { type: 'performance-status', status: { kind: 'idle' } },
+    ]);
+    await tab.resetFrames();
+    expect(reader.resetFrames).toHaveBeenCalledTimes(2);
+    tab.dispose();
+    vi.useRealTimers();
+  });
+
+  it('reports a missing app and failures, pauses and keeps at most 60 points', async () => {
+    const { reader, channel, tab, readings } = setupPerformance();
+    readings.push(reading({ app: undefined, pid: undefined }), new Error('adb gone'), 'plain' as unknown as Error);
+    reader.read.mockImplementationOnce(() => Promise.resolve(reading({ app: undefined, pid: undefined }))).mockRejectedValueOnce(new Error('adb gone')).mockRejectedValueOnce('plain');
+    tab.setActive(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(channel.last('performance-status')?.status).toEqual({ kind: 'no-app' });
+    await tab.resetFrames();
+    expect(reader.resetFrames).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(channel.last('performance-status')?.status).toEqual({ kind: 'failed', message: 'adb gone' });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(channel.last('performance-status')?.status).toEqual({ kind: 'failed', message: 'plain' });
+    for (let index = 0; index < 65; index += 1) await vi.advanceTimersByTimeAsync(2000);
+    tab.sync();
+    expect(channel.last('performance-points')?.points).toHaveLength(MAX_POINTS);
+    tab.setPaused(true);
+    expect(channel.last('performance-status')?.status).toEqual({ kind: 'paused' });
+    const calls = reader.read.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(reader.read).toHaveBeenCalledTimes(calls);
+    tab.dispose();
+    vi.useRealTimers();
+  });
+
+  it('drops readings that arrive after it stopped', async () => {
+    let resolve: (value: PerformanceReading) => void = () => undefined;
+    const { reader, tab, points } = setupPerformance();
+    reader.read.mockReturnValueOnce(new Promise<PerformanceReading>((done) => (resolve = done)));
+    tab.setActive(true);
+    tab.setActive(false);
+    resolve(reading());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(points()).toEqual([]);
+    tab.dispose();
+    vi.useRealTimers();
+  });
+
+  it('uses the real clock by default', () => {
+    const tab = new PerformanceTab({ read: vi.fn(), resetFrames: vi.fn() }, new FakeActiveDeviceContext(), new FakeToolsChannel(), 2000);
+    tab.dispose();
+    expect(tab).toBeInstanceOf(PerformanceTab);
   });
 });

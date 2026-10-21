@@ -149,6 +149,23 @@ const actionsPanel = `
       </div>
     </section>`;
 
+const performancePanel = `
+    <section class="performance" aria-label="Performance">
+      <div class="bar">
+        <p class="summary perf__summary" role="status"></p>
+        <button class="icon-button perf__pause" type="button" title="Pause" aria-label="Pause"><i class="codicon codicon-debug-pause"></i></button>
+        <button class="icon-button perf__reset" type="button" title="Reset frame stats" aria-label="Reset frame stats"><i class="codicon codicon-discard"></i></button>
+      </div>
+      <div class="placeholder perf__empty">
+        <i class="codicon codicon-pulse"></i>
+        <p class="perf__message"></p>
+      </div>
+      <div class="metrics" hidden>
+        <div class="metrics__grid"></div>
+        <p class="muted perf__percentiles"></p>
+      </div>
+    </section>`;
+
 const devicePanel = `
     <section class="device" aria-label="Device info">
       <div class="placeholder device__empty">
@@ -207,6 +224,7 @@ const TABS = [
   { id: 'logs', label: 'Logs', icon: 'output', panel: logsPanel },
   { id: 'storage', label: 'Storage', icon: 'database', panel: storagePanel },
   { id: 'device', label: 'Device', icon: 'device-mobile', panel: devicePanel },
+  { id: 'performance', label: 'Performance', icon: 'pulse', panel: performancePanel },
   { id: 'actions', label: 'Actions', icon: 'tools', panel: actionsPanel },
 ] as const;
 

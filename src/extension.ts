@@ -45,6 +45,8 @@ import { LogReader } from './logs/LogReader';
 import { LogsTab } from './tools/LogsTab';
 import { ActionsTab } from './tools/ActionsTab';
 import { MementoLinkHistory } from './tools/MementoLinkHistory';
+import { PerformanceTab } from './tools/PerformanceTab';
+import { PerformanceReader } from './performance/PerformanceReader';
 import { StorageTab } from './tools/StorageTab';
 import { TOOLS_VIEW_ID, ToolsViewProvider } from './tools/ToolsViewProvider';
 import { CdpSession } from './inspector/CdpSession';
@@ -94,6 +96,7 @@ const APP_WATCH_INTERVAL_MS = 5_000;
 const NETWORK_POLL_MS = 1_000;
 const LOGS_POLL_MS = 1_000;
 const DEEP_LINKS_KEY = 'reflect.recentDeepLinks';
+const PERFORMANCE_POLL_MS = 2_000;
 const readMetroPort = (): number => reflectSetting<number>('metroPort') ?? DEFAULT_METRO_PORT;
 
 const readLocationSetting = (): MirrorLocation =>
@@ -183,6 +186,7 @@ export function activate(context: vscode.ExtensionContext): void {
       component: new ComponentTab(channel, openSource),
       network: new NetworkTab(new NetworkReader(appConnection), activeDevice, channel, NETWORK_POLL_MS),
       logs: new LogsTab(new LogReader(deviceShell), activeDevice, channel, LOGS_POLL_MS),
+      performance: new PerformanceTab(new PerformanceReader(deviceShell), activeDevice, channel, PERFORMANCE_POLL_MS),
       actions: new ActionsTab(
         {
           shell: deviceShell,
@@ -205,7 +209,7 @@ export function activate(context: vscode.ExtensionContext): void {
       ),
     }),
   );
-  const { component: componentTab, device: deviceTab, storage: storageTab, network: networkTab, logs: logsTab } = tools.tabs;
+  const { component: componentTab, device: deviceTab, storage: storageTab, network: networkTab, logs: logsTab, performance: performanceTab } = tools.tabs;
   const inspectController = new InspectController({
     inspector: new ComponentInspector(appConnection, metro, INSPECTOR_TIMING),
     mirrors: { setInspectMode: (active) => mirrors.setInspectMode(active) },
@@ -261,6 +265,7 @@ export function activate(context: vscode.ExtensionContext): void {
     storageTab,
     networkTab,
     logsTab,
+    performanceTab,
     vscode.window.registerWebviewViewProvider(TOOLS_VIEW_ID, tools),
     appConnection,
     tracker,

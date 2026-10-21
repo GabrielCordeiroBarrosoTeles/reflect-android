@@ -971,3 +971,70 @@ body {
   font-size: 10px;
   opacity: 0.75;
 }
+
+.performance {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.performance .bar .summary {
+  flex: 1;
+  align-self: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metrics {
+  display: grid;
+  gap: 8px;
+}
+
+.metrics__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 6px;
+}
+
+.metric {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px 6px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-input-border, transparent));
+  border-radius: 6px;
+  background: var(--vscode-input-background);
+}
+
+.metric__label {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.metric__value {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.spark {
+  width: 100%;
+  height: 28px;
+  overflow: visible;
+}
+
+.spark polyline {
+  fill: none;
+  stroke: var(--vscode-charts-blue, #75beff);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+
+.metric--warn .metric__value {
+  color: var(--vscode-charts-yellow, #cca700);
+}
+
+.metric--warn .spark polyline {
+  stroke: var(--vscode-charts-yellow, #cca700);
+}

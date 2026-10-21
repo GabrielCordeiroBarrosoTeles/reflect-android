@@ -70,6 +70,7 @@ describe('TabBar', () => {
     expect(document.activeElement).toBe($('#tab-logs'));
     press('logs', 'ArrowRight');
     press('device', 'ArrowRight');
+    press('performance', 'ArrowRight');
     press('actions', 'ArrowRight');
     expect(bar.current).toBe('component');
     press('component', 'ArrowLeft');
@@ -79,6 +80,7 @@ describe('TabBar', () => {
     press('component', 'End');
     expect(bar.current).toBe('actions');
     press('actions', 'ArrowLeft');
+    press('performance', 'ArrowLeft');
     press('device', 'ArrowLeft');
     expect(bar.current).toBe('storage');
     press('storage', 'Enter');
@@ -145,6 +147,9 @@ describe('tools webview entry', () => {
     deliver({ type: 'logs-status', status: { kind: 'no-app' } });
     deliver({ type: 'logs-lines', reset: true, lines: [] });
     deliver({ type: 'actions-state', state: { kind: 'idle' } });
+    deliver({ type: 'performance-status', status: { kind: 'no-app' } });
+    deliver({ type: 'performance-points', reset: true, points: [] });
+    expect(document.querySelector('.perf__message')?.textContent).toBe('No app in the foreground yet.');
     deliver({ type: 'actions-result', ok: true, message: 'Done' });
     expect([document.querySelector('.actions__message')?.textContent, document.querySelector('.actions-result')?.textContent]).toEqual(['Open a device to run actions on it.', 'Done']);
     expect(document.querySelector('.logs__message')?.textContent).toBe('No app in the foreground yet.');

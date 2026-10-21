@@ -6,6 +6,7 @@ import { DeviceTab } from './DeviceTab';
 import { ActionsPanel } from './actions/ActionsPanel';
 import { LogsPanel } from './logs/LogsPanel';
 import { NetworkPanel } from './network/NetworkPanel';
+import { PerformancePanel } from './performance/PerformancePanel';
 import { query } from './dom';
 import { StoragePanel } from './storage/StoragePanel';
 import { TabBar } from './TabBar';
@@ -19,6 +20,7 @@ const storage = new StoragePanel(query(document, '.storage'), post);
 const network = new NetworkPanel(query(document, '.network'), post);
 const logs = new LogsPanel(query(document, '.logs'), post);
 const actions = new ActionsPanel(query(document, '.app-actions'), post);
+const performance = new PerformancePanel(query(document, '.performance'), post);
 const tabs = new TabBar(document, { get: () => api.getState(), set: (state) => api.setState(state) }, (tab) => post({ type: 'tab-changed', tab }));
 
 const receive = (message: HostToToolsMessage): void => {
@@ -62,6 +64,12 @@ const receive = (message: HostToToolsMessage): void => {
       break;
     case 'actions-result':
       actions.showResult(message.ok, message.message);
+      break;
+    case 'performance-status':
+      performance.setStatus(message.status);
+      break;
+    case 'performance-points':
+      performance.add(message.points, message.reset);
       break;
   }
 };

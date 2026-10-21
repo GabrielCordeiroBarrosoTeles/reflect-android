@@ -3,9 +3,10 @@ import type { SourceLocation } from '../inspector/types';
 import type { ActionsSnapshot, AppAction } from '../appActions/types';
 import type { LogLine } from '../logs/types';
 import type { NetworkEntry } from '../network/types';
+import type { PerformancePoint } from '../performance/types';
 import type { StorageEntry } from '../storage/types';
 
-export type ToolsTab = 'component' | 'network' | 'logs' | 'storage' | 'device' | 'actions';
+export type ToolsTab = 'component' | 'network' | 'logs' | 'storage' | 'device' | 'performance' | 'actions';
 
 export interface ComponentPanelView {
   readonly name: string;
@@ -43,6 +44,13 @@ export type ActionsState =
   | ({ readonly kind: 'ready'; readonly links: readonly string[]; readonly wirelessAdb: boolean } & ActionsSnapshot)
   | { readonly kind: 'failed'; readonly message: string };
 
+export type PerformanceStatus =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'sampling'; readonly app: string }
+  | { readonly kind: 'paused' }
+  | { readonly kind: 'no-app' }
+  | { readonly kind: 'failed'; readonly message: string };
+
 export type HostToToolsMessage =
   | { readonly type: 'app-available'; readonly available: boolean }
   | { readonly type: 'select-tab'; readonly tab: ToolsTab }
@@ -56,7 +64,9 @@ export type HostToToolsMessage =
   | { readonly type: 'logs-status'; readonly status: LogsStatus }
   | { readonly type: 'logs-lines'; readonly lines: readonly LogLine[]; readonly reset: boolean }
   | { readonly type: 'actions-state'; readonly state: ActionsState }
-  | { readonly type: 'actions-result'; readonly ok: boolean; readonly message: string };
+  | { readonly type: 'actions-result'; readonly ok: boolean; readonly message: string }
+  | { readonly type: 'performance-status'; readonly status: PerformanceStatus }
+  | { readonly type: 'performance-points'; readonly points: readonly PerformancePoint[]; readonly reset: boolean };
 
 export type ToolsToHostMessage =
   | { readonly type: 'ready' }
@@ -73,4 +83,6 @@ export type ToolsToHostMessage =
   | { readonly type: 'logs-pause'; readonly paused: boolean }
   | { readonly type: 'logs-clear' }
   | { readonly type: 'actions-run'; readonly action: AppAction }
-  | { readonly type: 'actions-refresh' };
+  | { readonly type: 'actions-refresh' }
+  | { readonly type: 'performance-pause'; readonly paused: boolean }
+  | { readonly type: 'performance-reset' };
