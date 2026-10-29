@@ -1,9 +1,10 @@
-import { AndroidKeyCode } from '@yume-chan/scrcpy';
 import { describe, expect, it, vi } from 'vitest';
 import { DEVICE_ACTIONS } from '../../src/actions/deviceActions';
 import type { ActionContext } from '../../src/actions/types';
 import { device } from '../fakes/devices';
 import { FakeDeviceControl } from '../fakes/FakeMirrorSession';
+
+const none = { shift: false, alt: false, ctrl: false, meta: false };
 
 const setup = (reloaded = true) => {
   const control = new FakeDeviceControl();
@@ -18,17 +19,22 @@ describe('DEVICE_ACTIONS', () => {
     ['back', 'back'],
     ['home', 'home'],
     ['recents', 'recents'],
-    ['rotate', 'rotate'],
-  ] as const)('%s uses the device control', async (id, method) => {
+  ] as const)('%s presses the matching hardware button', async (id, button) => {
     const { control, context } = setup();
     await DEVICE_ACTIONS[id](context);
-    expect(control.calls).toEqual([{ method }]);
+    expect(control.calls).toEqual([{ method: 'pressButton', arg: button }]);
+  });
+
+  it('rotate uses the device control', async () => {
+    const { control, context } = setup();
+    await DEVICE_ACTIONS.rotate(context);
+    expect(control.calls).toEqual([{ method: 'rotate' }]);
   });
 
   it('opens the React Native dev menu with the menu key', async () => {
     const { control, context } = setup();
     await DEVICE_ACTIONS.devMenu(context);
-    expect(control.calls).toEqual([{ method: 'press', arg: AndroidKeyCode.ContextMenu }]);
+    expect(control.calls).toEqual([{ method: 'pressButton', arg: 'menu' }]);
   });
 
   it.each([
@@ -48,8 +54,10 @@ describe('DEVICE_ACTIONS', () => {
     const fallback = setup(false);
     await DEVICE_ACTIONS.reload(fallback.context);
     expect(fallback.control.calls).toEqual([
-      { method: 'press', arg: AndroidKeyCode.KeyR },
-      { method: 'press', arg: AndroidKeyCode.KeyR },
+      { method: 'key', arg: { action: 'down', code: 'KeyR', repeat: 0, modifiers: none } },
+      { method: 'key', arg: { action: 'up', code: 'KeyR', repeat: 0, modifiers: none } },
+      { method: 'key', arg: { action: 'down', code: 'KeyR', repeat: 0, modifiers: none } },
+      { method: 'key', arg: { action: 'up', code: 'KeyR', repeat: 0, modifiers: none } },
     ]);
   });
 

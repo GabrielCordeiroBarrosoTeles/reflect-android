@@ -61,38 +61,45 @@ describe('ControlChannel', () => {
     expect(writer.calls).toEqual([]);
   });
 
-  it('presses a key as down followed by up', async () => {
-    const { writer, channel } = setup();
-    await channel.press(AndroidKeyCode.Enter);
-    expect(writer.calls.map((call) => call.args[0])).toMatchObject([
-      { action: AndroidKeyEventAction.Down, keyCode: AndroidKeyCode.Enter },
-      { action: AndroidKeyEventAction.Up, keyCode: AndroidKeyCode.Enter },
-    ]);
-  });
-
-  it('types text, goes back and goes home', async () => {
+  it('types text and presses back as backOrScreenOn down then up', async () => {
     const { writer, channel } = setup();
     await channel.text('hello');
-    await channel.back();
-    await channel.home();
+    await channel.pressButton('back');
     expect(writer.calls.map((call) => [call.method, call.args[0]])).toEqual([
       ['injectText', 'hello'],
       ['backOrScreenOn', AndroidKeyEventAction.Down],
       ['backOrScreenOn', AndroidKeyEventAction.Up],
-      ['injectKeyCode', expect.objectContaining({ keyCode: AndroidKeyCode.AndroidHome, action: AndroidKeyEventAction.Down })],
-      ['injectKeyCode', expect.objectContaining({ keyCode: AndroidKeyCode.AndroidHome, action: AndroidKeyEventAction.Up })],
     ]);
   });
 
-  it('opens recents, rotates and switches the screen power', async () => {
+  it.each([
+    ['home', AndroidKeyCode.AndroidHome],
+    ['recents', AndroidKeyCode.AndroidAppSwitch],
+    ['menu', AndroidKeyCode.ContextMenu],
+    ['lock', AndroidKeyCode.Power],
+    ['volumeUp', AndroidKeyCode.VolumeUp],
+    ['volumeDown', AndroidKeyCode.VolumeDown],
+  ] as const)('presses %s as down followed by up', async (button, keyCode) => {
     const { writer, channel } = setup();
-    await channel.recents();
+    await channel.pressButton(button);
+    expect(writer.calls.map((call) => [call.method, call.args[0]])).toEqual([
+      ['injectKeyCode', expect.objectContaining({ keyCode, action: AndroidKeyEventAction.Down })],
+      ['injectKeyCode', expect.objectContaining({ keyCode, action: AndroidKeyEventAction.Up })],
+    ]);
+  });
+
+  it.each(['siri', 'shake'] as const)('ignores %s, which Android has no equivalent for', async (button) => {
+    const { writer, channel } = setup();
+    await channel.pressButton(button);
+    expect(writer.calls).toEqual([]);
+  });
+
+  it('rotates and switches the screen power', async () => {
+    const { writer, channel } = setup();
     await channel.rotate();
     await channel.setScreenPower(false);
     await channel.setScreenPower(true);
     expect(writer.calls.map((call) => [call.method, call.args[0]])).toEqual([
-      ['injectKeyCode', expect.objectContaining({ keyCode: AndroidKeyCode.AndroidAppSwitch })],
-      ['injectKeyCode', expect.objectContaining({ keyCode: AndroidKeyCode.AndroidAppSwitch })],
       ['rotateDevice', undefined],
       ['setScreenPowerMode', AndroidScreenPowerMode.Off],
       ['setScreenPowerMode', AndroidScreenPowerMode.Normal],
@@ -110,11 +117,10 @@ describe('ControlChannel', () => {
     await channel.touch({ action: 'down', pointer: 'primary', x: 0, y: 0 });
     await channel.scroll({ x: 0, y: 0, scrollX: 0, scrollY: 0 });
     await channel.key({ action: 'down', code: 'KeyA', repeat: 0, modifiers: none });
-    await channel.press(AndroidKeyCode.Enter);
     await channel.text('x');
-    await channel.back();
-    await channel.home();
-    await channel.recents();
+    for (const button of ['back', 'home', 'recents', 'menu', 'lock', 'volumeUp', 'volumeDown', 'siri', 'shake'] as const) {
+      await channel.pressButton(button);
+    }
     await channel.rotate();
     await channel.setScreenPower(false);
     await channel.paste('x');

@@ -55,7 +55,7 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
     key: ({ input }) => this.session.control.key(input),
     text: ({ text }) => this.session.control.text(text),
     paste: async () => this.session.control.paste(await this.services.clipboard.readText()),
-    'mouse-shortcut': ({ shortcut }) => (shortcut === 'back' ? this.session.control.back() : this.session.control.home()),
+    'mouse-shortcut': ({ shortcut }) => this.session.control.pressButton(shortcut),
     'open-device': () => undefined,
     reconnect: () => this.reconnectNow(),
     'inspect-at': ({ x, y }) => this.services.inspector.inspectAt(this.device, { x, y }),

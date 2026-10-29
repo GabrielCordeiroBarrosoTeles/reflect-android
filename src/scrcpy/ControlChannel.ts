@@ -10,7 +10,8 @@ import {
 } from '@yume-chan/scrcpy';
 import type { KeyInput, PointerKind, ScrollInput, TouchAction, TouchInput } from '../shared/protocol';
 import { toAndroidKeyCode, toAndroidMetaState } from './keyMapping';
-import type { IDeviceControl, VideoSize } from './types';
+import type { HardwareButton, IDeviceControl } from '../platform/types';
+import type { VideoSize } from './types';
 
 const TOUCH_ACTIONS: Readonly<Record<TouchAction, AndroidMotionEventAction>> = {
   down: AndroidMotionEventAction.Down,
@@ -22,6 +23,15 @@ const TOUCH_ACTIONS: Readonly<Record<TouchAction, AndroidMotionEventAction>> = {
 const POINTER_IDS: Readonly<Record<PointerKind, bigint>> = {
   primary: ScrcpyPointerId.Finger,
   virtual: ScrcpyPointerId.VirtualFinger,
+};
+
+const ANDROID_KEYS: Readonly<Record<Exclude<HardwareButton, 'back' | 'siri' | 'shake'>, AndroidKeyCode>> = {
+  home: AndroidKeyCode.AndroidHome,
+  recents: AndroidKeyCode.AndroidAppSwitch,
+  menu: AndroidKeyCode.ContextMenu,
+  lock: AndroidKeyCode.Power,
+  volumeUp: AndroidKeyCode.VolumeUp,
+  volumeDown: AndroidKeyCode.VolumeDown,
 };
 
 const clampUnit = (value: number): number => Math.min(1, Math.max(0, value));
@@ -85,7 +95,15 @@ export class ControlChannel implements IDeviceControl {
     });
   }
 
-  async press(keyCode: AndroidKeyCode): Promise<void> {
+  async pressButton(button: HardwareButton): Promise<void> {
+    if (button === 'back') {
+      await this.back();
+    } else if (button !== 'siri' && button !== 'shake') {
+      await this.press(ANDROID_KEYS[button]);
+    }
+  }
+
+  private async press(keyCode: AndroidKeyCode): Promise<void> {
     const writer = this.getWriter();
     if (!writer) {
       return;
@@ -99,21 +117,13 @@ export class ControlChannel implements IDeviceControl {
     await this.getWriter()?.injectText(text);
   }
 
-  async back(): Promise<void> {
+  private async back(): Promise<void> {
     const writer = this.getWriter();
     if (!writer) {
       return;
     }
     await writer.backOrScreenOn(AndroidKeyEventAction.Down);
     await writer.backOrScreenOn(AndroidKeyEventAction.Up);
-  }
-
-  async home(): Promise<void> {
-    await this.press(AndroidKeyCode.AndroidHome);
-  }
-
-  async recents(): Promise<void> {
-    await this.press(AndroidKeyCode.AndroidAppSwitch);
   }
 
   async rotate(): Promise<void> {

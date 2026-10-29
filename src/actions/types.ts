@@ -1,5 +1,5 @@
 import type { Device } from '../devices/types';
-import type { IDeviceControl } from '../scrcpy/types';
+import type { IDeviceControl } from '../platform/types';
 
 export interface MirrorCapabilities {
   takeScreenshot(): Promise<void>;

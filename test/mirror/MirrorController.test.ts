@@ -168,7 +168,11 @@ describe('MirrorController', () => {
     await send({ type: 'paste' });
     await send({ type: 'mouse-shortcut', shortcut: 'back' });
     await send({ type: 'mouse-shortcut', shortcut: 'home' });
-    expect(session.control.calls.map((call) => call.method)).toEqual(['touch', 'scroll', 'key', 'text', 'paste', 'back', 'home']);
+    expect(session.control.calls.map((call) => call.method)).toEqual(['touch', 'scroll', 'key', 'text', 'paste', 'pressButton', 'pressButton']);
+    expect(session.control.calls.slice(5)).toEqual([
+      { method: 'pressButton', arg: 'back' },
+      { method: 'pressButton', arg: 'home' },
+    ]);
     expect(session.control.calls[4]).toEqual({ method: 'paste', arg: 'from mac' });
   });
 
@@ -209,7 +213,7 @@ describe('MirrorController', () => {
   it('runs toolbar actions on the device', async () => {
     const { session, send } = setup();
     await send({ type: 'action', id: 'home' });
-    expect(session.control.calls).toEqual([{ method: 'home' }]);
+    expect(session.control.calls).toEqual([{ method: 'pressButton', arg: 'home' }]);
   });
 
   it('saves screenshots taken by the webview', async () => {
