@@ -95,7 +95,7 @@ export class LogsTab implements IDisposable {
       this.setStatus({ kind: 'idle' });
       return;
     }
-    const result = await this.reader.read(device.serial, this.since).then(
+    const result = await this.reader.read(device.id, this.since).then(
       (read): LogRead | Error => read,
       (error: unknown) => new Error(errorMessage(error)),
     );

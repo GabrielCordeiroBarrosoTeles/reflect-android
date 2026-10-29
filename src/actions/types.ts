@@ -1,4 +1,4 @@
-import type { DeviceInfo } from '../adb/types';
+import type { Device } from '../devices/types';
 import type { IDeviceControl } from '../scrcpy/types';
 
 export interface MirrorCapabilities {
@@ -8,13 +8,13 @@ export interface MirrorCapabilities {
 }
 
 export interface ActionServices {
-  reloadApp(device: DeviceInfo): Promise<boolean>;
-  reverseMetro(device: DeviceInfo): Promise<number>;
+  reloadApp(device: Device): Promise<boolean>;
+  reverseMetro(device: Device): Promise<number>;
   notify(message: string): void;
 }
 
 export interface ActionContext {
-  readonly device: DeviceInfo;
+  readonly device: Device;
   readonly control: IDeviceControl;
   readonly mirror: MirrorCapabilities;
   readonly services: ActionServices;

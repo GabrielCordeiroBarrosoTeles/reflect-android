@@ -1,4 +1,4 @@
-import type { DeviceInfo } from '../adb/types';
+import type { Device } from '../devices/types';
 
 export type RequestState = 'pending' | 'done' | 'error' | 'timeout' | 'abort';
 
@@ -28,6 +28,6 @@ export type NetworkResult =
   | { readonly status: 'error'; readonly message: string };
 
 export interface INetworkReader {
-  read(device: DeviceInfo, since: number): Promise<NetworkResult>;
-  clear(device: DeviceInfo): Promise<void>;
+  read(device: Device, since: number): Promise<NetworkResult>;
+  clear(device: Device): Promise<void>;
 }

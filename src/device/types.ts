@@ -1,5 +1,5 @@
 import type { Adb } from '@yume-chan/adb';
-import type { DeviceInfo } from '../adb/types';
+import type { Device } from '../devices/types';
 import type { Event, IDisposable } from '../core/types';
 
 export interface DeviceLease extends IDisposable {
@@ -15,9 +15,9 @@ export interface IDeviceShell {
 }
 
 export interface IActiveDeviceContext {
-  readonly devices: readonly DeviceInfo[];
-  readonly mirroredDevice: DeviceInfo | undefined;
-  readonly target: DeviceInfo | undefined;
+  readonly devices: readonly Device[];
+  readonly mirroredDevice: Device | undefined;
+  readonly target: Device | undefined;
   readonly onDidChange: Event<void>;
-  setMirroredDevice(device: DeviceInfo | undefined): void;
+  setMirroredDevice(device: Device | undefined): void;
 }

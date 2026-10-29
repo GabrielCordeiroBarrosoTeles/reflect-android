@@ -1,16 +1,16 @@
-import type { DeviceInfo } from '../adb/types';
+import type { Device } from '../devices/types';
 import { DisposableStore } from '../core/Disposable';
 import type { Event, IDisposable } from '../core/types';
 import type { MirrorClosed, MirrorLocation } from './types';
 
 export interface ResumableMirrors {
   readonly onDidClose: Event<MirrorClosed>;
-  open(device: DeviceInfo, location: MirrorLocation): void;
+  open(device: Device, location: MirrorLocation): void;
 }
 
 export class SidebarResume implements IDisposable {
   private readonly store = new DisposableStore();
-  private pending: DeviceInfo | undefined;
+  private pending: Device | undefined;
 
   constructor(
     private readonly mirrors: ResumableMirrors,

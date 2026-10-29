@@ -44,7 +44,7 @@ export class DeviceTab implements IDisposable {
   }
 
   private syncTarget(): void {
-    this.poller.setTarget(this.context.target?.serial);
+    this.poller.setTarget(this.context.target?.id);
   }
 
   private toPanelState(): DevicePanelState {

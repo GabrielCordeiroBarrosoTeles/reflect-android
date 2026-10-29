@@ -4,7 +4,7 @@ import { MirrorStartError, NoDeviceError } from '../../src/core/errors';
 import { MirrorSession } from '../../src/scrcpy/MirrorSession';
 import type { IServerBinary } from '../../src/scrcpy/types';
 import type { SessionStateKind, VideoPacket } from '../../src/shared/protocol';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { FakeLeasePool } from '../fakes/FakeLeasePool';
 import { FakeLogger } from '../fakes/FakeLogger';
 import { FakeScrcpyLauncher } from '../fakes/FakeScrcpyClient';
@@ -17,7 +17,7 @@ const setup = () => {
   const pool = new FakeLeasePool();
   const launcher = new FakeScrcpyLauncher();
   const logger = new FakeLogger();
-  const session = new MirrorSession(deviceInfo(), pool, launcher, binary, options, logger);
+  const session = new MirrorSession(device(), pool, launcher, binary, options, logger);
   const states: SessionStateKind[] = [];
   session.onDidChangeState((change) => states.push(change.state));
   return { pool, launcher, logger, session, states, client: launcher.client, adb: pool.adb };

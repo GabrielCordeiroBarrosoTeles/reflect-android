@@ -2,12 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { MetroTarget } from '../../src/inspector/types';
 import { AppConnectionWatcher } from '../../src/storage/AppConnectionWatcher';
 import { AsyncStorageReader } from '../../src/storage/AsyncStorageReader';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { FakeActiveDeviceContext } from '../fakes/FakeActiveDeviceContext';
 import { createStorageSandbox } from '../fakes/storageSandbox';
 import { flushPromises } from '../fakes/PushStream';
 
-const device = deviceInfo({ serial: 'A', model: 'SM F741B' });
+const phone = device({ id: 'A', model: 'SM F741B' });
 const timing = { pollIntervalMs: 1, pollAttempts: 5 };
 
 describe('AsyncStorageReader', () => {
@@ -19,16 +19,16 @@ describe('AsyncStorageReader', () => {
   it('reads and removes keys over the shared app connection', async () => {
     const sandbox = createStorageSandbox({ a: '1', b: '2' });
     const { reader: storage, connectionFor } = reader(sandbox);
-    expect(await storage.readAll(device)).toEqual({ status: 'ok', entries: [{ key: 'a', value: '1' }, { key: 'b', value: '2' }] });
-    expect(await storage.remove(device, 'a')).toEqual({ status: 'ok', entries: [{ key: 'b', value: '2' }] });
-    expect(await storage.set(device, 'c', '3')).toEqual({ status: 'ok', entries: [{ key: 'b', value: '2' }, { key: 'c', value: '3' }] });
-    expect(await storage.clear(device)).toEqual({ status: 'ok', entries: [] });
-    expect(connectionFor).toHaveBeenCalledWith(device);
+    expect(await storage.readAll(phone)).toEqual({ status: 'ok', entries: [{ key: 'a', value: '1' }, { key: 'b', value: '2' }] });
+    expect(await storage.remove(phone, 'a')).toEqual({ status: 'ok', entries: [{ key: 'b', value: '2' }] });
+    expect(await storage.set(phone, 'c', '3')).toEqual({ status: 'ok', entries: [{ key: 'b', value: '2' }, { key: 'c', value: '3' }] });
+    expect(await storage.clear(phone)).toEqual({ status: 'ok', entries: [] });
+    expect(connectionFor).toHaveBeenCalledWith(phone);
   });
 
   it('gives up when the app never answers', async () => {
     const storage = new AsyncStorageReader({ connectionFor: () => Promise.resolve({ backend: { evaluate: () => Promise.resolve('{"status":"pending"}') } }) } as never, timing);
-    expect(await storage.readAll(device)).toEqual({ status: 'miss' });
+    expect(await storage.readAll(phone)).toEqual({ status: 'miss' });
   });
 });
 
@@ -44,7 +44,7 @@ describe('AppConnectionWatcher', () => {
     const watcher = new AppConnectionWatcher(metro, context, setContext, 1000);
     watcher.onDidChange((connected) => changes.push(connected));
     expect(metro.listTargets).not.toHaveBeenCalled();
-    context.setMirroredDevice(device);
+    context.setMirroredDevice(phone);
     await vi.advanceTimersByTimeAsync(0);
     expect(watcher.isConnected).toBe(true);
     metro.listTargets.mockRejectedValueOnce(new Error('down'));
@@ -70,7 +70,7 @@ describe('AppConnectionWatcher', () => {
     let resolve: (targets: MetroTarget[]) => void = () => undefined;
     const metro = { listTargets: vi.fn().mockReturnValueOnce(new Promise<MetroTarget[]>((done) => (resolve = done))).mockResolvedValue([]) };
     const context = new FakeActiveDeviceContext();
-    context.mirroredDevice = device;
+    context.mirroredDevice = phone;
     const setContext = vi.fn();
     const watcher = new AppConnectionWatcher(metro, context, setContext, 60_000);
     context.setMirroredDevice(undefined);

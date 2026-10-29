@@ -18,7 +18,7 @@ import type { LogRead } from '../../src/logs/types';
 import type { NetworkResult } from '../../src/network/types';
 import { renderToolsHtml } from '../../src/tools/toolsHtml';
 import { TOOLS_VIEW_ID, ToolsViewProvider } from '../../src/tools/ToolsViewProvider';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { FakeActiveDeviceContext } from '../fakes/FakeActiveDeviceContext';
 import { FakeClipboard } from '../fakes/FakeClipboard';
 import { FakeToolsChannel } from '../fakes/FakeToolsChannel';
@@ -63,7 +63,7 @@ describe('DeviceTab', () => {
     const states = new Emitter<PollerState>();
     const poller = { onDidChangeState: states.event, setTarget: vi.fn(), setVisible: vi.fn(), refresh: vi.fn() };
     const context = new FakeActiveDeviceContext();
-    context.target = deviceInfo({ serial: 'A' });
+    context.target = device({ id: 'A' });
     const channel = new FakeToolsChannel();
     const tab = new DeviceTab(poller, context, () => ({ maskIpAddress: true }), channel);
     expect(poller.setTarget).toHaveBeenCalledWith('A');
@@ -255,7 +255,7 @@ describe('NetworkTab', () => {
       clear: vi.fn(() => Promise.resolve()),
     };
     const context = new FakeActiveDeviceContext();
-    context.mirroredDevice = deviceInfo({ serial: 'A' });
+    context.mirroredDevice = device({ id: 'A' });
     const channel = new FakeToolsChannel();
     const tab = new NetworkTab(reader, context, channel, 1000);
     return { reader, context, channel, tab, results };
@@ -364,7 +364,7 @@ describe('LogsTab', () => {
       }),
     };
     const context = new FakeActiveDeviceContext();
-    context.mirroredDevice = deviceInfo({ serial: 'A' });
+    context.mirroredDevice = device({ id: 'A' });
     const channel = new FakeToolsChannel();
     const tab = new LogsTab(reader, context, channel, 1000);
     return { reader, context, channel, tab, reads };
@@ -469,7 +469,7 @@ describe('ActionsTab', () => {
       }),
     };
     const context = new FakeActiveDeviceContext();
-    context.mirroredDevice = deviceInfo({ serial });
+    context.mirroredDevice = device({ id: serial });
     const channel = new FakeToolsChannel();
     const confirm = vi.fn((_message: string, _action: string) => Promise.resolve(true));
     let links: readonly string[] = [];
@@ -615,7 +615,7 @@ describe('PerformanceTab', () => {
       resetFrames: vi.fn((_serial: string, _app: string) => Promise.resolve()),
     };
     const context = new FakeActiveDeviceContext();
-    context.mirroredDevice = deviceInfo({ serial: 'A' });
+    context.mirroredDevice = device({ id: 'A' });
     const channel = new FakeToolsChannel();
     const tab = new PerformanceTab(reader, context, channel, 2000, () => (clock += 2000));
     const points = () => channel.posted.filter((message) => message.type === 'performance-points' && !message.reset).flatMap((message) => (message.type === 'performance-points' ? message.points : []));

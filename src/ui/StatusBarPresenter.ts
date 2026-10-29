@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { deviceLabel } from '../adb/toDeviceInfo';
+import { deviceLabel, isReady } from '../devices/types';
 import type { IActiveDeviceContext } from '../device/types';
 import { DisposableStore } from '../core/Disposable';
 import type { IDisposable } from '../core/types';
@@ -32,11 +32,11 @@ export class StatusBarPresenter implements IDisposable {
   }
 
   private computeView(): StatusBarView {
-    const ready = this.context.devices.filter((device) => device.state === 'device');
+    const ready = this.context.devices.filter((device) => isReady(device));
     const active = this.context.mirroredDevice;
     if (active) {
       const label = deviceLabel(active);
-      const isConnected = ready.some((device) => device.serial === active.serial);
+      const isConnected = ready.some((device) => device.id === active.id);
       return isConnected
         ? { text: `$(device-mobile) ${label}`, tooltip: `Reflect: ${label} connected — click to open` }
         : { text: `$(debug-disconnect) ${label}`, tooltip: `Reflect: ${label} disconnected` };

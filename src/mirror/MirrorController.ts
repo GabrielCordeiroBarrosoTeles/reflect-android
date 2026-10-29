@@ -1,5 +1,5 @@
-import { deviceLabel } from '../adb/toDeviceInfo';
-import type { DeviceInfo } from '../adb/types';
+import { deviceLabel } from '../devices/types';
+import type { Device } from '../devices/types';
 import { DisposableStore } from '../core/Disposable';
 import { Emitter } from '../core/Emitter';
 import { DEVICE_ACTIONS } from '../actions/deviceActions';
@@ -67,14 +67,14 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
   };
 
   constructor(
-    readonly device: DeviceInfo,
+    readonly device: Device,
     private readonly surface: IMirrorSurface,
     private readonly session: IMirrorSession,
     private readonly services: MirrorServices,
   ) {
     this.screenshots = new ScreenshotRequester(surface.channel, SCREENSHOT_TIMEOUT_MS);
     this.reconnect = new AutoReconnect({
-      serial: device.serial,
+      serial: device.id,
       availability: services.availability,
       timing: services.reconnectTiming,
       reconnect: () => session.start(),

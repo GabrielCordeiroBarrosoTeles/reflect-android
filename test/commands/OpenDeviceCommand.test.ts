@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DeviceInfo, IDeviceSelectionService } from '../../src/adb/types';
+import type { Device } from '../../src/devices/types';
+import type { IDeviceSelectionService } from '../../src/adb/types';
 import { CommandIds } from '../../src/commands/commandIds';
 import { OpenDeviceCommand } from '../../src/commands/OpenDeviceCommand';
 import type { MirrorManager } from '../../src/mirror/MirrorManager';
 import type { ErrorPresenter } from '../../src/ui/ErrorPresenter';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 
-const setup = (select: () => Promise<DeviceInfo | undefined>, location: () => 'editor' | 'secondarySidebar' = () => 'secondarySidebar') => {
+const setup = (select: () => Promise<Device | undefined>, location: () => 'editor' | 'secondarySidebar' = () => 'secondarySidebar') => {
   const selection: IDeviceSelectionService = { select };
   const mirrors = { open: vi.fn() };
   const activeDevice = { setMirroredDevice: vi.fn() };
@@ -28,11 +29,11 @@ describe('OpenDeviceCommand', () => {
   });
 
   it('opens the selected device at the configured location and marks it active', async () => {
-    const device = deviceInfo();
-    const { command, mirrors, activeDevice } = setup(() => Promise.resolve(device), () => 'editor');
+    const phone = device();
+    const { command, mirrors, activeDevice } = setup(() => Promise.resolve(phone), () => 'editor');
     await command.execute();
-    expect(activeDevice.setMirroredDevice).toHaveBeenCalledWith(device);
-    expect(mirrors.open).toHaveBeenCalledWith(device, 'editor');
+    expect(activeDevice.setMirroredDevice).toHaveBeenCalledWith(phone);
+    expect(mirrors.open).toHaveBeenCalledWith(phone, 'editor');
   });
 
   it('does nothing when the selection is cancelled', async () => {

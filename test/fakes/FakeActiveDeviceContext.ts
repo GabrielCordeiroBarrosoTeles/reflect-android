@@ -1,26 +1,26 @@
-import type { DeviceInfo } from '../../src/adb/types';
+import type { Device } from '../../src/devices/types';
 import { Emitter } from '../../src/core/Emitter';
 import type { IActiveDeviceContext } from '../../src/device/types';
 
 export class FakeActiveDeviceContext implements IActiveDeviceContext {
   private readonly changeEmitter = new Emitter<void>();
   readonly onDidChange = this.changeEmitter.event;
-  mirroredDevice: DeviceInfo | undefined;
-  target: DeviceInfo | undefined;
+  mirroredDevice: Device | undefined;
+  target: Device | undefined;
 
-  constructor(public devices: readonly DeviceInfo[] = []) {}
+  constructor(public devices: readonly Device[] = []) {}
 
-  setDevices(devices: readonly DeviceInfo[]): void {
+  setDevices(devices: readonly Device[]): void {
     this.devices = devices;
     this.changeEmitter.fire();
   }
 
-  setTarget(target: DeviceInfo | undefined): void {
+  setTarget(target: Device | undefined): void {
     this.target = target;
     this.changeEmitter.fire();
   }
 
-  setMirroredDevice(device: DeviceInfo | undefined): void {
+  setMirroredDevice(device: Device | undefined): void {
     this.mirroredDevice = device;
     this.changeEmitter.fire();
   }

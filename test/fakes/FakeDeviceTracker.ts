@@ -1,8 +1,8 @@
-import type { DeviceInfo, IDeviceTracker } from '../../src/adb/types';
+import type { Device, IDeviceDiscovery } from '../../src/devices/types';
 import { Emitter } from '../../src/core/Emitter';
 
-export class FakeDeviceTracker implements IDeviceTracker {
-  private readonly changeEmitter = new Emitter<readonly DeviceInfo[]>();
+export class FakeDeviceTracker implements IDeviceDiscovery {
+  private readonly changeEmitter = new Emitter<readonly Device[]>();
   private readonly failEmitter = new Emitter<Error>();
   readonly onDidChangeDevices = this.changeEmitter.event;
   readonly onDidFail = this.failEmitter.event;
@@ -10,9 +10,9 @@ export class FakeDeviceTracker implements IDeviceTracker {
   disposed = 0;
   startFailure: Error | undefined;
 
-  constructor(public devices: readonly DeviceInfo[] = []) {}
+  constructor(public devices: readonly Device[] = []) {}
 
-  setDevices(devices: readonly DeviceInfo[]): void {
+  setDevices(devices: readonly Device[]): void {
     this.devices = devices;
     this.changeEmitter.fire(devices);
   }

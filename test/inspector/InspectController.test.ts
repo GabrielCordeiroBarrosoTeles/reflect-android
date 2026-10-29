@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { InspectController } from '../../src/inspector/InspectController';
 import type { InspectedComponent } from '../../src/inspector/types';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { flushPromises } from '../fakes/PushStream';
 
 const component: InspectedComponent = { name: 'Button', props: [], owners: ['Demo'], source: { file: '/app/Demo.tsx', line: 3, column: 1 } };
@@ -32,16 +32,16 @@ describe('InspectController', () => {
     const { controller, services } = setup();
     const onHighlight = vi.fn();
     controller.start();
-    controller.hoverAt(deviceInfo(), { x: 0.1, y: 0 }, onHighlight);
-    controller.hoverAt(deviceInfo(), { x: 0.2, y: 0 }, onHighlight);
-    controller.hoverAt(deviceInfo(), { x: 0.3, y: 0 }, onHighlight);
+    controller.hoverAt(device(), { x: 0.1, y: 0 }, onHighlight);
+    controller.hoverAt(device(), { x: 0.2, y: 0 }, onHighlight);
+    controller.hoverAt(device(), { x: 0.3, y: 0 }, onHighlight);
     await flushPromises();
     expect(services.inspector.highlightAt.mock.calls.map(([, point]) => point)).toEqual([
       { x: 0.1, y: 0 },
       { x: 0.3, y: 0 },
     ]);
     expect(onHighlight.mock.calls).toEqual([[{ ...highlight, x: 0.1 }], [{ ...highlight, x: 0.3 }]]);
-    controller.hoverAt(deviceInfo(), { x: -1, y: 0 }, onHighlight);
+    controller.hoverAt(device(), { x: -1, y: 0 }, onHighlight);
     await flushPromises();
     expect(onHighlight).toHaveBeenLastCalledWith(undefined);
   });
@@ -49,10 +49,10 @@ describe('InspectController', () => {
   it('ignores hovers while inactive and drops results after leaving inspect mode', async () => {
     const { controller, services } = setup();
     const onHighlight = vi.fn();
-    controller.hoverAt(deviceInfo(), { x: 0.1, y: 0 }, onHighlight);
+    controller.hoverAt(device(), { x: 0.1, y: 0 }, onHighlight);
     expect(services.inspector.highlightAt).not.toHaveBeenCalled();
     controller.start();
-    controller.hoverAt(deviceInfo(), { x: 0.1, y: 0 }, onHighlight);
+    controller.hoverAt(device(), { x: 0.1, y: 0 }, onHighlight);
     controller.cancel();
     await flushPromises();
     expect(onHighlight).not.toHaveBeenCalled();
@@ -63,7 +63,7 @@ describe('InspectController', () => {
     services.inspector.highlightAt.mockReturnValueOnce(Promise.reject(new Error('metro down')));
     const onHighlight = vi.fn();
     controller.start();
-    controller.hoverAt(deviceInfo(), { x: 0.1, y: 0 }, onHighlight);
+    controller.hoverAt(device(), { x: 0.1, y: 0 }, onHighlight);
     await flushPromises();
     expect(onHighlight).toHaveBeenCalledWith(undefined);
     expect(services.onError).not.toHaveBeenCalled();
@@ -74,9 +74,9 @@ describe('InspectController', () => {
     const { controller, services } = setup(new Promise((resolve) => (finish = resolve)));
     const onHighlight = vi.fn();
     controller.start();
-    controller.hoverAt(deviceInfo(), { x: 0.1, y: 0 }, onHighlight);
-    controller.inspectAt(deviceInfo(), { x: 0.1, y: 0 });
-    controller.hoverAt(deviceInfo(), { x: 0.2, y: 0 }, onHighlight);
+    controller.hoverAt(device(), { x: 0.1, y: 0 }, onHighlight);
+    controller.inspectAt(device(), { x: 0.1, y: 0 });
+    controller.hoverAt(device(), { x: 0.2, y: 0 }, onHighlight);
     await flushPromises();
     expect(services.inspector.highlightAt).toHaveBeenCalledOnce();
     expect(onHighlight).not.toHaveBeenCalled();
@@ -98,9 +98,9 @@ describe('InspectController', () => {
   it('shows the inspected component, opens its source and leaves inspect mode', async () => {
     const { controller, services } = setup();
     controller.start();
-    controller.inspectAt(deviceInfo(), { x: 0.1, y: 0.2 });
+    controller.inspectAt(device(), { x: 0.1, y: 0.2 });
     await flushPromises();
-    expect(services.inspector.inspectAt).toHaveBeenCalledWith(deviceInfo(), { x: 0.1, y: 0.2 });
+    expect(services.inspector.inspectAt).toHaveBeenCalledWith(device(), { x: 0.1, y: 0.2 });
     expect(services.view.show).toHaveBeenCalledWith(component);
     expect(services.view.reveal).toHaveBeenCalledOnce();
     expect(services.openSource).toHaveBeenCalledWith(component.source);
@@ -111,10 +111,10 @@ describe('InspectController', () => {
     const disabled = setup();
     disabled.services.shouldOpenSource.mockReturnValue(false);
     disabled.controller.start();
-    disabled.controller.inspectAt(deviceInfo(), { x: 0, y: 0 });
+    disabled.controller.inspectAt(device(), { x: 0, y: 0 });
     const withoutSource = setup(Promise.resolve({ ...component, source: undefined }));
     withoutSource.controller.start();
-    withoutSource.controller.inspectAt(deviceInfo(), { x: 0, y: 0 });
+    withoutSource.controller.inspectAt(device(), { x: 0, y: 0 });
     await flushPromises();
     expect(disabled.services.openSource).not.toHaveBeenCalled();
     expect(withoutSource.services.openSource).not.toHaveBeenCalled();
@@ -123,7 +123,7 @@ describe('InspectController', () => {
   it('stays in inspect mode when nothing is under the cursor', async () => {
     const { controller, services } = setup(Promise.resolve(undefined));
     controller.start();
-    controller.inspectAt(deviceInfo(), { x: 0, y: 0 });
+    controller.inspectAt(device(), { x: 0, y: 0 });
     await flushPromises();
     expect(services.notify).toHaveBeenCalledWith('No React component at that point');
     expect(controller.isActive).toBe(true);
@@ -133,7 +133,7 @@ describe('InspectController', () => {
     const failure = new Error('metro down');
     const { controller, services } = setup(Promise.reject(failure));
     controller.start();
-    controller.inspectAt(deviceInfo(), { x: 0, y: 0 });
+    controller.inspectAt(device(), { x: 0, y: 0 });
     await flushPromises();
     expect(services.onError).toHaveBeenCalledWith(failure);
     expect(controller.isActive).toBe(false);
@@ -142,10 +142,10 @@ describe('InspectController', () => {
   it('ignores clicks while inactive or busy', async () => {
     let finish!: (value: InspectedComponent) => void;
     const { controller, services } = setup(new Promise((resolve) => (finish = resolve)));
-    controller.inspectAt(deviceInfo(), { x: 0, y: 0 });
+    controller.inspectAt(device(), { x: 0, y: 0 });
     controller.start();
-    controller.inspectAt(deviceInfo(), { x: 0, y: 0 });
-    controller.inspectAt(deviceInfo(), { x: 1, y: 1 });
+    controller.inspectAt(device(), { x: 0, y: 0 });
+    controller.inspectAt(device(), { x: 1, y: 1 });
     finish(component);
     await flushPromises();
     expect(services.inspector.inspectAt).toHaveBeenCalledOnce();

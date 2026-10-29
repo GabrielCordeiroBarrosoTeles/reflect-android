@@ -1,4 +1,4 @@
-import type { DeviceInfo } from '../adb/types';
+import type { Device } from '../devices/types';
 import { selectTarget } from './selectTarget';
 import type { CdpConnector, IMetroClient } from './types';
 
@@ -8,7 +8,7 @@ export class AppReloader {
     private readonly connect: CdpConnector,
   ) {}
 
-  async reload(device: DeviceInfo): Promise<boolean> {
+  async reload(device: Device): Promise<boolean> {
     try {
       const target = selectTarget(await this.metro.listTargets(), device);
       if (!target) {

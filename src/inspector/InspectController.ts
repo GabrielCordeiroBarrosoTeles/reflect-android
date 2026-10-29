@@ -1,4 +1,4 @@
-import type { DeviceInfo } from '../adb/types';
+import type { Device } from '../devices/types';
 import type { IDisposable } from '../core/types';
 import type { IInspectHandler } from '../mirror/types';
 import type { InspectHighlight } from '../shared/protocol';
@@ -16,7 +16,7 @@ export interface InspectServices {
 }
 
 interface HoverRequest {
-  readonly device: DeviceInfo;
+  readonly device: Device;
   readonly point: InspectPoint;
   readonly onHighlight: (highlight: InspectHighlight | undefined) => void;
 }
@@ -42,7 +42,7 @@ export class InspectController implements IInspectHandler, IDisposable {
     this.services.inspector.disconnect();
   }
 
-  inspectAt(device: DeviceInfo, point: InspectPoint): void {
+  inspectAt(device: Device, point: InspectPoint): void {
     if (!this.active || this.busy) {
       return;
     }
@@ -52,7 +52,7 @@ export class InspectController implements IInspectHandler, IDisposable {
     });
   }
 
-  hoverAt(device: DeviceInfo, point: InspectPoint, onHighlight: (highlight: InspectHighlight | undefined) => void): void {
+  hoverAt(device: Device, point: InspectPoint, onHighlight: (highlight: InspectHighlight | undefined) => void): void {
     if (!this.active || this.busy) {
       return;
     }
@@ -78,7 +78,7 @@ export class InspectController implements IInspectHandler, IDisposable {
     this.hovering = false;
   }
 
-  private async inspect(device: DeviceInfo, point: InspectPoint): Promise<void> {
+  private async inspect(device: Device, point: InspectPoint): Promise<void> {
     try {
       const component = await this.services.inspector.inspectAt(device, point);
       if (!component) {

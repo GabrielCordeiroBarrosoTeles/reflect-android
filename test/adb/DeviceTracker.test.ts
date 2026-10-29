@@ -17,7 +17,7 @@ describe('DeviceTracker', () => {
     tracker.onDidChangeDevices(listener);
     await tracker.start();
     expect(gateway.client.trackOptions).toEqual([{ includeStates: ['device', 'unauthorized', 'offline'] }]);
-    expect(tracker.devices.map((device) => device.serial)).toEqual(['R5CX123']);
+    expect(tracker.devices.map((device) => device.id)).toEqual(['R5CX123']);
     expect(listener).toHaveBeenCalledOnce();
   });
 
@@ -25,11 +25,11 @@ describe('DeviceTracker', () => {
     const { tracker, observer } = setup();
     await tracker.start();
     const snapshots: string[][] = [];
-    tracker.onDidChangeDevices((devices) => snapshots.push(devices.map((device) => `${device.serial}:${device.state}`)));
+    tracker.onDidChangeDevices((devices) => snapshots.push(devices.map((device) => `${device.id}:${device.state}`)));
     observer.emitList([tangoDevice({ state: 'unauthorized' })]);
     observer.emitList([tangoDevice({ state: 'device' })]);
     observer.emitList([]);
-    expect(snapshots).toEqual([['R5CX123:unauthorized'], ['R5CX123:device'], []]);
+    expect(snapshots).toEqual([['R5CX123:unauthorized'], ['R5CX123:ready'], []]);
   });
 
   it('starts only once even when called concurrently', async () => {

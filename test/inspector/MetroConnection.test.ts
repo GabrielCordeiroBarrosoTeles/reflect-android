@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MetroConnection } from '../../src/inspector/MetroConnection';
 import type { IMetroClient } from '../../src/inspector/types';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { FakeCdpSession } from '../fakes/FakeCdpSession';
 import { flushPromises } from '../fakes/PushStream';
 
@@ -17,8 +17,8 @@ describe('MetroConnection', () => {
     const session = new FakeCdpSession();
     const connect = vi.fn(() => Promise.resolve(session));
     const connections = new MetroConnection(metro, connect, 1000);
-    const device = deviceInfo({ model: 'SM F741B' });
-    const [first, second] = await Promise.all([connections.connectionFor(device), connections.connectionFor(device)]);
+    const phone = device({ model: 'SM F741B' });
+    const [first, second] = await Promise.all([connections.connectionFor(phone), connections.connectionFor(phone)]);
     expect(first.session).toBe(second.session);
     expect(connect).toHaveBeenCalledOnce();
     connections.dispose();
@@ -31,11 +31,11 @@ describe('MetroConnection', () => {
     const late = { ...metro, listTargets: vi.fn().mockReturnValueOnce(new Promise((_resolve, reject) => (fail = reject))).mockImplementation(metro.listTargets) };
     const connect = vi.fn(() => Promise.resolve(new FakeCdpSession()));
     const connections = new MetroConnection(late, connect, 1000);
-    const older = connections.connectionFor(deviceInfo({ serial: 'A', model: 'SM F741B' }));
-    const newer = await connections.connectionFor(deviceInfo({ serial: 'B', model: 'SM F741B' }));
+    const older = connections.connectionFor(device({ id: 'A', model: 'SM F741B' }));
+    const newer = await connections.connectionFor(device({ id: 'B', model: 'SM F741B' }));
     fail(new Error('slow'));
     await older.catch(() => undefined);
     await flushPromises();
-    expect(await connections.connectionFor(deviceInfo({ serial: 'B', model: 'SM F741B' }))).toBe(newer);
+    expect(await connections.connectionFor(device({ id: 'B', model: 'SM F741B' }))).toBe(newer);
   });
 });

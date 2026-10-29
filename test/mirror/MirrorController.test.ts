@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HIDDEN_SHUTDOWN_MS, MirrorController } from '../../src/mirror/MirrorController';
 import type { MirrorCloseReason } from '../../src/mirror/types';
 import type { VideoPacket, WebviewToHostMessage } from '../../src/shared/protocol';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { FakeClipboard } from '../fakes/FakeClipboard';
 import { FakeLogger } from '../fakes/FakeLogger';
 import { FakeMirrorSession } from '../fakes/FakeMirrorSession';
@@ -55,7 +55,7 @@ const setup = () => {
   const availabilityChanges = new Emitter<void>();
   const availability = { onDidChange: availabilityChanges.event, isReady: vi.fn(() => false) };
   const surface = new FakeSurface();
-  const controller = new MirrorController(deviceInfo({ model: 'Pixel 8' }), surface, session, {
+  const controller = new MirrorController(device({ name: 'Pixel 8', model: 'Pixel 8' }), surface, session, {
     logger,
     clipboard,
     onError,

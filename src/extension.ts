@@ -6,7 +6,8 @@ import * as vscode from 'vscode';
 import { AdbServerGateway, DEFAULT_ADB_ENDPOINT } from './adb/AdbServerGateway';
 import { DeviceSelectionService } from './adb/DeviceSelectionService';
 import { DeviceTracker } from './adb/DeviceTracker';
-import type { DeviceInfo } from './adb/types';
+import type { Device } from './devices/types';
+import { isReady } from './devices/types';
 import { ExecFileProcessRunner } from './adb/ExecFileProcessRunner';
 import { createAdbLocator } from './adb/locator/createAdbLocator';
 import { CommandIds } from './commands/commandIds';
@@ -229,7 +230,7 @@ export function activate(context: vscode.ExtensionContext): void {
       reloadApp: (device) => appReloader.reload(device),
       reverseMetro: async (device) => {
         const port = readMetroPort();
-        await portReverse.reverse(device.serial, port);
+        await portReverse.reverse(device.id, port);
         return port;
       },
       notify,
@@ -239,12 +240,12 @@ export function activate(context: vscode.ExtensionContext): void {
     onCaptured: (kind, path) => void handleCapture(kind, path),
     availability: {
       onDidChange: activeDevice.onDidChange,
-      isReady: (serial) => activeDevice.devices.some((device) => device.serial === serial && device.state === 'device'),
+      isReady: (serial) => activeDevice.devices.some((device) => device.id === serial && isReady(device)),
     },
     reconnectTiming: RECONNECT_TIMING,
   };
   const sidebar = new MirrorViewProvider(context.extensionUri);
-  const createSurface = (device: DeviceInfo, location: MirrorLocation): IMirrorSurface =>
+  const createSurface = (device: Device, location: MirrorLocation): IMirrorSurface =>
     location === 'editor' ? new MirrorPanel(device, context.extensionUri) : sidebar.claim();
   const mirrors = new MirrorManager(
     (device, location) =>

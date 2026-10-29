@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import { MirrorPanel } from '../../src/mirror/MirrorPanel';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { window } from '../mocks/vscode';
 
 const createPanel = () => {
-  const panel = new MirrorPanel(deviceInfo({ model: 'Pixel 8' }), vscode.Uri.file('/ext'));
+  const panel = new MirrorPanel(device({ name: 'Pixel 8', model: 'Pixel 8' }), vscode.Uri.file('/ext'));
   return { panel, fake: window.panels[0]! };
 };
 
