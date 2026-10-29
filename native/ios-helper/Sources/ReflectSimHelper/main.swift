@@ -18,6 +18,15 @@ guard let udid = argValue("--udid") else {
     exit(64)
 }
 
+func intArg(_ name: String, default value: Int) -> Int {
+    argValue(name).flatMap { Int($0) } ?? value
+}
+
+let initialSettings = EncoderSettings(
+    fps: intArg("--fps", default: 60),
+    bitrate: intArg("--bitrate", default: 8_000_000),
+    maxSize: intArg("--max-size", default: 1920))
+
 // The parent closing our stdout must not kill us with SIGPIPE: the write fails instead,
 // FrameWriter surfaces it and we exit cleanly (ruling R7).
 signal(SIGPIPE, SIG_IGN)
@@ -81,10 +90,40 @@ send {
         capabilities: capabilities))
 }
 
+let screen = SimulatorScreenSource(device: located.device, log: log)
+let encoder = H264Encoder(
+    settings: initialSettings,
+    sink: writer,
+    onOutputClosed: {
+        // The parent is gone (R7): stop capturing and exit cleanly.
+        log("stdout closed, exiting")
+        screen.stop()
+        exit(0)
+    },
+    log: log)
+encoder.start()
+do {
+    try screen.start { surface in encoder.submit(surface) }
+} catch let error as HelperError {
+    fail(error)
+} catch {
+    fail(.frameworkUnavailable("\(error)"))
+}
+
+func shutDown() -> Never {
+    screen.stop()
+    encoder.stop()
+    exit(0)
+}
+
 while let line = readLine() {
     switch CommandReader.parse(line: line) {
     case .command(.stop):
-        exit(0)
+        shutDown()
+    case .command(.keyframe):
+        encoder.requestKeyframe()
+    case .command(.quality(let bitrate, let fps, let maxSize)):
+        encoder.update(EncoderSettings(fps: fps, bitrate: bitrate, maxSize: maxSize))
     case .command:
         break
     case .unknown(let type):
@@ -93,4 +132,4 @@ while let line = readLine() {
         send { try writer.writeEvent(type: "warning", message: "invalid command") }
     }
 }
-exit(0)
+shutDown()

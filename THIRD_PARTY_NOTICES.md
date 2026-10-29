@@ -295,3 +295,9 @@ Upstream source: https://github.com/facebook/idb/tree/8509ca666b5983171a73338114
    See the License for the specific language governing permissions and
    limitations under the License.
 ```
+
+## baguette (screen capture and H.264 encoder recipes)
+
+- Project: https://github.com/luispadron/baguette
+- Used in: `native/ios-helper/Sources/ReflectSimHelperCore/Screen/ScreenSource.swift` (finding the `com.apple.framebuffer.display` descriptor and registering SimulatorKit screen callbacks) and `native/ios-helper/Sources/ReflectSimHelperCore/Encoding/H264Encoder.swift` (VideoToolbox session setup and sample extraction), compiled into `assets/ios-helper/reflect-sim-helper`. Modified: rewritten for Reflect (Baseline profile, copy instead of wrapping the live IOSurface, Annex-B output, throttling, idle refresh and Objective-C exception guarding).
+- License: Apache License 2.0

@@ -18,6 +18,23 @@ All integers are big-endian. `length` is the payload size in bytes.
 | `0x03` | video-frame | `[u8 flags][u64 pts µs BE][Annex-B]`, flags bit0 = keyframe |
 | `0x04` | event | JSON, e.g. `{"type":"warning","message":"unknown command x"}` |
 
+### Video
+
+- H.264 Baseline, real time, no B-frames, a keyframe at least every `fps * 2` frames.
+- Output size: the framebuffer scaled so its longest side is at most `--max-size` (no
+  upscaling; `<= 0` means no limit), both sides rounded down to even
+  (iPhone 15: 1179×2556 → 884×1920 at 1920).
+- A `video-config` comes before the first `video-frame`, before every keyframe (so a decoder
+  can join late) and whenever SPS/PPS or the size change. Its payload is the output size plus
+  the SPS and PPS, each prefixed by `00 00 00 01`. `video-frame` payloads are Annex-B and do not
+  repeat SPS/PPS.
+- `pts` is microseconds since capture started (monotonic, strictly increasing).
+- Frames are encoded when the simulator composites a new one, at most `fps` per second. When
+  nothing changed for one second, the last frame is encoded again, so `keyframe` is answered on
+  a static screen.
+- `keyframe` forces the next frame to be a keyframe; `quality` recreates the encoder with the
+  new settings (the next frame is a keyframe).
+
 `hello` JSON (the first frame on a successful start; `device` sizes are points, from the
 simulator's device type: pixel size / scale):
 
