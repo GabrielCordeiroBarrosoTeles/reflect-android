@@ -8,7 +8,8 @@ let package = Package(
         .executable(name: "reflect-sim-helper", targets: ["ReflectSimHelper"]),
     ],
     targets: [
-        .target(name: "ReflectSimHelperCore"),
+        .target(name: "CIndigo"),
+        .target(name: "ReflectSimHelperCore", dependencies: ["CIndigo"]),
         .executableTarget(name: "ReflectSimHelper", dependencies: ["ReflectSimHelperCore"]),
         .testTarget(name: "ReflectSimHelperCoreTests", dependencies: ["ReflectSimHelperCore"]),
     ]

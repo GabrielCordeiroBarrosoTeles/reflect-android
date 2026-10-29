@@ -26,22 +26,38 @@ final class Capture: @unchecked Sendable {
         #expect(try JSONDecoder().decode(Hello.self, from: json) == hello)
     }
 
-    @Test func videoFrameEncodesFlagsAndPts() {
+    @Test func videoFrameEncodesFlagsAndPts() throws {
         let (w, c) = makeWriter()
-        w.writeVideoFrame(keyframe: true, pts: 1_000_000, payload: Data([0xAA, 0xBB]))
+        try w.writeVideoFrame(keyframe: true, pts: 1_000_000, payload: Data([0xAA, 0xBB]))
         #expect(Array(c.data) == [0x03, 0, 0, 0, 11, 0x01, 0, 0, 0, 0, 0, 0x0F, 0x42, 0x40, 0xAA, 0xBB])
     }
 
-    @Test func deltaFrameHasZeroFlags() {
+    @Test func deltaFrameHasZeroFlags() throws {
         let (w, c) = makeWriter()
-        w.writeVideoFrame(keyframe: false, pts: 0, payload: Data())
+        try w.writeVideoFrame(keyframe: false, pts: 0, payload: Data())
         #expect(c.data[5] == 0x00)
     }
 
-    @Test func videoConfigEncodesSize() {
+    @Test func videoConfigEncodesSize() throws {
         let (w, c) = makeWriter()
-        w.writeVideoConfig(width: 1170, height: 2532, annexB: Data([0x01]))
+        try w.writeVideoConfig(width: 1170, height: 2532, annexB: Data([0x01]))
         #expect(Array(c.data) == [0x02, 0, 0, 0, 5, 0x04, 0x92, 0x09, 0xE4, 0x01])
+    }
+
+    @Test func errorEventCarriesCode() throws {
+        let (w, c) = makeWriter()
+        try w.writeError(.deviceNotFound(udid: "U"))
+        #expect(c.data[0] == 0x04)
+        let obj = try JSONSerialization.jsonObject(with: Data(c.data[5...])) as? [String: String]
+        #expect(obj == ["type": "error", "code": "device-not-found", "message": "no simulator with UDID U"])
+    }
+
+    @Test func sinkFailureIsSurfacedAsOutputClosed() {
+        struct Broken: Error {}
+        let w = FrameWriter { _ in throw Broken() }
+        #expect(throws: FrameWriterError.outputClosed) { try w.writeEvent(type: "warning", message: "x") }
+        #expect(throws: FrameWriterError.outputClosed) { try w.writeVideoFrame(keyframe: false, pts: 0, payload: Data()) }
+        #expect(throws: FrameWriterError.outputClosed) { try w.writeVideoConfig(width: 1, height: 1, annexB: Data()) }
     }
 
     @Test func eventFrameCarriesJson() throws {

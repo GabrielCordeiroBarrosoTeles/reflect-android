@@ -18,7 +18,8 @@ All integers are big-endian. `length` is the payload size in bytes.
 | `0x03` | video-frame | `[u8 flags][u64 pts µs BE][Annex-B]`, flags bit0 = keyframe |
 | `0x04` | event | JSON, e.g. `{"type":"warning","message":"unknown command x"}` |
 
-`hello` JSON (always the first frame):
+`hello` JSON (the first frame on a successful start; `device` sizes are points, from the
+simulator's device type: pixel size / scale):
 
 ```json
 { "protocol": 1, "xcodeVersion": "26.6",
@@ -44,3 +45,28 @@ One JSON object per line. Coordinates are device points.
 
 An unknown `type` produces an `event` frame `{"type":"warning","message":"unknown command <type>"}`;
 malformed lines produce a `warning` event. The helper never crashes on bad input.
+
+## Start-up errors
+
+Before `hello` the helper checks the Xcode version (26 or newer), loads CoreSimulator and
+SimulatorKit, probes every private class and symbol it needs and finds the simulator.
+A failure is reported as one `event` frame, then the helper exits with code **2**:
+
+```json
+{ "type": "error", "code": "device-not-booted", "message": "simulator is not booted (state: Shutdown)" }
+```
+
+| code | meaning |
+|------|---------|
+| `xcode-unsupported` | no Xcode, Xcode older than 26, or a required private API is missing |
+| `framework-unavailable` | CoreSimulator / SimulatorKit / IOKit could not be loaded or answered unexpectedly |
+| `device-not-found` | no simulator with that UDID |
+| `device-not-booted` | the simulator exists but is not booted |
+
+## Exit codes
+
+| code | when |
+|------|------|
+| 0 | `stop`, EOF on stdin, or stdout closed (the parent went away; SIGPIPE is ignored) |
+| 2 | start-up error (see above) |
+| 64 | missing `--udid` |

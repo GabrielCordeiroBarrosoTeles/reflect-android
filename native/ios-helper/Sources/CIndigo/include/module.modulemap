@@ -1,0 +1,4 @@
+module CIndigo {
+    header "Indigo.h"
+    export *
+}
