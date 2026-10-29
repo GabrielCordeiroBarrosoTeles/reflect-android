@@ -9,7 +9,8 @@ let package = Package(
     ],
     targets: [
         .target(name: "CIndigo"),
-        .target(name: "ReflectSimHelperCore", dependencies: ["CIndigo"]),
+        .target(name: "CObjCGuard"),
+        .target(name: "ReflectSimHelperCore", dependencies: ["CIndigo", "CObjCGuard"]),
         .executableTarget(name: "ReflectSimHelper", dependencies: ["ReflectSimHelperCore"]),
         .testTarget(name: "ReflectSimHelperCoreTests", dependencies: ["ReflectSimHelperCore"]),
     ]

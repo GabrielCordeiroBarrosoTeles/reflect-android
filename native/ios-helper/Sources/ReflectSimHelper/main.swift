@@ -7,8 +7,10 @@ func argValue(_ name: String) -> String? {
     return args[i + 1]
 }
 
+/// Writes a line to stderr. Uses the throwing API and ignores failure: the legacy
+/// `write(_:)` raises an Objective-C exception on EPIPE when the parent closed stderr.
 func log(_ message: String) {
-    FileHandle.standardError.write(Data("reflect-sim-helper: \(message)\n".utf8))
+    try? FileHandle.standardError.write(contentsOf: Data("reflect-sim-helper: \(message)\n".utf8))
 }
 
 guard let udid = argValue("--udid") else {
@@ -21,6 +23,17 @@ guard let udid = argValue("--udid") else {
 signal(SIGPIPE, SIG_IGN)
 
 let writer = FrameWriter.stdout()
+
+// Last resort for an Objective-C exception that escaped ObjCGuard: report it as a
+// structured `framework-unavailable` error and exit 2 instead of a bare abort.
+NSSetUncaughtExceptionHandler { exception in
+    let error = HelperError.frameworkUnavailable(
+        "uncaught Objective-C exception \(exception.name.rawValue): \(exception.reason ?? "(no reason)")")
+    try? FileHandle.standardError.write(
+        contentsOf: Data("reflect-sim-helper: \(error.code): \(error.message)\n".utf8))
+    try? FrameWriter.stdout().writeError(error)
+    exit(HelperError.exitCode)
+}
 
 /// Runs a write; if stdout is gone the parent is gone, so exit 0.
 func send(_ write: () throws -> Void) {

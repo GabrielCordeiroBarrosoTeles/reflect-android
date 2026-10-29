@@ -1,10 +1,18 @@
 /*
  * Indigo HID wire-format structures used by reflect-sim-helper.
  *
- * Adapted from facebook/idb (PrivateHeaders/SimulatorApp/Mach.h and Indigo.h,
- * https://github.com/facebook/idb, commit 8509ca666b5983171a73338114b7d0325ae15bf1),
- * as redistributed by simbeam-control. Only the struct layouts and defines are used;
- * the two upstream headers were merged into this file.
+ * Two origins (both credited in THIRD_PARTY_NOTICES.md):
+ *  - facebook/idb (PrivateHeaders/SimulatorApp/Mach.h and Indigo.h,
+ *    https://github.com/facebook/idb, commit 8509ca666b5983171a73338114b7d0325ae15bf1),
+ *    MIT License, notice below.
+ *  - simbeam-control (https://github.com/gabrielvisser/simbeam-control, forked from
+ *    kei-sidorov/simbeam-control), which redistributes those idb headers and adds field
+ *    annotations ("enriched via disassembly ... Xcode 26.2"). Those additions are licensed
+ *    under the Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+ * Only the struct layouts and defines are used; the two upstream headers were merged into
+ * this file (modified: merged, include guard added).
+ *
+ * idb notice:
  *
  * MIT License
  *
