@@ -13,6 +13,11 @@ class FakeController implements IMirrorController {
   disposed = 0;
   inspecting: boolean[] = [];
   actions: string[] = [];
+  unsupported = new Set<string>();
+
+  supports(id: string): boolean {
+    return !this.unsupported.has(id);
+  }
 
   runAction(id: string): Promise<void> {
     this.actions.push(id);
@@ -95,11 +100,19 @@ describe('MirrorManager', () => {
 
   it('runs actions on the most recently opened mirror', () => {
     const { manager, created } = setup();
-    expect(manager.runAction('home')).toBe(false);
+    expect(manager.runAction('home')).toBe('no-mirror');
     manager.open(device({ id: 'A' }), 'editor');
     manager.open(device({ id: 'B' }), 'editor');
-    expect(manager.runAction('screenshot')).toBe(true);
+    expect(manager.runAction('screenshot')).toBe('ran');
     expect(created.map((controller) => controller.actions)).toEqual([[], ['screenshot']]);
+  });
+
+  it('does not run an action the latest mirror does not support', () => {
+    const { manager, created } = setup();
+    manager.open(device({ id: 'A' }), 'editor');
+    created[0]?.unsupported.add('reload');
+    expect(manager.runAction('reload')).toBe('unsupported');
+    expect(created[0]?.actions).toEqual([]);
   });
 
   it('announces opened devices', () => {

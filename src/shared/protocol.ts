@@ -39,8 +39,14 @@ export interface InspectHighlight {
   readonly padding: BoxEdges;
 }
 
+export interface MirrorEnvelope<T> {
+  readonly deviceId: string | undefined;
+  readonly message: T;
+}
+
 export type HostToWebviewMessage =
   | { readonly type: 'idle' }
+  | { readonly type: 'capabilities'; readonly actions: readonly ActionId[] }
   | { readonly type: 'toolbar-state'; readonly state: ToolbarState }
   | { readonly type: 'capture-screenshot'; readonly requestId: number }
   | { readonly type: 'inspect-mode'; readonly active: boolean }

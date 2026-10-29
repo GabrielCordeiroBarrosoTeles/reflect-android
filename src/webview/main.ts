@@ -1,6 +1,6 @@
 import '@vscode/codicons/dist/codicon.css';
 import './styles.css';
-import type { HostToWebviewMessage, LogLevel } from '../shared/protocol';
+import type { HostToWebviewMessage, LogLevel, MirrorEnvelope, WebviewToHostMessage } from '../shared/protocol';
 import { preferredAcceleration, probeDecoderSupport } from './decoderSupport';
 import { CanvasPointMapper } from './input/CanvasPointMapper';
 import { FrameScheduler } from './input/FrameScheduler';
@@ -18,7 +18,14 @@ import { ViewOptions } from './ViewOptions';
 
 const FRAME_REPORT_DELAY_MS = 3000;
 
-const vscode = acquireVsCodeApi();
+const hostApi = acquireVsCodeApi();
+let currentDeviceId: string | undefined;
+
+const vscode = {
+  postMessage: (message: WebviewToHostMessage): void => hostApi.postMessage({ deviceId: currentDeviceId, message }),
+  getState: (): unknown => hostApi.getState(),
+  setState: (state: unknown): void => hostApi.setState(state),
+};
 
 const log = (level: LogLevel, message: string): void => vscode.postMessage({ type: 'log', level, message });
 
@@ -84,6 +91,7 @@ const bootstrap = async (): Promise<void> => {
         .catch(() => undefined)
         .then((data) => vscode.postMessage({ type: 'screenshot', requestId, data }));
     },
+    capabilities: ({ actions }) => toolbar.setAvailable(actions),
     idle: () => {
       overlay.showIdle();
       canvas.hidden = true;
@@ -105,8 +113,9 @@ const bootstrap = async (): Promise<void> => {
     'video-packet': ({ packet }) => renderer.render(packet),
   };
 
-  window.addEventListener('message', (event: MessageEvent<HostToWebviewMessage>) => {
-    const message = event.data;
+  window.addEventListener('message', (event: MessageEvent<MirrorEnvelope<HostToWebviewMessage>>) => {
+    currentDeviceId = event.data.deviceId;
+    const { message } = event.data;
     (handlers[message.type] as (value: HostToWebviewMessage) => void)(message);
   });
 

@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import { DisposableStore } from '../core/Disposable';
 import type { Event, IDisposable } from '../core/types';
+import type { Device } from '../devices/types';
+import type { IActiveDeviceContext } from '../device/types';
+import type { PlatformCapabilities } from '../platform/types';
 import type { IClipboard } from '../mirror/types';
 import type { HostToToolsMessage, ToolsTab, ToolsToHostMessage } from '../shared/toolsProtocol';
 import type { ComponentTab } from './ComponentTab';
@@ -36,6 +39,8 @@ export interface ToolsDependencies {
   readonly clipboard: IClipboard;
   readonly notify: (message: string) => void;
   readonly setTabContext: (tab: ToolsTab) => void;
+  readonly context: Pick<IActiveDeviceContext, 'target' | 'onDidChange'>;
+  readonly capabilities: (device: Device) => PlatformCapabilities;
 }
 
 type Handlers = {
@@ -82,6 +87,7 @@ export class ToolsViewProvider<T extends ToolsTabs = ToolsTabs> implements vscod
   private readonly handlers: Handlers = {
     ready: () => {
       this.postAvailability();
+      this.postTabs();
       this.syncAll();
     },
     'tab-changed': ({ tab }) => this.setActiveTab(tab),
@@ -112,6 +118,7 @@ export class ToolsViewProvider<T extends ToolsTabs = ToolsTabs> implements vscod
   ) {
     this.tabs = createTabs(this);
     this.store.add(dependencies.app.onDidChange(() => this.postAvailability()));
+    this.store.add(dependencies.context.onDidChange(() => this.postTabs()));
   }
 
   resolveWebviewView(view: vscode.WebviewView): void {
@@ -152,6 +159,11 @@ export class ToolsViewProvider<T extends ToolsTabs = ToolsTabs> implements vscod
 
   private postAvailability(): void {
     this.post({ type: 'app-available', available: this.dependencies.app.isConnected });
+  }
+
+  private postTabs(): void {
+    const target = this.dependencies.context.target;
+    this.post({ type: 'tabs-available', tabs: target ? this.dependencies.capabilities(target).tools : TABS });
   }
 
   private async receive(message: unknown): Promise<void> {

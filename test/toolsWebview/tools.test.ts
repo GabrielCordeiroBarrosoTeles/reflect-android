@@ -136,6 +136,12 @@ describe('tools webview entry', () => {
     expect(posted).toEqual([{ type: 'ready' }, { type: 'tab-changed', tab: 'device' }]);
     const deliver = (data: unknown) => window.dispatchEvent(new MessageEvent('message', { data }));
     deliver({ type: 'app-available', available: true });
+    deliver({ type: 'tabs-available', tabs: ['component', 'device'] });
+    expect(['logs', 'device'].map((tab) => $<HTMLElement>(`#tab-${tab}`).hidden)).toEqual([true, false]);
+    deliver({ type: 'app-available', available: false });
+    expect(['network', 'storage', 'device'].map((tab) => $<HTMLElement>(`#tab-${tab}`).hidden)).toEqual([true, true, false]);
+    deliver({ type: 'app-available', available: true });
+    deliver({ type: 'tabs-available', tabs: ['component', 'network', 'logs', 'storage', 'device', 'performance', 'actions'] });
     deliver({ type: 'select-tab', tab: 'storage' });
     deliver({ type: 'component', view: undefined });
     deliver({ type: 'device', state: { kind: 'idle' } });

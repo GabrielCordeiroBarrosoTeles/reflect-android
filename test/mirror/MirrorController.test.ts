@@ -54,6 +54,7 @@ const setup = () => {
   const onCaptured = vi.fn();
   const availabilityChanges = new Emitter<void>();
   const availability = { onDidChange: availabilityChanges.event, isReady: vi.fn(() => false) };
+  const capabilities = vi.fn(() => ({ actions: ['home', 'back'] as const, tools: ['device'] as const }));
   const surface = new FakeSurface();
   const controller = new MirrorController(device({ name: 'Pixel 8', model: 'Pixel 8' }), surface, session, {
     logger,
@@ -66,6 +67,7 @@ const setup = () => {
     onCaptured,
     availability,
     reconnectTiming: { baseDelayMs: 100, maxDelayMs: 400, giveUpAfterMs: 1000 },
+    capabilities,
   });
   const reasons: MirrorCloseReason[] = [];
   controller.onDidDispose((reason) => reasons.push(reason));
@@ -73,7 +75,7 @@ const setup = () => {
     surface.channel.messages.fire(message);
     await flushPromises();
   };
-  return { session, logger, clipboard, onError, inspector, actions, captures, recorders, createRecorder, onCaptured, availability, availabilityChanges, surface, controller, send, reasons, posted: surface.channel.posted };
+  return { session, logger, clipboard, onError, inspector, actions, captures, recorders, createRecorder, onCaptured, availability, availabilityChanges, capabilities, surface, controller, send, reasons, posted: surface.channel.posted };
 };
 
 describe('MirrorController', () => {
@@ -117,6 +119,7 @@ describe('MirrorController', () => {
     posted.length = 0;
     await send({ type: 'ready' });
     expect(posted).toEqual([
+      { type: 'capabilities', actions: ['home', 'back'] },
       { type: 'session-state', state: 'streaming', deviceName: 'Pixel 8' },
       { type: 'inspect-mode', active: false },
       { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } },
@@ -124,6 +127,12 @@ describe('MirrorController', () => {
       { type: 'video-packet', packet: configurationPacket },
     ]);
     expect(session.keyframes).toBe(1);
+  });
+
+  it('reports whether the device supports an action', () => {
+    const { controller, capabilities } = setup();
+    expect([controller.supports('home'), controller.supports('record')]).toEqual([true, false]);
+    expect(capabilities).toHaveBeenCalledWith(controller.device);
   });
 
   it('throttles keyframe requests and skips the cached packet when absent', async () => {
@@ -189,6 +198,7 @@ describe('MirrorController', () => {
     await send({ type: 'ready' });
     expect(posted).toEqual([
       { type: 'inspect-mode', active: true },
+      { type: 'capabilities', actions: ['home', 'back'] },
       { type: 'session-state', state: 'idle', deviceName: 'Pixel 8' },
       { type: 'inspect-mode', active: true },
       { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } },

@@ -147,7 +147,7 @@ describe('extension', () => {
     await openDevice();
     expect(commands.executeCommand).toHaveBeenCalledWith('reflect.deviceView.focus');
     expect(window.panels).toEqual([]);
-    expect(view.webview.posted).toContainEqual({ type: 'session-state', state: 'streaming', deviceName: 'SM F741B' });
+    expect(view.webview.posted).toContainEqual({ deviceId: 'R5CX123', message: { type: 'session-state', state: 'streaming', deviceName: 'SM F741B' } });
   });
 
   it('mirrors in an editor tab when configured', async () => {
@@ -246,7 +246,7 @@ describe('extension', () => {
     const view = resolveSidebar();
     await openDevice();
     await commands.registered.get('reflect.inspect')?.();
-    view.webview.received.fire({ type: 'inspect-at', x: 0.5, y: 0.3 });
+    view.webview.received.fire({ deviceId: undefined, message: { type: 'inspect-at', x: 0.5, y: 0.3 } });
     await vi.waitFor(() => expect(window.showTextDocument).toHaveBeenCalled());
     expect(window.showTextDocument.mock.calls[0]?.[0]).toMatchObject({ fsPath: '/workspace/src/Demo.tsx' });
     cdp.handle = undefined;
@@ -269,7 +269,7 @@ describe('extension', () => {
     const view = resolveSidebar();
     await openDevice();
     await commands.registered.get('reflect.inspect')?.();
-    view.webview.received.fire({ type: 'inspect-at', x: 0.5, y: 0.3 });
+    view.webview.received.fire({ deviceId: undefined, message: { type: 'inspect-at', x: 0.5, y: 0.3 } });
     await vi.waitFor(() => expect(window.setStatusBarMessage).toHaveBeenCalledWith('$(info) No React component at that point', 2000));
     cdp.handle = undefined;
   });
@@ -279,7 +279,7 @@ describe('extension', () => {
     const view = resolveSidebar();
     await openDevice();
     await commands.registered.get('reflect.inspect')?.();
-    view.webview.received.fire({ type: 'inspect-at', x: 0.5, y: 0.5 });
+    view.webview.received.fire({ deviceId: undefined, message: { type: 'inspect-at', x: 0.5, y: 0.5 } });
     await vi.waitFor(() => expect(window.showErrorMessage).toHaveBeenCalled());
     expect(window.showErrorMessage.mock.calls[0]?.[0]).toContain('Metro is not running');
   });
@@ -308,14 +308,14 @@ describe('extension', () => {
     await openDevice();
     window.showInformationMessage.mockImplementationOnce(() => Promise.resolve('Open'));
     await commands.registered.get('reflect.action.screenshot')?.();
-    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ type: 'capture-screenshot', requestId: 1 }));
-    view.webview.received.fire({ type: 'screenshot', requestId: 1, data: new Uint8Array([137, 80]) });
+    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ deviceId: 'R5CX123', message: { type: 'capture-screenshot', requestId: 1 } }));
+    view.webview.received.fire({ deviceId: undefined, message: { type: 'screenshot', requestId: 1, data: new Uint8Array([137, 80]) } });
     await vi.waitFor(() => expect(commands.executeCommand).toHaveBeenCalledWith('vscode.open', expect.objectContaining({ fsPath: expect.stringContaining(folder) })));
     expect(window.showInformationMessage.mock.calls[0]?.[0]).toMatch(/copied/);
     window.showInformationMessage.mockImplementationOnce(() => Promise.resolve('Reveal'));
     await commands.registered.get('reflect.action.screenshot')?.();
-    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ type: 'capture-screenshot', requestId: 2 }));
-    view.webview.received.fire({ type: 'screenshot', requestId: 2, data: new Uint8Array([1]) });
+    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ deviceId: 'R5CX123', message: { type: 'capture-screenshot', requestId: 2 } }));
+    view.webview.received.fire({ deviceId: undefined, message: { type: 'screenshot', requestId: 2, data: new Uint8Array([1]) } });
     await vi.waitFor(() => expect(commands.executeCommand).toHaveBeenCalledWith('revealFileInOS', expect.anything()));
   });
 
@@ -351,8 +351,8 @@ describe('extension', () => {
     await openDevice();
     io.execFile.mockClear();
     await commands.registered.get('reflect.action.screenshot')?.();
-    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ type: 'capture-screenshot', requestId: 1 }));
-    view.webview.received.fire({ type: 'screenshot', requestId: 1, data: new Uint8Array([1]) });
+    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ deviceId: 'R5CX123', message: { type: 'capture-screenshot', requestId: 1 } }));
+    view.webview.received.fire({ deviceId: undefined, message: { type: 'screenshot', requestId: 1, data: new Uint8Array([1]) } });
     await vi.waitFor(() => expect(window.showInformationMessage).toHaveBeenCalled());
     expect(window.showInformationMessage.mock.calls[0]?.[0]).not.toMatch(/copied/);
     expect(io.execFile).not.toHaveBeenCalled();
@@ -397,10 +397,10 @@ describe('extension', () => {
     await openDevice();
     io.scrcpyClient = new FakeScrcpyClient().asClient();
     scrcpy.exit();
-    await vi.waitFor(() => expect(view.webview.posted).toContainEqual(expect.objectContaining({ detail: 'Reconnecting… plug the cable back in' })));
+    await vi.waitFor(() => expect(view.webview.posted).toContainEqual(expect.objectContaining({ message: expect.objectContaining({ detail: 'Reconnecting… plug the cable back in' }) })));
     observer.emitList([tangoDevice()]);
     await vi.waitFor(() =>
-      expect(view.webview.posted.filter((message) => (message as { state?: string }).state === 'streaming')).toHaveLength(2),
+      expect(view.webview.posted.filter((message) => (message as { message: { state?: string } }).message.state === 'streaming')).toHaveLength(2),
     );
   });
 
@@ -438,8 +438,8 @@ describe('extension', () => {
     expect(panel.title).toBe('SM F741B');
     scrcpy.output.push('server ready');
     scrcpy.clipboard.push('from phone');
-    panel.webview.received.fire({ type: 'paste' });
-    panel.webview.received.fire({ type: 'log', level: 'error', message: 'decoder' });
+    panel.webview.received.fire({ deviceId: undefined, message: { type: 'paste' } });
+    panel.webview.received.fire({ deviceId: undefined, message: { type: 'log', level: 'error', message: 'decoder' } });
     await vi.waitFor(() => expect(channel.lines).toContain('info [scrcpy] server ready'));
     expect(channel.lines).toContain('error [webview] decoder');
     expect(await vscode.env.clipboard.readText()).toBe('from phone');

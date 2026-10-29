@@ -43,6 +43,7 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
 
   private readonly handlers: MessageHandlers = {
     ready: () => {
+      this.surface.channel.post({ type: 'capabilities', actions: this.services.capabilities(this.device).actions });
       this.postState({ state: this.session.state });
       this.surface.channel.post({ type: 'inspect-mode', active: this.inspecting });
       this.postToolbarState();
@@ -109,6 +110,10 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
     this.gaveUp = false;
     this.reconnect.start();
     this.postState({ state: 'disconnected', detail: RECONNECTING_DETAIL });
+  }
+
+  supports(id: ActionId): boolean {
+    return this.services.capabilities(this.device).actions.includes(id);
   }
 
   runAction(id: ActionId): Promise<void> {

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import type { Device } from '../devices/types';
 import { CommandIds } from '../commands/commandIds';
 import { Emitter } from '../core/Emitter';
 import type { IDisposable } from '../core/types';
@@ -47,10 +48,11 @@ export class MirrorViewProvider implements vscode.WebviewViewProvider, IDisposab
     void vscode.commands.executeCommand(`${MIRROR_VIEW_ID}.focus`);
   }
 
-  claim(): IMirrorSurface {
+  claim(device: Device): IMirrorSurface {
     const previous = this.owner;
     const surface = new SidebarSurface(this, () => this.release(surface));
     this.owner = surface;
+    this.channel.setDeviceId(device.id);
     previous?.dispose();
     return surface;
   }
@@ -68,6 +70,7 @@ export class MirrorViewProvider implements vscode.WebviewViewProvider, IDisposab
       return;
     }
     this.owner = undefined;
+    this.channel.setDeviceId(undefined);
     this.channel.post({ type: 'idle' });
   }
 

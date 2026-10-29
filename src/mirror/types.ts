@@ -1,4 +1,5 @@
 import type { Device } from '../devices/types';
+import type { PlatformCapabilities } from '../platform/types';
 import type { Event, IDisposable, ILogger } from '../core/types';
 import type { ActionServices } from '../actions/types';
 import type { CaptureKind, ICaptureStore } from '../capture/types';
@@ -41,6 +42,7 @@ export interface MirrorServices {
   readonly onCaptured: (kind: CaptureKind, path: string) => void;
   readonly availability: DeviceAvailability;
   readonly reconnectTiming: ReconnectTiming;
+  readonly capabilities: (device: Device) => PlatformCapabilities;
 }
 
 export interface IWebviewChannel {
@@ -62,6 +64,7 @@ export interface IMirrorController extends IDisposable {
   reveal(): void;
   start(): void;
   setInspectMode(active: boolean): void;
+  supports(id: ActionId): boolean;
   runAction(id: ActionId): Promise<void>;
 }
 

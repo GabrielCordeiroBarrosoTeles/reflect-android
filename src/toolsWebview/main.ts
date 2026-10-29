@@ -1,6 +1,6 @@
 import '@vscode/codicons/dist/codicon.css';
 import './tools.css';
-import type { HostToToolsMessage } from '../shared/toolsProtocol';
+import type { HostToToolsMessage, ToolsTab } from '../shared/toolsProtocol';
 import { ComponentTab } from './ComponentTab';
 import { DeviceTab } from './DeviceTab';
 import { ActionsPanel } from './actions/ActionsPanel';
@@ -23,11 +23,26 @@ const actions = new ActionsPanel(query(document, '.app-actions'), post);
 const performance = new PerformancePanel(query(document, '.performance'), post);
 const tabs = new TabBar(document, { get: () => api.getState(), set: (state) => api.setState(state) }, (tab) => post({ type: 'tab-changed', tab }));
 
+const ALL_TABS: readonly ToolsTab[] = ['component', 'network', 'logs', 'storage', 'device', 'performance', 'actions'];
+const NEEDS_APP: readonly ToolsTab[] = ['network', 'storage'];
+let supported: readonly ToolsTab[] = ALL_TABS;
+let appAvailable = false;
+
+const applyAvailability = (): void => {
+  for (const tab of ALL_TABS) {
+    tabs.setAvailable(tab, supported.includes(tab) && (appAvailable || !NEEDS_APP.includes(tab)));
+  }
+};
+
 const receive = (message: HostToToolsMessage): void => {
   switch (message.type) {
     case 'app-available':
-      tabs.setAvailable('network', message.available);
-      tabs.setAvailable('storage', message.available);
+      appAvailable = message.available;
+      applyAvailability();
+      break;
+    case 'tabs-available':
+      supported = message.tabs;
+      applyAvailability();
       break;
     case 'select-tab':
       tabs.select(message.tab, false);

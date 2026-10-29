@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import { MIRROR_VIEW_ID, MirrorViewProvider } from '../../src/mirror/MirrorViewProvider';
+import type { WebviewToHostMessage } from '../../src/shared/protocol';
+import { device } from '../fakes/devices';
 import { FakeWebviewView, commands } from '../mocks/vscode';
+
+const phone = device({ id: 'A' });
+const from = (message: WebviewToHostMessage) => ({ deviceId: undefined, message });
+const idle = { deviceId: undefined, message: { type: 'idle' } };
 
 const setup = () => {
   const provider = new MirrorViewProvider(vscode.Uri.file('/ext'));
@@ -27,25 +33,37 @@ describe('MirrorViewProvider', () => {
   it('shows the idle screen when the webview is ready without a device', () => {
     const { view, resolve } = setup();
     resolve();
-    view.webview.received.fire({ type: 'ready' });
-    expect(view.webview.posted).toEqual([{ type: 'idle' }]);
+    view.webview.received.fire(from({ type: 'ready' }));
+    expect(view.webview.posted).toEqual([idle]);
   });
 
   it('lets the claimed device own the webview', () => {
     const { view, resolve, provider } = setup();
     resolve();
-    const surface = provider.claim();
+    const surface = provider.claim(phone);
     const messages = vi.fn();
     surface.channel.onMessage(messages);
-    view.webview.received.fire({ type: 'ready' });
+    view.webview.received.fire(from({ type: 'ready' }));
     expect(view.webview.posted).toEqual([]);
     expect(messages).toHaveBeenCalledWith({ type: 'ready' });
+  });
+
+  it('stamps posts with the device that claims the sidebar and clears it on release', () => {
+    const { view, resolve, provider } = setup();
+    resolve();
+    const surface = provider.claim(phone);
+    surface.channel.post({ type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } });
+    surface.dispose();
+    expect(view.webview.posted).toEqual([
+      { deviceId: 'A', message: { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } } },
+      idle,
+    ]);
   });
 
   it('runs the open device command from the idle screen', () => {
     const { view, resolve } = setup();
     resolve();
-    view.webview.received.fire({ type: 'open-device' });
+    view.webview.received.fire(from({ type: 'open-device' }));
     expect(commands.executeCommand).toHaveBeenCalledWith('reflect.openDevice');
   });
 
@@ -75,16 +93,16 @@ describe('MirrorViewProvider', () => {
     view.setVisible(false);
     provider.channel.post({ type: 'idle' });
     expect(changes).toEqual([]);
-    expect(next.webview.posted).toEqual([{ type: 'idle' }]);
+    expect(next.webview.posted).toEqual([idle]);
   });
 
   it('releases the previous owner when a new device claims the sidebar', () => {
     const { view, resolve, provider } = setup();
     resolve();
-    const first = provider.claim();
+    const first = provider.claim(phone);
     const closed = vi.fn();
     first.onDidDispose(closed);
-    provider.claim();
+    provider.claim(phone);
     expect(closed).toHaveBeenCalledOnce();
     expect(view.webview.posted).toEqual([]);
   });
@@ -92,19 +110,19 @@ describe('MirrorViewProvider', () => {
   it('returns to the idle screen when the owner releases the sidebar', () => {
     const { view, resolve, provider } = setup();
     resolve();
-    provider.claim().dispose();
-    view.webview.received.fire({ type: 'ready' });
-    expect(view.webview.posted).toEqual([{ type: 'idle' }, { type: 'idle' }]);
+    provider.claim(phone).dispose();
+    view.webview.received.fire(from({ type: 'ready' }));
+    expect(view.webview.posted).toEqual([idle, idle]);
   });
 
   it('releases the owner and the view on dispose', () => {
     const { view, resolve, provider } = setup();
     resolve();
-    const surface = provider.claim();
+    const surface = provider.claim(phone);
     const closed = vi.fn();
     surface.onDidDispose(closed);
     provider.dispose();
-    view.webview.received.fire({ type: 'open-device' });
+    view.webview.received.fire(from({ type: 'open-device' }));
     expect(closed).toHaveBeenCalledOnce();
     expect(commands.executeCommand).not.toHaveBeenCalled();
   });

@@ -188,7 +188,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const confirm = async (message: string, action: string): Promise<boolean> => (await vscode.window.showWarningMessage(message, { modal: true }, action)) === action;
   const tools = new ToolsViewProvider(
     context.extensionUri,
-    { app: appWatcher, clipboard, notify: showCopied, setTabContext: (tab) => void vscode.commands.executeCommand('setContext', 'reflect.toolsTab', tab) },
+    { app: appWatcher, clipboard, notify: showCopied, setTabContext: (tab) => void vscode.commands.executeCommand('setContext', 'reflect.toolsTab', tab),
+      context: activeDevice,
+      capabilities: (device) => platforms.capabilities(device),
+    },
     (channel) => ({
       component: new ComponentTab(channel, openSource),
       network: new NetworkTab(new NetworkReader(appConnection), activeDevice, channel, NETWORK_POLL_MS),
@@ -249,10 +252,11 @@ export function activate(context: vscode.ExtensionContext): void {
       isReady: (serial) => activeDevice.devices.some((device) => device.id === serial && isReady(device)),
     },
     reconnectTiming: RECONNECT_TIMING,
+    capabilities: (device) => platforms.capabilities(device),
   };
   const sidebar = new MirrorViewProvider(context.extensionUri);
   const createSurface = (device: Device, location: MirrorLocation): IMirrorSurface =>
-    location === 'editor' ? new MirrorPanel(device, context.extensionUri) : sidebar.claim();
+    location === 'editor' ? new MirrorPanel(device, context.extensionUri) : sidebar.claim(device);
   const mirrors = new MirrorManager(
     (device, location) =>
       new MirrorController(

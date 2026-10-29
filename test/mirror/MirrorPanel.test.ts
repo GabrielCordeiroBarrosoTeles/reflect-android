@@ -29,6 +29,12 @@ describe('MirrorPanel', () => {
     expect(panel.visible).toBe(true);
   });
 
+  it('stamps messages with the device id', () => {
+    const { panel, fake } = createPanel();
+    panel.channel.post({ type: 'idle' });
+    expect(fake.webview.posted).toEqual([{ deviceId: 'R5CX123', message: { type: 'idle' } }]);
+  });
+
   it('reveals the panel', () => {
     const { panel, fake } = createPanel();
     panel.reveal();
@@ -42,7 +48,7 @@ describe('MirrorPanel', () => {
     panel.onDidDispose(closed);
     panel.channel.onMessage(messages);
     panel.dispose();
-    fake.webview.received.fire({ type: 'ready' });
+    fake.webview.received.fire({ deviceId: 'R5CX123', message: { type: 'ready' } });
     expect(closed).toHaveBeenCalledOnce();
     expect(messages).not.toHaveBeenCalled();
   });

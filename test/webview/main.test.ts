@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol';
+import type { HostToWebviewMessage, MirrorEnvelope, WebviewToHostMessage } from '../../src/shared/protocol';
 import { flushPromises } from '../fakes/PushStream';
 
 const fakes = vi.hoisted(() => ({
@@ -59,18 +59,25 @@ const MARKUP =
 const boot = async (markup = MARKUP) => {
   document.body.innerHTML = markup;
   const posted: WebviewToHostMessage[] = [];
+  const envelopes: MirrorEnvelope<WebviewToHostMessage>[] = [];
   vi.stubGlobal('acquireVsCodeApi', () => ({
-    postMessage: (message: WebviewToHostMessage) => posted.push(message),
+    postMessage: (envelope: MirrorEnvelope<WebviewToHostMessage>) => {
+      envelopes.push(envelope);
+      posted.push(envelope.message);
+    },
     getState: () => undefined,
     setState: vi.fn(),
   }));
   vi.resetModules();
   await import('../../src/webview/main');
   await flushPromises();
-  return { posted, canvas: document.querySelector<HTMLCanvasElement>('.screen'), title: () => document.querySelector('.status__title')?.textContent };
+  return { posted, envelopes, canvas: document.querySelector<HTMLCanvasElement>('.screen'), title: () => document.querySelector('.status__title')?.textContent };
 };
 
-const deliver = (message: HostToWebviewMessage) => window.dispatchEvent(new MessageEvent('message', { data: message }));
+const deliverTo = (deviceId: string | undefined, message: HostToWebviewMessage) =>
+  window.dispatchEvent(new MessageEvent('message', { data: { deviceId, message } satisfies MirrorEnvelope<HostToWebviewMessage> }));
+
+const deliver = (message: HostToWebviewMessage) => deliverTo('R5CX123', message);
 
 beforeEach(() => {
   fakes.supported = true;
@@ -214,6 +221,23 @@ describe('webview main', () => {
   it('logs bootstrap failures when the markup is incomplete', async () => {
     const { posted } = await boot('<div></div>');
     expect(posted).toEqual([{ type: 'log', level: 'error', message: 'Webview bootstrap failed: Error: Missing element .screen' }]);
+  });
+
+  it('echoes the device id of the last envelope it received', async () => {
+    const { envelopes } = await boot();
+    expect(envelopes.at(-1)).toEqual({ deviceId: undefined, message: { type: 'ready' } });
+    deliverTo('A', { type: 'idle' });
+    document.querySelector<HTMLButtonElement>('[aria-label="Home"]')?.click();
+    expect(envelopes.at(-1)).toEqual({ deviceId: 'A', message: { type: 'action', id: 'home' } });
+    deliverTo(undefined, { type: 'idle' });
+    document.querySelector<HTMLButtonElement>('[aria-label="Home"]')?.click();
+    expect(envelopes.at(-1)).toEqual({ deviceId: undefined, message: { type: 'action', id: 'home' } });
+  });
+
+  it('hides toolbar buttons the host did not list as available', async () => {
+    await boot();
+    deliver({ type: 'capabilities', actions: ['home'] });
+    expect([document.querySelector<HTMLElement>('[aria-label="Back"]')?.hidden, document.querySelector<HTMLElement>('[aria-label="Home"]')?.hidden]).toEqual([true, false]);
   });
 });
 

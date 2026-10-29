@@ -20,7 +20,7 @@ export class MirrorPanel implements IMirrorSurface {
       enableScripts: true,
       localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')],
     });
-    this.channel = new WebviewBridge(this.panel.webview);
+    this.channel = new WebviewBridge(this.panel.webview, device.id);
     applyMirrorWebview(this.panel.webview, extensionUri);
     this.panel.onDidChangeViewState(({ webviewPanel }) => this.visibilityEmitter.fire(webviewPanel.visible));
     this.panel.onDidDispose(() => {

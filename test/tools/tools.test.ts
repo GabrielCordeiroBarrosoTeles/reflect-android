@@ -120,7 +120,9 @@ const setupProvider = () => {
   const clipboard = new FakeClipboard();
   const notify = vi.fn();
   const setTabContext = vi.fn();
-  const provider = new ToolsViewProvider(Uri.file('/ext') as unknown as vscode.Uri, { app: { get isConnected() { return connected; }, onDidChange: app.event }, clipboard, notify, setTabContext }, () => ({ component, device, storage, network, logs, actions, performance }));
+  const context = new FakeActiveDeviceContext();
+  const tabsFor = vi.fn(() => ({ actions: [], tools: ['component', 'device'] as const }));
+  const provider = new ToolsViewProvider(Uri.file('/ext') as unknown as vscode.Uri, { app: { get isConnected() { return connected; }, onDidChange: app.event }, clipboard, notify, setTabContext, context, capabilities: tabsFor }, () => ({ component, device, storage, network, logs, actions, performance }));
   const view = new FakeWebviewView();
   provider.resolveWebviewView(view as unknown as vscode.WebviewView);
   const send = async (message: unknown) => {
@@ -131,7 +133,7 @@ const setupProvider = () => {
     connected = value;
     app.fire(value);
   };
-  return { provider, view, send, component, device, storage, network, logs, actions, performance, clipboard, notify, setTabContext, setConnected };
+  return { context, tabsFor, provider, view, send, component, device, storage, network, logs, actions, performance, clipboard, notify, setTabContext, setConnected };
 };
 
 describe('ToolsViewProvider', () => {
@@ -142,6 +144,25 @@ describe('ToolsViewProvider', () => {
     await send({ type: 'ready' });
     expect([component.sync, device.sync, storage.sync, network.sync].map((fn) => fn.mock.calls.length)).toEqual([1, 1, 1, 1]);
     expect(view.webview.posted[0]).toEqual({ type: 'app-available', available: false });
+  });
+
+  it('offers every tab while there is no device and the tabs of the target device otherwise', async () => {
+    const { view, send, context, tabsFor } = setupProvider();
+    await send({ type: 'ready' });
+    expect(view.webview.posted).toContainEqual({ type: 'tabs-available', tabs: ['component', 'network', 'logs', 'storage', 'device', 'performance', 'actions'] });
+    const phone = device({ id: 'A' });
+    context.setTarget(phone);
+    expect(tabsFor).toHaveBeenCalledWith(phone);
+    expect(view.webview.posted.at(-1)).toEqual({ type: 'tabs-available', tabs: ['component', 'device'] });
+    context.setTarget(undefined);
+    expect(view.webview.posted.at(-1)).toEqual({ type: 'tabs-available', tabs: ['component', 'network', 'logs', 'storage', 'device', 'performance', 'actions'] });
+  });
+
+  it('stops following the device after dispose', () => {
+    const { context, provider, tabsFor } = setupProvider();
+    provider.dispose();
+    context.setTarget(device());
+    expect(tabsFor).not.toHaveBeenCalled();
   });
 
   it('tells the page when the app connects and drives the network, logs and actions tabs', async () => {

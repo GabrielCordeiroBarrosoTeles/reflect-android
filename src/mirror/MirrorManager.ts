@@ -4,6 +4,8 @@ import type { IDisposable } from '../core/types';
 import type { ActionId } from '../shared/actions';
 import type { IMirrorController, MirrorClosed, MirrorControllerFactory, MirrorLocation } from './types';
 
+export type ActionOutcome = 'ran' | 'no-mirror' | 'unsupported';
+
 interface OpenMirror {
   readonly controller: IMirrorController;
   readonly location: MirrorLocation;
@@ -58,13 +60,16 @@ export class MirrorManager implements IDisposable {
     return [...this.controllers.values()].at(-1);
   }
 
-  runAction(id: ActionId): boolean {
+  runAction(id: ActionId): ActionOutcome {
     const latest = this.latest();
     if (!latest) {
-      return false;
+      return 'no-mirror';
+    }
+    if (!latest.controller.supports(id)) {
+      return 'unsupported';
     }
     void latest.controller.runAction(id);
-    return true;
+    return 'ran';
   }
 
   setInspectMode(active: boolean): void {
