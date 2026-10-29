@@ -4,3 +4,5 @@ coverage/
 *.vsix
 .DS_Store
 assets/scrcpy-server.jar
+assets/ios-helper/
+native/ios-helper/.build/

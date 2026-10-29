@@ -406,6 +406,7 @@
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit",
     "fetch-server": "node scripts/fetch-server.mjs",
+    "build:ios-helper": "node scripts/build-ios-helper.mjs",
     "vscode:prepublish": "npm run typecheck && npm test && node esbuild.mjs --production",
     "package": "vsce package",
     "publish:vsce": "vsce publish",
