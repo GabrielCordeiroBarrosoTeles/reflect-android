@@ -276,6 +276,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.window.registerWebviewViewProvider(TOOLS_VIEW_ID, tools),
     appConnection,
     discovery,
+    selection,
     activeDevice,
     statusBar,
     deviceInfoPoller,

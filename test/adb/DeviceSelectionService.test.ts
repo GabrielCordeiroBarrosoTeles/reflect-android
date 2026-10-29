@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { DeviceSelectionService } from '../../src/adb/DeviceSelectionService';
 import type { Device } from '../../src/devices/types';
 import type { IDevicePicker } from '../../src/adb/types';
-import { DeviceOfflineError, DeviceUnauthorizedError, NoDeviceError } from '../../src/core/errors';
+import { CompositeDeviceDiscovery } from '../../src/devices/CompositeDeviceDiscovery';
+import { AdbNotFoundError, DeviceOfflineError, DeviceUnauthorizedError, NoDeviceError } from '../../src/core/errors';
 import { device } from '../fakes/devices';
 import { FakeDeviceTracker } from '../fakes/FakeDeviceTracker';
 
@@ -56,5 +57,44 @@ describe('DeviceSelectionService', () => {
 
   it('explains offline devices', async () => {
     await expect(select([device({ state: 'offline' })]).result).rejects.toBeInstanceOf(DeviceOfflineError);
+  });
+
+  describe('discovery failures', () => {
+    const build = (source: FakeDeviceTracker) => {
+      const picker = new FakePicker((list) => list[0]);
+      return { picker, service: new DeviceSelectionService(new CompositeDeviceDiscovery([source]), picker) };
+    };
+
+    it('surfaces the start failure when no device is ready', async () => {
+      const source = new FakeDeviceTracker();
+      const failure = new AdbNotFoundError(['/x']);
+      source.startFailure = failure;
+      await expect(build(source).service.select()).rejects.toBe(failure);
+    });
+
+    it('still picks a ready device when a start failure was recorded', async () => {
+      const source = new FakeDeviceTracker([device()]);
+      source.startFailure = new Error('boom');
+      const { service, picker } = build(source);
+      expect((await service.select())?.id).toBe('R5CX123');
+      expect(picker.offered).toHaveLength(1);
+    });
+
+    it('does not leak failures into the next selection', async () => {
+      const source = new FakeDeviceTracker();
+      source.startFailure = new Error('boom');
+      const { service } = build(source);
+      await expect(service.select()).rejects.toThrow('boom');
+      source.startFailure = undefined;
+      await expect(service.select()).rejects.toBeInstanceOf(NoDeviceError);
+    });
+
+    it('stops recording after dispose', async () => {
+      const source = new FakeDeviceTracker();
+      source.startFailure = new Error('boom');
+      const { service } = build(source);
+      service.dispose();
+      await expect(service.select()).rejects.toBeInstanceOf(NoDeviceError);
+    });
   });
 });
