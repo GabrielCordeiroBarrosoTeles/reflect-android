@@ -6,6 +6,10 @@ import * as vscode from 'vscode';
 import { AdbServerGateway, DEFAULT_ADB_ENDPOINT } from './adb/AdbServerGateway';
 import { DeviceSelectionService } from './adb/DeviceSelectionService';
 import { DeviceTracker } from './adb/DeviceTracker';
+import { CompositeDeviceDiscovery } from './devices/CompositeDeviceDiscovery';
+import { PlatformScopedDeviceContext } from './device/PlatformScopedDeviceContext';
+import { AndroidPlatform } from './platform/android/AndroidPlatform';
+import { PlatformRegistry } from './platform/PlatformRegistry';
 import type { Device } from './devices/types';
 import { isReady } from './devices/types';
 import { ExecFileProcessRunner } from './adb/ExecFileProcessRunner';
@@ -66,7 +70,6 @@ import { SidebarResume } from './mirror/SidebarResume';
 import type { IMirrorSurface, MirrorLocation, MirrorServices } from './mirror/types';
 import { AdbScrcpyLauncher } from './scrcpy/AdbScrcpyLauncher';
 import { FileServerBinary } from './scrcpy/FileServerBinary';
-import { MirrorSession } from './scrcpy/MirrorSession';
 import { SCRCPY_SERVER_ASSET, SCRCPY_SERVER_VERSION } from './scrcpy/serverConstants';
 import type { MirrorOptions } from './scrcpy/types';
 import { ErrorPresenter } from './ui/ErrorPresenter';
@@ -149,13 +152,16 @@ export function activate(context: vscode.ExtensionContext): void {
   const launcher = new AdbScrcpyLauncher();
   const pool = new DeviceLeasePool(gateway, logger);
   const tracker = new DeviceTracker(gateway);
-  const activeDevice = new ActiveDeviceContext(tracker);
+  const discovery = new CompositeDeviceDiscovery([tracker]);
+  const activeDevice = new ActiveDeviceContext(discovery);
+  const androidDevice = new PlatformScopedDeviceContext(activeDevice, 'android');
   const statusBar = new StatusBarPresenter(activeDevice, CommandIds.openDevice);
   const errors = new ErrorPresenter(CommandIds.openDevice, () => outputChannel.show());
   const serverBinary = new FileServerBinary(
     vscode.Uri.joinPath(context.extensionUri, SCRCPY_SERVER_ASSET).fsPath,
     SCRCPY_SERVER_VERSION,
   );
+  const platforms = new PlatformRegistry([new AndroidPlatform(pool, launcher, serverBinary, MIRROR_OPTIONS, logger)]);
   const clipboard = {
     readText: () => Promise.resolve(vscode.env.clipboard.readText()),
     writeText: (text: string) => Promise.resolve(vscode.env.clipboard.writeText(text)),
@@ -186,18 +192,18 @@ export function activate(context: vscode.ExtensionContext): void {
     (channel) => ({
       component: new ComponentTab(channel, openSource),
       network: new NetworkTab(new NetworkReader(appConnection), activeDevice, channel, NETWORK_POLL_MS),
-      logs: new LogsTab(new LogReader(deviceShell), activeDevice, channel, LOGS_POLL_MS),
-      performance: new PerformanceTab(new PerformanceReader(deviceShell), activeDevice, channel, PERFORMANCE_POLL_MS),
+      logs: new LogsTab(new LogReader(deviceShell), androidDevice, channel, LOGS_POLL_MS),
+      performance: new PerformanceTab(new PerformanceReader(deviceShell), androidDevice, channel, PERFORMANCE_POLL_MS),
       actions: new ActionsTab(
         {
           shell: deviceShell,
-          context: activeDevice,
+          context: androidDevice,
           confirm,
           links: new MementoLinkHistory(context.globalState, DEEP_LINKS_KEY),
         },
         channel,
       ),
-      device: new DeviceTab(deviceInfoPoller, activeDevice, () => ({ maskIpAddress: reflectSetting<boolean>('privacy.maskIpAddress') === true }), channel),
+      device: new DeviceTab(deviceInfoPoller, androidDevice, () => ({ maskIpAddress: reflectSetting<boolean>('privacy.maskIpAddress') === true }), channel),
       storage: new StorageTab(
         {
           reader: new AsyncStorageReader(appConnection, INSPECTOR_TIMING),
@@ -252,11 +258,11 @@ export function activate(context: vscode.ExtensionContext): void {
       new MirrorController(
         device,
         createSurface(device, location),
-        new MirrorSession(device, pool, launcher, serverBinary, MIRROR_OPTIONS, logger),
+        platforms.get(device).createMirrorSession(device),
         mirrorServices,
       ),
   );
-  const selection = new DeviceSelectionService(tracker, new QuickPickDevicePicker());
+  const selection = new DeviceSelectionService(discovery, new QuickPickDevicePicker());
 
   context.subscriptions.push(
     outputChannel,
@@ -269,7 +275,7 @@ export function activate(context: vscode.ExtensionContext): void {
     performanceTab,
     vscode.window.registerWebviewViewProvider(TOOLS_VIEW_ID, tools),
     appConnection,
-    tracker,
+    discovery,
     activeDevice,
     statusBar,
     deviceInfoPoller,
@@ -310,7 +316,8 @@ export function activate(context: vscode.ExtensionContext): void {
     new CopyStorageJsonCommand(storageTab, clipboard, showCopied),
   ]);
 
-  void tracker.start().catch((error: unknown) => logger.error('Device tracking unavailable', error));
+  context.subscriptions.push(discovery.onDidFail((error) => logger.error('Device tracking unavailable', error)));
+  void discovery.start();
 }
 
 export function deactivate(): void {}

@@ -11,8 +11,8 @@ import type { SessionStateKind, VideoConfig, VideoPacket } from '../shared/proto
 import { ControlChannel } from './ControlChannel';
 import { SessionStateMachine } from './SessionStateMachine';
 import { toVideoPacket } from './toVideoPacket';
-import type { IDeviceControl } from '../platform/types';
-import type { IMirrorSession, IScrcpyLauncher, IServerBinary, MirrorOptions, ScrcpyClientLike } from './types';
+import type { IDeviceControl, IMirrorSession } from '../platform/types';
+import type { IScrcpyLauncher, IServerBinary, MirrorOptions, ScrcpyClientLike } from './types';
 
 type ScrcpyClient = ScrcpyClientLike;
 

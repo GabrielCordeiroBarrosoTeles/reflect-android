@@ -1,6 +1,5 @@
 import { Emitter } from '../../src/core/Emitter';
-import type { HardwareButton, IDeviceControl } from '../../src/platform/types';
-import type { IMirrorSession, SessionStateChange } from '../../src/scrcpy/types';
+import type { HardwareButton, IDeviceControl, IMirrorSession, SessionStateChange } from '../../src/platform/types';
 import type { KeyInput, ScrollInput, SessionStateKind, TouchInput, VideoConfig, VideoPacket } from '../../src/shared/protocol';
 
 export class FakeDeviceControl implements IDeviceControl {

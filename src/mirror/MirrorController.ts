@@ -5,7 +5,7 @@ import { Emitter } from '../core/Emitter';
 import { DEVICE_ACTIONS } from '../actions/deviceActions';
 import type { MirrorCapabilities } from '../actions/types';
 import type { IRecorder } from '../recording/types';
-import type { IMirrorSession, SessionStateChange } from '../scrcpy/types';
+import type { IMirrorSession, SessionStateChange } from '../platform/types';
 import type { ActionId } from '../shared/actions';
 import type { LogLevel, VideoPacket, WebviewToHostMessage } from '../shared/protocol';
 import { AutoReconnect } from './AutoReconnect';

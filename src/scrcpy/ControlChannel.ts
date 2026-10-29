@@ -11,7 +11,7 @@ import {
 import type { KeyInput, PointerKind, ScrollInput, TouchAction, TouchInput } from '../shared/protocol';
 import { toAndroidKeyCode, toAndroidMetaState } from './keyMapping';
 import type { HardwareButton, IDeviceControl } from '../platform/types';
-import type { VideoSize } from './types';
+import type { VideoSize } from '../platform/types';
 
 const TOUCH_ACTIONS: Readonly<Record<TouchAction, AndroidMotionEventAction>> = {
   down: AndroidMotionEventAction.Down,

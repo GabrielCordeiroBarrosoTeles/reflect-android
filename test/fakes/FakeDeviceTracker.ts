@@ -17,6 +17,10 @@ export class FakeDeviceTracker implements IDeviceDiscovery {
     this.changeEmitter.fire(devices);
   }
 
+  fail(error: Error): void {
+    this.failEmitter.fire(error);
+  }
+
   start(): Promise<void> {
     this.started += 1;
     return this.startFailure ? Promise.reject(this.startFailure) : Promise.resolve();

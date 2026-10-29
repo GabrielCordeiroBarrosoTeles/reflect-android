@@ -138,7 +138,7 @@ describe('extension', () => {
     }
     expect(commands.registered.has('reflect.action.screenshot')).toBe(true);
     expect(commands.registered.has('reflect.moveToEditor')).toBe(true);
-    expect(context.subscriptions).toHaveLength(47);
+    expect(context.subscriptions).toHaveLength(48);
   });
 
   it('mirrors in the secondary side bar by default', async () => {

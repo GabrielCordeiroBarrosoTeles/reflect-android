@@ -1,7 +1,7 @@
 import { AndroidKeyCode, AndroidKeyEventAction, AndroidMotionEventAction, AndroidScreenPowerMode, ScrcpyPointerId } from '@yume-chan/scrcpy';
 import { describe, expect, it } from 'vitest';
 import { ControlChannel } from '../../src/scrcpy/ControlChannel';
-import type { VideoSize } from '../../src/scrcpy/types';
+import type { VideoSize } from '../../src/platform/types';
 import { FakeControlWriter } from '../fakes/FakeControlWriter';
 
 const none = { shift: false, alt: false, ctrl: false, meta: false };
