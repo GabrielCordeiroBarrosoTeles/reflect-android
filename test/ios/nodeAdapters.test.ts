@@ -2,7 +2,7 @@ import { chmod, mkdtemp, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { assertExecutable, pathExists, simctlFiles, spawnHelper } from '../../src/ios/nodeAdapters';
+import { assertExecutable, dropStagingFiles, pathExists, simctlFiles, spawnHelper } from '../../src/ios/nodeAdapters';
 
 describe('nodeAdapters', () => {
   it('accepts an executable file and restores the exec bit of a file that lost it', async () => {
@@ -30,6 +30,16 @@ describe('nodeAdapters', () => {
     await simctlFiles.rm(path);
     await expect(pathExists(path)).resolves.toBe(false);
     await expect(simctlFiles.rm(path)).resolves.toBeUndefined();
+  });
+
+  it('writes dropped files into nested folders and removes the folder recursively', async () => {
+    const directory = join(await mkdtemp(join(tmpdir(), 'reflect-ios-')), 'nested', 'drop');
+    await dropStagingFiles.mkdir(directory);
+    await dropStagingFiles.writeFile(join(directory, 'a.png'), new Uint8Array([7]));
+    await expect(pathExists(join(directory, 'a.png'))).resolves.toBe(true);
+    await dropStagingFiles.rm(directory);
+    await expect(pathExists(directory)).resolves.toBe(false);
+    await expect(dropStagingFiles.rm(directory)).resolves.toBeUndefined();
   });
 
   it('tells whether a path exists', async () => {

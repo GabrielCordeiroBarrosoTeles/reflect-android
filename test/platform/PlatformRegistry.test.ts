@@ -5,7 +5,7 @@ import { device } from '../fakes/devices';
 
 const platform = (id: IPlatform['id']): IPlatform => ({
   id,
-  capabilities: () => ({ actions: ['reload'], tools: ['logs'], copy: { reconnecting: 'r', gaveUp: 'g' }, videoDecoder: 'hardware' }),
+  capabilities: () => ({ actions: ['reload'], tools: ['logs'], copy: { reconnecting: 'r', gaveUp: 'g' }, videoDecoder: 'hardware', acceptsDrops: false }),
   frame: () => ({ screenCornerRadius: 0.1, bezel: 0.02, chin: 0 }),
   createMirrorSession: () => {
     throw new Error('unused');
@@ -26,7 +26,7 @@ describe('PlatformRegistry', () => {
 
   it('delegates capabilities to the platform', () => {
     const registry = new PlatformRegistry([platform('android')]);
-    expect(registry.capabilities(device())).toEqual({ actions: ['reload'], tools: ['logs'], copy: { reconnecting: 'r', gaveUp: 'g' }, videoDecoder: 'hardware' });
+    expect(registry.capabilities(device())).toEqual({ actions: ['reload'], tools: ['logs'], copy: { reconnecting: 'r', gaveUp: 'g' }, videoDecoder: 'hardware', acceptsDrops: false });
   });
 
   it('delegates the device frame to the platform', () => {

@@ -59,7 +59,16 @@ const setup = () => {
     tools: ['device'] as const,
     copy: { reconnecting: 'Reconnecting… plug the cable back in', gaveUp: 'Device not found. Check the cable and USB debugging.' },
     videoDecoder: 'software' as const,
+    acceptsDrops: false,
   }));
+  const release = vi.fn(() => Promise.resolve());
+  const drops = {
+    pickFiles: vi.fn((): Promise<readonly string[]> => Promise.resolve([])),
+    uriToPath: vi.fn((uri: string) => uri.replace('file://', '')),
+    stage: vi.fn((contents: readonly { name: string }[]) =>
+      Promise.resolve({ files: contents.map(({ name }) => ({ name, path: `/staged/${name}` })), release }),
+    ),
+  };
   const frame = vi.fn(() => ({ screenCornerRadius: 0.14, bezel: 0.04, chin: 0 }));
   const surface = new FakeSurface();
   const controller = new MirrorController(device({ name: 'Pixel 8', model: 'Pixel 8' }), surface, session, {
@@ -75,6 +84,7 @@ const setup = () => {
     reconnectTiming: { baseDelayMs: 100, maxDelayMs: 400, giveUpAfterMs: 1000 },
     capabilities,
     frame,
+    drops,
   });
   const reasons: MirrorCloseReason[] = [];
   controller.onDidDispose((reason) => reasons.push(reason));
@@ -82,7 +92,7 @@ const setup = () => {
     surface.channel.messages.fire(message);
     await flushPromises();
   };
-  return { session, logger, clipboard, onError, inspector, actions, captures, recorders, createRecorder, onCaptured, availability, availabilityChanges, capabilities, frame, surface, controller, send, reasons, posted: surface.channel.posted };
+  return { session, logger, clipboard, onError, inspector, actions, captures, recorders, createRecorder, onCaptured, availability, availabilityChanges, capabilities, frame, drops, release, surface, controller, send, reasons, posted: surface.channel.posted };
 };
 
 describe('MirrorController', () => {
@@ -100,9 +110,49 @@ describe('MirrorController', () => {
     const { controller, posted } = setup();
     controller.start();
     expect(posted.slice(0, 2)).toEqual([
-      { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software' },
+      { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software', acceptsDrops: false },
       { type: 'device-frame', frame: { screenCornerRadius: 0.14, bezel: 0.04, chin: 0 } },
     ]);
+  });
+
+  it('stages dropped contents, adds them after the dropped paths, notifies and cleans up', async () => {
+    const { session, drops, release, actions, send } = setup();
+    session.addFilesResult = { added: [], unsupported: [], message: 'Installed 1 app' };
+    await send({ type: 'drop-files', uris: ['file:///a/Demo.app'], files: [{ name: 'shot.png', data: new Uint8Array([1]) }] });
+    expect(drops.uriToPath).toHaveBeenCalledWith('file:///a/Demo.app');
+    expect(session.addedFiles).toEqual([[{ name: 'Demo.app', path: '/a/Demo.app' }, { name: 'shot.png', path: '/staged/shot.png' }]]);
+    expect(actions.notify).toHaveBeenCalledWith('Installed 1 app');
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays quiet when the session has nothing to say', async () => {
+    const { actions, send } = setup();
+    await send({ type: 'drop-files', uris: ['file:///a/a.png'], files: [] });
+    expect(actions.notify).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed add through the error handler and still cleans up', async () => {
+    const { session, release, onError, send } = setup();
+    session.addFilesFailure = new Error('install failed');
+    await send({ type: 'drop-files', uris: [], files: [{ name: 'a.png', data: new Uint8Array([1]) }] });
+    expect(onError).toHaveBeenCalledWith(session.addFilesFailure);
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it('adds the files chosen in the dialog through the same path', async () => {
+    const { controller, session, drops, actions } = setup();
+    drops.pickFiles.mockResolvedValueOnce(['/home/me/Demo.app', '/home/me/a.png']);
+    session.addFilesResult = { added: [], unsupported: [], message: 'Added' };
+    await controller.addFilesFromDialog();
+    expect(session.addedFiles).toEqual([[{ name: 'Demo.app', path: '/home/me/Demo.app' }, { name: 'a.png', path: '/home/me/a.png' }]]);
+    expect(actions.notify).toHaveBeenCalledWith('Added');
+  });
+
+  it('does nothing when the dialog is cancelled', async () => {
+    const { controller, session, drops } = setup();
+    await controller.addFilesFromDialog();
+    expect(drops.stage).not.toHaveBeenCalled();
+    expect(session.addedFiles).toEqual([]);
   });
 
   it('forwards session state with and without detail', () => {
@@ -135,7 +185,7 @@ describe('MirrorController', () => {
     posted.length = 0;
     await send({ type: 'ready' });
     expect(posted).toEqual([
-      { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software' },
+      { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software', acceptsDrops: false },
       { type: 'device-frame', frame: { screenCornerRadius: 0.14, bezel: 0.04, chin: 0 } },
       { type: 'session-state', state: 'streaming', deviceName: 'Pixel 8' },
       { type: 'inspect-mode', active: false },
@@ -217,7 +267,7 @@ describe('MirrorController', () => {
     await send({ type: 'ready' });
     expect(posted).toEqual([
       { type: 'inspect-mode', active: true },
-      { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software' },
+      { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software', acceptsDrops: false },
       { type: 'device-frame', frame: { screenCornerRadius: 0.14, bezel: 0.04, chin: 0 } },
       { type: 'session-state', state: 'idle', deviceName: 'Pixel 8' },
       { type: 'inspect-mode', active: true },

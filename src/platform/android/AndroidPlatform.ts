@@ -30,7 +30,7 @@ export class AndroidPlatform implements IPlatform {
   ) {}
 
   capabilities(): PlatformCapabilities {
-    return { actions: ANDROID_ACTIONS, tools: ALL_TABS, copy: COPY, videoDecoder: 'hardware' };
+    return { actions: ANDROID_ACTIONS, tools: ALL_TABS, copy: COPY, videoDecoder: 'hardware', acceptsDrops: false };
   }
 
   frame(): DeviceFrame {

@@ -1,3 +1,4 @@
+import { basename } from 'node:path';
 import { deviceLabel } from '../devices/types';
 import type { Device } from '../devices/types';
 import { DisposableStore } from '../core/Disposable';
@@ -7,7 +8,7 @@ import type { MirrorCapabilities } from '../actions/types';
 import type { IRecorder } from '../recording/types';
 import type { IMirrorSession, SessionStateChange } from '../platform/types';
 import type { ActionId } from '../shared/actions';
-import type { LogLevel, VideoPacket, WebviewToHostMessage } from '../shared/protocol';
+import type { DroppedContent, LogLevel, VideoPacket, WebviewToHostMessage } from '../shared/protocol';
 import { AutoReconnect } from './AutoReconnect';
 import { HiddenTimeout } from './HiddenTimeout';
 import { KeyframeThrottle } from './KeyframeThrottle';
@@ -66,6 +67,7 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
     'inspect-cancel': () => this.services.inspector.cancel(),
     action: ({ id }) => this.runAction(id),
     screenshot: ({ requestId, data }) => this.screenshots.resolve(requestId, data),
+    'drop-files': ({ uris, files }) => this.addDropped(uris.map((uri) => this.services.drops.uriToPath(uri)), files).catch((error: unknown) => this.services.onError(error)),
   };
 
   constructor(
@@ -109,8 +111,8 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
   }
 
   private postPlatformInfo(): void {
-    const { actions, videoDecoder } = this.services.capabilities(this.device);
-    this.surface.channel.post({ type: 'capabilities', actions, videoDecoder });
+    const { actions, videoDecoder, acceptsDrops } = this.services.capabilities(this.device);
+    this.surface.channel.post({ type: 'capabilities', actions, videoDecoder, acceptsDrops });
     this.surface.channel.post({ type: 'device-frame', frame: this.services.frame(this.device) });
   }
 
@@ -181,6 +183,25 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
     this.cleanStatusBar = !this.cleanStatusBar;
     this.postToolbarState();
     await this.session.setCleanStatusBar(this.cleanStatusBar);
+  }
+
+  async addFilesFromDialog(): Promise<void> {
+    const paths = await this.services.drops.pickFiles();
+    if (paths.length > 0) {
+      await this.addDropped(paths, []);
+    }
+  }
+
+  private async addDropped(paths: readonly string[], contents: readonly DroppedContent[]): Promise<void> {
+    const staged = await this.services.drops.stage(contents);
+    try {
+      const result = await this.session.addFiles([...paths.map((path) => ({ name: basename(path), path })), ...staged.files]);
+      if (result.message) {
+        this.services.actions.notify(result.message);
+      }
+    } finally {
+      await staged.release();
+    }
   }
 
   setInspectMode(active: boolean): void {

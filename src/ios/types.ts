@@ -1,8 +1,13 @@
 import type { Event, IDisposable } from '../core/types';
+import type { AddFilesResult, DroppedFile } from '../platform/types';
 
 export interface ISimctl {
   run(args: readonly string[], input?: string): Promise<string>;
   screenshot(udid: string): Promise<Uint8Array>;
+}
+
+export interface IDropHandler {
+  add(udid: string, files: readonly DroppedFile[]): Promise<AddFilesResult>;
 }
 
 export interface SimctlFiles {

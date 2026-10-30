@@ -4,10 +4,10 @@ import { MirrorStartError, SimulatorNotBootedError, XcodeUnsupportedError, isRef
 import type { IDisposable, ILogger } from '../core/types';
 import type { Device } from '../devices/types';
 import type { DeviceAvailability } from '../mirror/AutoReconnect';
-import type { IDeviceControl, IMirrorSession } from '../platform/types';
+import type { AddFilesResult, DroppedFile, IDeviceControl, IMirrorSession } from '../platform/types';
 import { SessionStateMachine } from '../platform/SessionStateMachine';
 import type { SessionStateKind, VideoConfig, VideoPacket } from '../shared/protocol';
-import type { HelperCommand, HelperEvent, HelperFrame, HelperHello, HelperProcessFactory, IHelperProcess, ISimctl, ISimulatorPasteboard } from './types';
+import type { HelperCommand, HelperEvent, HelperFrame, HelperHello, HelperProcessFactory, IDropHandler, IHelperProcess, ISimctl, ISimulatorPasteboard } from './types';
 
 const START_TIMEOUT_MS = 15_000;
 const CLIPBOARD_POLL_MS = 1000;
@@ -39,6 +39,7 @@ export interface HelperSessionDependencies {
   readonly logger: ILogger;
   readonly pasteboard: ISimulatorPasteboard;
   readonly simctl: ISimctl;
+  readonly drops: IDropHandler;
   readonly availability: DeviceAvailability;
   readonly onStreaming: (send: (command: HelperCommand) => void) => void;
 }
@@ -124,6 +125,10 @@ export class HelperMirrorSession implements IMirrorSession {
   async setCleanStatusBar(on: boolean): Promise<void> {
     const udid = this.device.id;
     await this.dependencies.simctl.run(on ? ['status_bar', udid, 'override', ...CLEAN_STATUS_BAR_OVERRIDE] : ['status_bar', udid, 'clear']);
+  }
+
+  addFiles(files: readonly DroppedFile[]): Promise<AddFilesResult> {
+    return this.dependencies.drops.add(this.device.id, files);
   }
 
   requestKeyframe(): Promise<void> {

@@ -1,11 +1,11 @@
 import type { Device } from '../devices/types';
-import type { PlatformCapabilities } from '../platform/types';
+import type { DroppedFile, PlatformCapabilities } from '../platform/types';
 import type { Event, IDisposable, ILogger } from '../core/types';
 import type { ActionServices } from '../actions/types';
 import type { CaptureKind, ICaptureStore } from '../capture/types';
 import type { IRecorder } from '../recording/types';
 import type { ActionId } from '../shared/actions';
-import type { DeviceFrame, HostToWebviewMessage, InspectHighlight, WebviewToHostMessage } from '../shared/protocol';
+import type { DeviceFrame, DroppedContent, HostToWebviewMessage, InspectHighlight, WebviewToHostMessage } from '../shared/protocol';
 import type { DeviceAvailability, ReconnectTiming } from './AutoReconnect';
 
 export type MirrorErrorHandler = (error: unknown) => void;
@@ -31,6 +31,40 @@ export interface IInspectHandler {
   cancel(): void;
 }
 
+export interface StagedFiles {
+  readonly files: readonly DroppedFile[];
+  release(): Promise<void>;
+}
+
+export interface DropStagingFiles {
+  mkdir(path: string): Promise<void>;
+  writeFile(path: string, data: Uint8Array): Promise<void>;
+  rm(path: string): Promise<void>;
+}
+
+export interface IFilePicker {
+  showOpenDialog(options: {
+    readonly canSelectMany: boolean;
+    readonly canSelectFiles: boolean;
+    readonly canSelectFolders: boolean;
+    readonly openLabel: string;
+  }): PromiseLike<readonly { readonly fsPath: string }[] | undefined>;
+}
+
+export interface IUriParser {
+  parse(value: string): { readonly fsPath: string };
+}
+
+export interface IDropStaging {
+  stage(contents: readonly DroppedContent[]): Promise<StagedFiles>;
+}
+
+export interface IDropServices {
+  pickFiles(): Promise<readonly string[]>;
+  uriToPath(uri: string): string;
+  stage(contents: readonly DroppedContent[]): Promise<StagedFiles>;
+}
+
 export interface MirrorServices {
   readonly logger: ILogger;
   readonly clipboard: IClipboard;
@@ -44,6 +78,7 @@ export interface MirrorServices {
   readonly reconnectTiming: ReconnectTiming;
   readonly capabilities: (device: Device) => PlatformCapabilities;
   readonly frame: (device: Device) => DeviceFrame;
+  readonly drops: IDropServices;
 }
 
 export interface IWebviewChannel {

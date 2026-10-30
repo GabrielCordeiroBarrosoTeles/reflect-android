@@ -1,5 +1,5 @@
 import { Emitter } from '../../src/core/Emitter';
-import type { HardwareButton, IDeviceControl, IMirrorSession, SessionStateChange } from '../../src/platform/types';
+import type { AddFilesResult, DroppedFile, HardwareButton, IDeviceControl, IMirrorSession, SessionStateChange } from '../../src/platform/types';
 import type { KeyInput, ScrollInput, SessionStateKind, TouchInput, VideoConfig, VideoPacket } from '../../src/shared/protocol';
 
 export class FakeDeviceControl implements IDeviceControl {
@@ -39,6 +39,9 @@ export class FakeMirrorSession implements IMirrorSession {
   keyframeFailure: Error | undefined;
   cleanStatusBarCalls: boolean[] = [];
   cleanStatusBarFailure: Error | undefined;
+  addedFiles: (readonly DroppedFile[])[] = [];
+  addFilesFailure: Error | undefined;
+  addFilesResult: AddFilesResult = { added: [], unsupported: [], message: '' };
   events: string[] = [];
   started = 0;
   keyframes = 0;
@@ -62,6 +65,12 @@ export class FakeMirrorSession implements IMirrorSession {
     this.cleanStatusBarCalls.push(on);
     this.events.push(`clean:${on}`);
     return this.cleanStatusBarFailure ? Promise.reject(this.cleanStatusBarFailure) : Promise.resolve();
+  }
+
+  addFiles(files: readonly DroppedFile[]): Promise<AddFilesResult> {
+    this.addedFiles.push(files);
+    this.events.push('addFiles');
+    return this.addFilesFailure ? Promise.reject(this.addFilesFailure) : Promise.resolve(this.addFilesResult);
   }
 
   dispose(): void {

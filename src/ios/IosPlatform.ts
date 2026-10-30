@@ -7,17 +7,19 @@ import { frameForModel } from './deviceFrames';
 import { HelperMirrorSession } from './HelperMirrorSession';
 import { IosDeviceControl } from './IosDeviceControl';
 import type { SimulatorAppWindow } from './SimulatorAppWindow';
+import { SimulatorDropHandler } from './SimulatorDropHandler';
 import { SimulatorPasteboard } from './SimulatorPasteboard';
 import type { HelperCommand, HelperHello, HelperProcessFactory, ISimctl } from './types';
 
 const CAPABILITIES: PlatformCapabilities = {
-  actions: ['home', 'recents', 'rotate', 'screenPower', 'screenshot', 'record', 'devMenu', 'reload', 'cleanStatusBar'],
+  actions: ['home', 'recents', 'rotate', 'screenPower', 'screenshot', 'record', 'devMenu', 'reload', 'cleanStatusBar', 'addFiles'],
   tools: ['component', 'network', 'storage'],
   copy: {
     reconnecting: 'Simulator was shut down — it will reconnect when it boots again',
     gaveUp: 'Simulator not found. Boot it from the Reflect side bar.',
   },
   videoDecoder: 'software',
+  acceptsDrops: true,
 };
 
 export class IosPlatform implements IPlatform {
@@ -47,6 +49,7 @@ export class IosPlatform implements IPlatform {
       logger: this.logger,
       pasteboard,
       simctl: this.simctl,
+      drops: new SimulatorDropHandler(this.simctl),
       availability: this.availability,
       onStreaming: (send) => void this.window.makeRoom(send),
     });

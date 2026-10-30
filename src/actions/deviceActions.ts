@@ -25,4 +25,5 @@ export const DEVICE_ACTIONS: Readonly<Record<ActionId, DeviceAction>> = {
   reload,
   reverseMetro,
   cleanStatusBar: ({ mirror }) => mirror.toggleCleanStatusBar(),
+  addFiles: ({ mirror }) => mirror.addFilesFromDialog(),
 };

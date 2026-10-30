@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { access, chmod, constants, readFile, rm } from 'node:fs/promises';
+import { access, chmod, constants, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { DropStagingFiles } from '../mirror/types';
 import type { ChildProcessLike, SimctlFiles, SpawnFunction } from './types';
 
 const EXECUTABLE_MODE = 0o755;
@@ -31,4 +32,10 @@ export const simctlFiles: SimctlFiles = {
   tempPath: (name) => join(tmpdir(), `${name}-${randomUUID()}.png`),
   readFile: async (path) => new Uint8Array(await readFile(path)),
   rm: (path) => rm(path, { force: true }),
+};
+
+export const dropStagingFiles: DropStagingFiles = {
+  mkdir: async (path) => void (await mkdir(path, { recursive: true })),
+  writeFile: (path, data) => writeFile(path, data),
+  rm: (path) => rm(path, { recursive: true, force: true }),
 };

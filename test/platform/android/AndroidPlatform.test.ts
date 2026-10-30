@@ -31,6 +31,12 @@ describe('AndroidPlatform', () => {
     expect(actions).not.toContain('cleanStatusBar');
   });
 
+  it('does not accept drops and never offers adding files', () => {
+    const capabilities = build().capabilities();
+    expect(capabilities.acceptsDrops).toBe(false);
+    expect(capabilities.actions).not.toContain('addFiles');
+  });
+
   it('keeps the cable-oriented reconnect copy', () => {
     expect(build().capabilities().copy).toEqual({
       reconnecting: 'Reconnecting… plug the cable back in',

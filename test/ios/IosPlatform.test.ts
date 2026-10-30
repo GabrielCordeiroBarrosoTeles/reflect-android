@@ -31,11 +31,24 @@ describe('IosPlatform', () => {
 
   it('has no back, reverse Metro or logs', () => {
     const { actions, tools } = build().platform.capabilities();
-    expect(actions).toEqual(['home', 'recents', 'rotate', 'screenPower', 'screenshot', 'record', 'devMenu', 'reload', 'cleanStatusBar']);
+    expect(actions).toEqual(['home', 'recents', 'rotate', 'screenPower', 'screenshot', 'record', 'devMenu', 'reload', 'cleanStatusBar', 'addFiles']);
     expect(actions).not.toContain('back');
     expect(actions).not.toContain('reverseMetro');
     expect(tools).toEqual(['component', 'network', 'storage']);
     expect(tools).not.toContain('logs');
+  });
+
+  it('accepts drops', () => {
+    expect(build().platform.capabilities().acceptsDrops).toBe(true);
+  });
+
+  it('adds dropped files to its simulator through simctl', async () => {
+    const { platform, simctl } = build();
+    const session = platform.createMirrorSession(simulator);
+    const result = await session.addFiles([{ name: 'a.png', path: '/tmp/a.png' }]);
+    expect(simctl.run).toHaveBeenCalledWith(['addmedia', simulator.id, '/tmp/a.png']);
+    expect(result.message).toBe('Added 1 photo/video');
+    session.dispose();
   });
 
   it('decodes the simulator stream in software, which the hardware decoder delays by ~100 ms', () => {

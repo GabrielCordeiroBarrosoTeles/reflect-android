@@ -11,7 +11,7 @@ import type { SessionStateKind, VideoConfig, VideoPacket } from '../shared/proto
 import { ControlChannel } from './ControlChannel';
 import { SessionStateMachine } from '../platform/SessionStateMachine';
 import { toVideoPacket } from './toVideoPacket';
-import type { IDeviceControl, IMirrorSession } from '../platform/types';
+import type { AddFilesResult, DroppedFile, IDeviceControl, IMirrorSession } from '../platform/types';
 import type { IScrcpyLauncher, IServerBinary, MirrorOptions, ScrcpyClientLike } from './types';
 
 type ScrcpyClient = ScrcpyClientLike;
@@ -58,6 +58,10 @@ export class MirrorSession implements IMirrorSession {
 
   setCleanStatusBar(): Promise<void> {
     return Promise.resolve();
+  }
+
+  addFiles(files: readonly DroppedFile[]): Promise<AddFilesResult> {
+    return Promise.resolve({ added: [], unsupported: files, message: '' });
   }
 
   async start(): Promise<void> {

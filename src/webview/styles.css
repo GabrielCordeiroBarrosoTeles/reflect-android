@@ -97,6 +97,16 @@ body {
   outline: none;
 }
 
+.stage--drop::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 2px dashed var(--vscode-focusBorder);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--vscode-focusBorder) 12%, transparent);
+  pointer-events: none;
+}
+
 .stage--framed {
   padding: 28px;
 }

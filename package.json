@@ -177,6 +177,12 @@
         "icon": "$(clock)"
       },
       {
+        "command": "reflect.action.addFiles",
+        "title": "Add Files to Simulator…",
+        "category": "Reflect",
+        "icon": "$(cloud-upload)"
+      },
+      {
         "command": "reflect.moveToEditor",
         "title": "Move to Editor Tab",
         "category": "Reflect",

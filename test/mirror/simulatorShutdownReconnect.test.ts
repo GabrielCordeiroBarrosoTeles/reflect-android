@@ -44,6 +44,7 @@ const setup = async () => {
     reconnectTiming: { baseDelayMs: 500, maxDelayMs: 8000, giveUpAfterMs: 120_000 },
     capabilities: () => platform.capabilities(),
     frame: () => platform.frame(simulator),
+    drops: { pickFiles: () => Promise.resolve([]), uriToPath: (uri) => uri, stage: () => Promise.resolve({ files: [], release: () => Promise.resolve() }) },
   };
   const controller = new MirrorController(simulator, surface, platform.createMirrorSession(simulator), services);
   const stream = async (helper: FakeHelperProcess | undefined) => {

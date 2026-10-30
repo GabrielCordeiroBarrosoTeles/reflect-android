@@ -47,6 +47,12 @@ describe('MirrorSession', () => {
     await expect(session.setCleanStatusBar()).resolves.toBeUndefined();
   });
 
+  it('reports every dropped file as unsupported', async () => {
+    const { session } = setup();
+    const files = [{ name: 'a.png', path: '/tmp/a.png' }];
+    await expect(session.addFiles(files)).resolves.toEqual({ added: [], unsupported: files, message: '' });
+  });
+
   it('defaults unknown video dimensions to zero', async () => {
     const { session, client } = setup();
     client.metadata = { codec: 1 };

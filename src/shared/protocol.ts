@@ -66,7 +66,7 @@ export type HostToWebviewMessage =
   | { readonly type: 'idle' }
   | { readonly type: 'device-list'; readonly devices: readonly DeviceListItem[] }
   | { readonly type: 'simulator-hidden'; readonly hidden: boolean }
-  | { readonly type: 'capabilities'; readonly actions: readonly ActionId[]; readonly videoDecoder: VideoDecoderPreference }
+  | { readonly type: 'capabilities'; readonly actions: readonly ActionId[]; readonly videoDecoder: VideoDecoderPreference; readonly acceptsDrops: boolean }
   | { readonly type: 'device-frame'; readonly frame: DeviceFrame }
   | { readonly type: 'toolbar-state'; readonly state: ToolbarState }
   | { readonly type: 'capture-screenshot'; readonly requestId: number }
@@ -118,6 +118,11 @@ export interface KeyInput {
 
 export type MouseShortcut = 'back' | 'home';
 
+export interface DroppedContent {
+  readonly name: string;
+  readonly data: Uint8Array;
+}
+
 export type WebviewToHostMessage =
   | { readonly type: 'ready' }
   | { readonly type: 'resync' }
@@ -135,5 +140,6 @@ export type WebviewToHostMessage =
   | { readonly type: 'inspect-hover'; readonly x: number; readonly y: number }
   | { readonly type: 'inspect-cancel' }
   | { readonly type: 'action'; readonly id: ActionId }
+  | { readonly type: 'drop-files'; readonly uris: readonly string[]; readonly files: readonly DroppedContent[] }
   | { readonly type: 'screenshot'; readonly requestId: number; readonly data: Uint8Array | undefined }
   | { readonly type: 'log'; readonly level: LogLevel; readonly message: string };

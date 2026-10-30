@@ -28,6 +28,17 @@ export interface VideoSize {
   readonly height: number;
 }
 
+export interface DroppedFile {
+  readonly name: string;
+  readonly path: string;
+}
+
+export interface AddFilesResult {
+  readonly added: readonly DroppedFile[];
+  readonly unsupported: readonly DroppedFile[];
+  readonly message: string;
+}
+
 export interface IMirrorSession extends IDisposable {
   readonly control: IDeviceControl;
   readonly onDeviceClipboard: Event<string>;
@@ -40,6 +51,7 @@ export interface IMirrorSession extends IDisposable {
   requestKeyframe(): Promise<void>;
   captureScreenshot(): Promise<Uint8Array | undefined>;
   setCleanStatusBar(on: boolean): Promise<void>;
+  addFiles(files: readonly DroppedFile[]): Promise<AddFilesResult>;
 }
 
 export interface PlatformCopy {
@@ -52,6 +64,7 @@ export interface PlatformCapabilities {
   readonly tools: readonly ToolsTab[];
   readonly copy: PlatformCopy;
   readonly videoDecoder: VideoDecoderPreference;
+  readonly acceptsDrops: boolean;
 }
 
 export interface IPlatform {

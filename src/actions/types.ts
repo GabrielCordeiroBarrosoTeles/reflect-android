@@ -6,6 +6,7 @@ export interface MirrorCapabilities {
   toggleRecording(): Promise<void>;
   toggleScreenPower(): Promise<void>;
   toggleCleanStatusBar(): Promise<void>;
+  addFilesFromDialog(): Promise<void>;
 }
 
 export interface ActionServices {

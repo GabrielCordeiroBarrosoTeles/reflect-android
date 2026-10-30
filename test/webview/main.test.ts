@@ -261,9 +261,38 @@ describe('webview main', () => {
   it('switches the decoder acceleration to what the device prefers', async () => {
     await boot();
     const renderer = fakes.renderers.at(-1) as unknown as { accelerations: string[] };
-    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'software' });
-    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'hardware' });
+    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'software', acceptsDrops: false });
+    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'hardware', acceptsDrops: false });
     expect(renderer.accelerations).toEqual(['prefer-software', 'prefer-hardware']);
+  });
+
+  it('posts dropped files only after the host enables drops', async () => {
+    const { posted } = await boot();
+    const stage = document.querySelector<HTMLElement>('.stage')!;
+    const drop = () => {
+      const event = new Event('drop', { bubbles: true, cancelable: true });
+      Object.assign(event, { dataTransfer: { types: ['text/uri-list'], files: [], getData: (type: string) => (type === 'text/uri-list' ? 'file:///a/Demo.app' : '') } });
+      stage.dispatchEvent(event);
+    };
+    drop();
+    await flushPromises();
+    expect(posted.some((message) => message.type === 'drop-files')).toBe(false);
+    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'software', acceptsDrops: true });
+    drop();
+    await flushPromises();
+    expect(posted).toContainEqual({ type: 'drop-files', uris: ['file:///a/Demo.app'], files: [] });
+  });
+
+  it('logs files it cannot read from a drop', async () => {
+    const { posted } = await boot();
+    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'software', acceptsDrops: true });
+    const broken = new File([new Uint8Array([1])], 'Demo.app');
+    vi.spyOn(broken, 'arrayBuffer').mockRejectedValue(new Error('NotFoundError'));
+    const event = new Event('drop', { bubbles: true, cancelable: true });
+    Object.assign(event, { dataTransfer: { types: ['Files'], files: [broken], getData: () => '' } });
+    document.querySelector<HTMLElement>('.stage')!.dispatchEvent(event);
+    await flushPromises();
+    expect(posted).toContainEqual({ type: 'log', level: 'error', message: 'Could not read Demo.app: NotFoundError' });
   });
 
   it('applies the device frame the host sends', async () => {
@@ -281,7 +310,7 @@ describe('webview main', () => {
 
   it('hides toolbar buttons the host did not list as available', async () => {
     await boot();
-    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'hardware' });
+    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'hardware', acceptsDrops: false });
     expect([document.querySelector<HTMLElement>('[aria-label="Back"]')?.hidden, document.querySelector<HTMLElement>('[aria-label="Home"]')?.hidden]).toEqual([true, false]);
   });
 });

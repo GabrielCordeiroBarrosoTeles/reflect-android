@@ -10,6 +10,7 @@ export const ACTION_IDS = [
   'reload',
   'reverseMetro',
   'cleanStatusBar',
+  'addFiles',
 ] as const;
 
 export type ActionId = (typeof ACTION_IDS)[number];
@@ -32,6 +33,7 @@ export const ACTION_TITLES: Readonly<Record<ActionId, string>> = {
   reload: 'Reload React Native App',
   reverseMetro: 'Reverse Metro Port (adb reverse)',
   cleanStatusBar: 'Clean Status Bar for Screenshots (9:41)',
+  addFiles: 'Add Files to Simulator…',
 };
 
 const item = (id: ActionId, icon: string): ToolbarItem => ({ id, icon, title: ACTION_TITLES[id] });
@@ -41,7 +43,7 @@ export const TOOLBAR_GROUPS: readonly (readonly ToolbarItem[])[] = [
   [item('rotate', 'sync'), item('screenPower', 'eye-closed')],
   [item('screenshot', 'device-camera'), item('record', 'record')],
   [item('devMenu', 'menu'), item('reload', 'refresh'), item('reverseMetro', 'plug')],
-  [item('cleanStatusBar', 'clock')],
+  [item('cleanStatusBar', 'clock'), item('addFiles', 'cloud-upload')],
 ];
 
 export const isActionId = (value: unknown): value is ActionId => (ACTION_IDS as readonly unknown[]).includes(value);

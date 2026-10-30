@@ -8,6 +8,7 @@ import { KeyboardInput } from './input/KeyboardInput';
 import { PointerInput } from './input/PointerInput';
 import { WheelInput } from './input/WheelInput';
 import { WheelPinch } from './input/WheelPinch';
+import { DropTarget } from './DropTarget';
 import { InspectHighlightView } from './InspectHighlightView';
 import { InspectModeView } from './InspectModeView';
 import { StatusOverlay, type OverlayAction } from './StatusOverlay';
@@ -75,6 +76,11 @@ const bootstrap = async (): Promise<void> => {
   const toolbarRoot = queryElement<HTMLElement>('.toolbar');
   const toolbar = new Toolbar(toolbarRoot, (id) => vscode.postMessage({ type: 'action', id }));
   const viewOptions = new ViewOptions(toolbarRoot, queryElement<HTMLElement>('.stage'), canvas, vscode);
+  const dropTarget = new DropTarget(
+    queryElement<HTMLElement>('.stage'),
+    (uris, files) => vscode.postMessage({ type: 'drop-files', uris, files }),
+    (message) => log('error', message),
+  );
   const inspectMode = new InspectModeView(queryElement<HTMLElement>('.inspect-banner'), canvas);
   const highlight = new InspectHighlightView(
     queryElement<HTMLElement>('.inspect-highlight'),
@@ -96,8 +102,9 @@ const bootstrap = async (): Promise<void> => {
         .catch(() => undefined)
         .then((data) => vscode.postMessage({ type: 'screenshot', requestId, data }));
     },
-    capabilities: ({ actions, videoDecoder }) => {
+    capabilities: ({ actions, videoDecoder, acceptsDrops }) => {
       toolbar.setAvailable(actions);
+      dropTarget.setEnabled(acceptsDrops);
       renderer.useAcceleration(videoDecoder === 'software' ? 'prefer-software' : preferredAcceleration(support));
     },
     'device-frame': ({ frame }) => viewOptions.setFrame(frame),
@@ -143,6 +150,7 @@ const bootstrap = async (): Promise<void> => {
   window.addEventListener('unload', () => {
     inputs.forEach((input) => input.dispose());
     toolbar.dispose();
+    dropTarget.dispose();
     highlight.dispose();
     viewOptions.dispose();
     scheduler.dispose();

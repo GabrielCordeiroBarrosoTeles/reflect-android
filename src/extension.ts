@@ -1,4 +1,6 @@
 import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { AdbServerClient } from '@yume-chan/adb';
 import { AdbServerNodeTcpConnector } from '@yume-chan/adb-server-node-tcp';
@@ -8,7 +10,7 @@ import { DeviceSelectionService } from './adb/DeviceSelectionService';
 import { DeviceTracker } from './adb/DeviceTracker';
 import { createHelperProcessFactory } from './ios/HelperProcess';
 import { IosPlatform } from './ios/IosPlatform';
-import { assertExecutable, pathExists, simctlFiles, spawnHelper } from './ios/nodeAdapters';
+import { assertExecutable, dropStagingFiles, pathExists, simctlFiles, spawnHelper } from './ios/nodeAdapters';
 import { SimctlRunner } from './ios/SimctlRunner';
 import { SimulatorAppWindow } from './ios/SimulatorAppWindow';
 import { SimulatorDiscovery } from './ios/SimulatorDiscovery';
@@ -73,6 +75,8 @@ import { MetroClient } from './inspector/MetroClient';
 import { MetroConnection } from './inspector/MetroConnection';
 import { openSource } from './inspector/openSource';
 import { WsSocket } from './inspector/WsSocket';
+import { DropServices } from './mirror/DropServices';
+import { DropStaging } from './mirror/DropStaging';
 import { MirrorController } from './mirror/MirrorController';
 import { MirrorManager } from './mirror/MirrorManager';
 import { MirrorPanel } from './mirror/MirrorPanel';
@@ -293,6 +297,7 @@ export function activate(context: vscode.ExtensionContext): void {
     reconnectTiming: RECONNECT_TIMING,
     capabilities: (device) => platforms.capabilities(device),
     frame: (device) => platforms.frame(device),
+    drops: new DropServices(vscode.window, vscode.Uri, new DropStaging(tmpdir(), randomUUID, dropStagingFiles)),
   };
   const sidebar = new MirrorViewProvider(context.extensionUri, discovery, simulatorWindow);
   const createSurface = (device: Device, location: MirrorLocation): IMirrorSurface =>

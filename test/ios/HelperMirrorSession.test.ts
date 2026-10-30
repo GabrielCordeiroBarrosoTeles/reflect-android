@@ -30,10 +30,11 @@ const setup = (pbpaste: () => Promise<string> = () => Promise.resolve('')) => {
   const logger = new FakeLogger();
   const simctl: ISimctl = { run: vi.fn(pbpaste), screenshot: vi.fn(() => Promise.resolve(new Uint8Array([137, 80]))) };
   const pasteboard = new SimulatorPasteboard(simctl, device.id);
+  const drops = { add: vi.fn(() => Promise.resolve({ added: [], unsupported: [], message: 'done' })) };
   const onStreaming = vi.fn();
   const availabilityEmitter = new Emitter<void>();
   const availability = { ready: true, onDidChange: availabilityEmitter.event, isReady: vi.fn((_serial: string) => availability.ready) };
-  const session = new HelperMirrorSession(device, { spawn, createControl, logger, pasteboard, availability, onStreaming, simctl });
+  const session = new HelperMirrorSession(device, { spawn, createControl, logger, pasteboard, availability, onStreaming, simctl, drops });
   const states: SessionStateChange[] = [];
   const configs: VideoConfig[] = [];
   const packets: VideoPacket[] = [];
@@ -42,7 +43,7 @@ const setup = (pbpaste: () => Promise<string> = () => Promise.resolve('')) => {
   session.onDidChangeVideoConfig((config) => configs.push(config));
   session.onVideoPacket((packet) => packets.push(packet));
   session.onDeviceClipboard((text) => clipboard.push(text));
-  return { session, helper, spawn, control, createControl, logger, simctl, pasteboard, onStreaming, states, configs, packets, clipboard, availability, availabilityEmitter };
+  return { session, helper, spawn, control, createControl, logger, simctl, drops, pasteboard, onStreaming, states, configs, packets, clipboard, availability, availabilityEmitter };
 };
 
 const startStreaming = async (context: ReturnType<typeof setup>) => {
@@ -67,6 +68,13 @@ describe('HelperMirrorSession', () => {
     ]);
     await context.session.setCleanStatusBar(false);
     expect(context.simctl.run).toHaveBeenLastCalledWith(['status_bar', 'UDID-1', 'clear']);
+  });
+
+  it('hands dropped files to the drop handler for its simulator', async () => {
+    const context = setup();
+    const files = [{ name: 'a.png', path: '/tmp/a.png' }];
+    await expect(context.session.addFiles(files)).resolves.toEqual({ added: [], unsupported: [], message: 'done' });
+    expect(context.drops.add).toHaveBeenCalledWith('UDID-1', files);
   });
 
   it('captures a native-resolution PNG through simctl', async () => {
