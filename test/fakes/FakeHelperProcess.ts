@@ -101,7 +101,13 @@ export class FakeChildProcess implements ChildProcessLike {
   readonly stdout = new FakeReadable();
   readonly stderr = new FakeReadable();
   readonly written: string[] = [];
-  readonly stdin = { write: (data: string) => this.written.push(data) };
+  readonly stdin = {
+    write: (data: string) => this.written.push(data),
+    on: (_event: 'error', listener: (error: Error) => void) => {
+      this.stdinError = listener;
+    },
+  };
+  stdinError: ((error: Error) => void) | undefined;
   readonly listeners = new Map<string, Listener>();
   killed = 0;
 

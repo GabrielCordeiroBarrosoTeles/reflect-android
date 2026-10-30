@@ -1,7 +1,7 @@
 import { ScrcpyVideoCodecId } from '@yume-chan/scrcpy';
 import { Emitter } from '../core/Emitter';
 import { MirrorStartError, SimulatorNotBootedError, XcodeUnsupportedError, isReflectError } from '../core/errors';
-import type { ILogger } from '../core/types';
+import type { IDisposable, ILogger } from '../core/types';
 import type { Device } from '../devices/types';
 import type { IDeviceControl, IMirrorSession } from '../platform/types';
 import { SessionStateMachine } from '../scrcpy/SessionStateMachine';
@@ -37,6 +37,8 @@ export class HelperMirrorSession implements IMirrorSession {
   private readonly packetEmitter = new Emitter<VideoPacket>();
   private readonly clipboardEmitter = new Emitter<string>();
   private helper: IHelperProcess | undefined;
+  private helperSubscriptions: IDisposable[] = [];
+  private xcodeVersion: string | undefined;
   private realControl: IDeviceControl | undefined;
   private pendingStart: PendingStart | undefined;
   private startTimer: ReturnType<typeof setTimeout> | undefined;
@@ -78,9 +80,12 @@ export class HelperMirrorSession implements IMirrorSession {
     }
     try {
       const helper = await this.spawn(this.device.id);
+      if (this.disposed) {
+        helper.dispose();
+        return;
+      }
       this.helper = helper;
-      helper.onFrame((frame) => this.handleFrame(frame));
-      helper.onExit(({ code }) => this.handleExit(code));
+      this.helperSubscriptions = [helper.onFrame((frame) => this.handleFrame(frame)), helper.onExit(({ code }) => this.handleExit(code))];
       await this.waitForFirstFrame();
     } catch (error) {
       this.teardown();
@@ -134,11 +139,9 @@ export class HelperMirrorSession implements IMirrorSession {
   }
 
   private handleFrame(frame: HelperFrame): void {
-    if (this.disposed) {
-      return;
-    }
     switch (frame.kind) {
       case 'hello':
+        this.xcodeVersion = frame.hello.xcodeVersion;
         this.realControl = this.createControl((command) => this.helper?.send(command), frame.hello);
         break;
       case 'video-config':
@@ -187,9 +190,6 @@ export class HelperMirrorSession implements IMirrorSession {
   }
 
   private handleExit(code: number | null): void {
-    if (this.disposed) {
-      return;
-    }
     this.logger.info(`iOS helper for ${this.device.id} exited with code ${code ?? 'null'}`);
     if (this.pendingStart) {
       this.failStart(new MirrorStartError(this.device.id, [`The iOS helper exited with code ${code ?? 'null'}`]));
@@ -225,8 +225,11 @@ export class HelperMirrorSession implements IMirrorSession {
   private teardown(): void {
     clearTimeout(this.clipboardTimer);
     this.clipboardTimer = undefined;
+    this.helperSubscriptions.forEach((subscription) => subscription.dispose());
+    this.helperSubscriptions = [];
     this.helper?.dispose();
     this.helper = undefined;
+    this.xcodeVersion = undefined;
     this.realControl = undefined;
   }
 
@@ -235,7 +238,7 @@ export class HelperMirrorSession implements IMirrorSession {
     switch (event.code) {
       case 'xcode-unsupported':
       case 'framework-unavailable':
-        return new XcodeUnsupportedError(undefined, [message]);
+        return new XcodeUnsupportedError(this.xcodeVersion, message ? [message] : []);
       case 'device-not-booted':
       case 'device-not-found':
         return new SimulatorNotBootedError(this.device.name);

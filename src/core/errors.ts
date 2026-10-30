@@ -109,7 +109,7 @@ export class XcodeUnsupportedError extends ReflectError {
     readonly xcodeVersion: string | undefined,
     readonly missing: readonly string[],
   ) {
-    super(`Xcode ${xcodeVersion ?? '(unknown version)'} is not supported`);
+    super(`Xcode ${xcodeVersion ?? '(unknown version)'} is not supported${missing.length > 0 ? `: ${missing.join('; ')}` : ''}`);
   }
 }
 

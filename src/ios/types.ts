@@ -65,7 +65,7 @@ export interface ReadableLike {
 export interface ChildProcessLike {
   readonly stdout: ReadableLike;
   readonly stderr: ReadableLike;
-  readonly stdin: { write(data: string): unknown };
+  readonly stdin: { write(data: string): unknown; on(event: 'error', listener: (error: Error) => void): unknown };
   on(event: 'exit', listener: (code: number | null) => void): unknown;
   on(event: 'error', listener: (error: Error) => void): unknown;
   kill(): unknown;

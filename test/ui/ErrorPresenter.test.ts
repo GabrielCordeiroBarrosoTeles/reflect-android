@@ -35,7 +35,8 @@ describe('ErrorPresenter', () => {
     [new ReactNativeAppNotFoundError('Pixel'), 'no debuggable React Native app', []],
     [new IosHelperUnavailableError('/h'), "Reflect's iOS helper is missing. Reinstall the extension.", []],
     [new XcodeUnsupportedError('25.1', []), 'Xcode 25.1 is not supported yet by Reflect.', []],
-    [new XcodeUnsupportedError(undefined, ['x']), 'This Xcode is not supported yet by Reflect.', []],
+    [new XcodeUnsupportedError(undefined, ['x']), 'This Xcode is not supported yet by Reflect. (x)', []],
+    [new XcodeUnsupportedError('26.6', ['missing SimulatorKit', 'y']), 'Xcode 26.6 is not supported yet by Reflect. (missing SimulatorKit; y)', []],
     [new SimulatorNotBootedError('iPhone 15'), 'iPhone 15 is not booted.', []],
   ])('explains %s with actions', async (error, text, actions) => {
     const { presenter } = setup();

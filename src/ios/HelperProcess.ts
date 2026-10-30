@@ -12,7 +12,7 @@ const HELPER_BITRATE = 8_000_000;
 const HELPER_MAX_SIZE = 1920;
 
 export class HelperProcess implements IHelperProcess {
-  private readonly parser = new HelperFrameParser();
+  private readonly parser: HelperFrameParser;
   private readonly frameEmitter = new Emitter<HelperFrame>();
   private readonly exitEmitter = new Emitter<{ code: number | null }>();
   private killTimer: ReturnType<typeof setTimeout> | undefined;
@@ -26,7 +26,9 @@ export class HelperProcess implements IHelperProcess {
     private readonly child: ChildProcessLike,
     private readonly logger: ILogger,
   ) {
-    child.stdout.on('data', (chunk) => this.parser.push(chunk).forEach((frame) => this.frameEmitter.fire(frame)));
+    this.parser = new HelperFrameParser((reason) => this.logger.info(`[ios-helper] ignored malformed output: ${reason}`));
+    child.stdout.on('data', (chunk) => this.handleStdout(chunk));
+    child.stdin.on('error', (error) => this.logger.error('iOS helper stdin failed', error));
     child.stderr.on('data', (chunk) => this.logStderr(chunk));
     child.on('exit', (code) => this.handleExit(code));
     child.on('error', (error) => {
@@ -47,6 +49,14 @@ export class HelperProcess implements IHelperProcess {
     }
     this.send({ type: 'stop' });
     this.killTimer = setTimeout(() => this.child.kill(), KILL_DELAY_MS);
+  }
+
+  private handleStdout(chunk: Uint8Array): void {
+    this.parser.push(chunk).forEach((frame) => this.frameEmitter.fire(frame));
+    if (this.parser.corrupt && !this.exited) {
+      this.child.kill();
+      this.handleExit(null);
+    }
   }
 
   private handleExit(code: number | null): void {

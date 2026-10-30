@@ -187,6 +187,55 @@ describe('HelperMirrorSession', () => {
     await expect(missing.session.start()).rejects.toBe(unavailable);
   });
 
+  it('disposes a helper that spawns after the session was disposed, without rejecting', async () => {
+    const context = setup();
+    let release: (helper: FakeHelperProcess) => void = () => undefined;
+    context.spawn.mockReturnValueOnce(new Promise((resolve) => (release = resolve)));
+    const started = context.session.start();
+    context.session.dispose();
+    release(context.helper);
+    await expect(started).resolves.toBeUndefined();
+    expect(context.helper.disposed).toBe(true);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(context.session.state).toBe('closed');
+  });
+
+  it('ignores late events from a previous helper after a retry', async () => {
+    const context = setup();
+    const failure = context.session.start().catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(0);
+    const old = context.helper;
+    old.event({ type: 'error', code: 'device-not-booted' });
+    await failure;
+    const next = new FakeHelperProcess();
+    context.spawn.mockResolvedValueOnce(next);
+    const retry = context.session.start();
+    await vi.advanceTimersByTimeAsync(0);
+    old.exit(2);
+    old.frame();
+    old.event({ type: 'error', code: 'device-not-booted' });
+    expect(context.session.state).toBe('connecting');
+    next.hello();
+    next.frame();
+    await retry;
+    old.exit(2);
+    expect(context.session.state).toBe('streaming');
+    expect(context.packets).toHaveLength(1);
+    context.session.dispose();
+  });
+
+  it('shows the xcode version from hello and no detail when the helper sent none', async () => {
+    const context = setup();
+    const failure = context.session.start().catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(0);
+    context.helper.hello();
+    context.helper.event({ type: 'error', code: 'xcode-unsupported' });
+    const error = (await failure) as XcodeUnsupportedError;
+    expect(error.xcodeVersion).toBe('26.6');
+    expect(error.missing).toEqual([]);
+    expect(error.message).toBe('Xcode 26.6 is not supported');
+  });
+
   it('can start again after a failure', async () => {
     const context = setup();
     context.spawn.mockRejectedValueOnce(new Error('boom'));

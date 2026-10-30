@@ -52,6 +52,31 @@ describe('HelperProcess', () => {
     expect(child.killed).toBe(0);
   });
 
+  it('only logs stdin errors', () => {
+    const { child, logger, exits } = setup();
+    child.stdinError?.(new Error('EPIPE'));
+    expect(logger.errors[0]?.message).toBe('iOS helper stdin failed');
+    expect(exits).toEqual([]);
+  });
+
+  it('logs malformed output without throwing', () => {
+    const { child, logger, frames } = setup();
+    child.stdout.emit(new Uint8Array([0x03, 0, 0, 0, 1, 9]));
+    expect(frames).toEqual([]);
+    expect(logger.infos[0]).toContain('ignored malformed output');
+  });
+
+  it('kills the helper and reports an exit when the stream is corrupt', () => {
+    const { child, exits } = setup();
+    child.stdout.emit(new Uint8Array([0x03, 0xff, 0xff, 0xff, 0xff]));
+    expect(child.killed).toBe(1);
+    expect(exits).toEqual([null]);
+    child.stdout.emit(new Uint8Array([1]));
+    child.exit(137);
+    expect(child.killed).toBe(1);
+    expect(exits).toEqual([null]);
+  });
+
   it('treats a spawn error as an exit', () => {
     const { child, logger, exits } = setup();
     child.fail(new Error('ENOENT'));
