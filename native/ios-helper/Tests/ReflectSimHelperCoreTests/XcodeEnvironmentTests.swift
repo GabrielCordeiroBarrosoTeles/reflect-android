@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import ReflectSimHelperCore
 
@@ -16,9 +17,55 @@ enum FakeRunnerError: Error { case failed(String) }
 @Suite struct XcodeEnvironmentTests {
     let selectKey = "/usr/bin/xcode-select -p"
     let versionKey = "/usr/bin/xcodebuild -version"
+    let noPlist: (String) -> Data? = { _ in nil }
+
+    func plist(_ version: String) -> Data {
+        try! PropertyListSerialization.data(
+            fromPropertyList: ["CFBundleShortVersionString": version, "ProductBuildVersion": "17F113"],
+            format: .xml, options: 0)
+    }
+
+    @Test func readsTheVersionFromVersionPlistWithoutRunningXcodebuild() throws {
+        var read: [String] = []
+        let env = try XcodeEnvironment.load(
+            readFile: { path in read.append(path); return self.plist("26.6") },
+            runner: FakeRunner(outputs: [selectKey: "/Applications/Xcode.app/Contents/Developer\n"]))
+        #expect(env == XcodeEnvironment(developerDir: "/Applications/Xcode.app/Contents/Developer", version: "26.6"))
+        #expect(read == ["/Applications/Xcode.app/Contents/version.plist"])
+    }
+
+    @Test func olderXcodeInVersionPlistIsUnsupported() {
+        #expect(throws: HelperError.xcodeUnsupported("Xcode 16.4 is not supported (needs 26 or newer)")) {
+            try XcodeEnvironment.load(
+                readFile: { _ in self.plist("16.4") },
+                runner: FakeRunner(outputs: [selectKey: "/X/Developer\n"]))
+        }
+    }
+
+    @Test func unreadablePlistFallsBackToXcodebuild() throws {
+        let env = try XcodeEnvironment.load(
+            readFile: { _ in Data("not a plist".utf8) },
+            runner: FakeRunner(outputs: [selectKey: "/X/Developer\n", versionKey: "Xcode 27.1\n"]))
+        #expect(env.version == "27.1")
+    }
+
+    @Test func plistWithoutAVersionFallsBackToXcodebuild() throws {
+        let data = try PropertyListSerialization.data(fromPropertyList: ["Other": "x"], format: .xml, options: 0)
+        let env = try XcodeEnvironment.load(
+            readFile: { _ in data },
+            runner: FakeRunner(outputs: [selectKey: "/X/Developer\n", versionKey: "Xcode 26.1\n"]))
+        #expect(env.version == "26.1")
+    }
+
+    @Test func plistWithAGarbageVersionFallsBackToXcodebuild() throws {
+        let env = try XcodeEnvironment.load(
+            readFile: { _ in self.plist("beta") },
+            runner: FakeRunner(outputs: [selectKey: "/X/Developer\n", versionKey: "Xcode 26.2\n"]))
+        #expect(env.version == "26.2")
+    }
 
     @Test func readsDeveloperDirAndVersion() throws {
-        let env = try XcodeEnvironment.load(runner: FakeRunner(outputs: [
+        let env = try XcodeEnvironment.load(readFile: noPlist, runner: FakeRunner(outputs: [
             selectKey: "/Applications/Xcode.app/Contents/Developer\n",
             versionKey: "Xcode 26.6\nBuild version 17F113\n",
         ]))
@@ -27,7 +74,7 @@ enum FakeRunnerError: Error { case failed(String) }
     }
 
     @Test func newerMajorVersionsAreSupported() throws {
-        let env = try XcodeEnvironment.load(runner: FakeRunner(outputs: [
+        let env = try XcodeEnvironment.load(readFile: noPlist, runner: FakeRunner(outputs: [
             selectKey: "/X\n", versionKey: "Xcode 27.0\n",
         ]))
         #expect(env.version == "27.0")
@@ -35,7 +82,7 @@ enum FakeRunnerError: Error { case failed(String) }
 
     @Test func olderXcodeIsUnsupported() {
         #expect(throws: HelperError.xcodeUnsupported("Xcode 16.4 is not supported (needs 26 or newer)")) {
-            try XcodeEnvironment.load(runner: FakeRunner(outputs: [
+            try XcodeEnvironment.load(readFile: noPlist, runner: FakeRunner(outputs: [
                 selectKey: "/X\n", versionKey: "Xcode 16.4\nBuild version 16F6\n",
             ]))
         }
@@ -43,19 +90,19 @@ enum FakeRunnerError: Error { case failed(String) }
 
     @Test func missingXcodeIsUnsupported() {
         #expect(throws: HelperError.xcodeUnsupported("Xcode not found (xcode-select -p failed)")) {
-            try XcodeEnvironment.load(runner: FakeRunner(outputs: [:]))
+            try XcodeEnvironment.load(readFile: noPlist, runner: FakeRunner(outputs: [:]))
         }
     }
 
     @Test func commandLineToolsOnlyIsUnsupported() {
         #expect(throws: HelperError.xcodeUnsupported("cannot read the Xcode version (xcodebuild -version failed)")) {
-            try XcodeEnvironment.load(runner: FakeRunner(outputs: [selectKey: "/Library/Developer/CommandLineTools\n"]))
+            try XcodeEnvironment.load(readFile: noPlist, runner: FakeRunner(outputs: [selectKey: "/Library/Developer/CommandLineTools\n"]))
         }
     }
 
     @Test func unparseableVersionIsUnsupported() {
         #expect(throws: HelperError.xcodeUnsupported("cannot read the Xcode version from \"garbage\"")) {
-            try XcodeEnvironment.load(runner: FakeRunner(outputs: [selectKey: "/X\n", versionKey: "garbage\n"]))
+            try XcodeEnvironment.load(readFile: noPlist, runner: FakeRunner(outputs: [selectKey: "/X\n", versionKey: "garbage\n"]))
         }
     }
 }

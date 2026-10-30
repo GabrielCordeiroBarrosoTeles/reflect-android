@@ -1,7 +1,7 @@
 import Foundation
 
 /// Runs a command and returns its stdout. Throws when it cannot be run or exits non-zero.
-public protocol CommandRunning {
+public protocol CommandRunning: Sendable {
     func run(_ executable: String, _ arguments: [String]) throws -> String
 }
 
@@ -32,7 +32,10 @@ public struct ProcessCommandRunner: CommandRunning {
     }
 }
 
-/// The active Xcode: developer dir (`xcode-select -p`) and version (`xcodebuild -version`).
+/// The active Xcode: developer dir (`xcode-select -p`) and version. The version comes from
+/// `<developerDir>/../version.plist` (`CFBundleShortVersionString`); `xcodebuild -version`,
+/// which takes from tens of milliseconds to over a second, is only the fallback when that
+/// file is missing or unreadable.
 public struct XcodeEnvironment: Equatable, Sendable {
     public static let minimumMajorVersion = 26
 
@@ -44,23 +47,43 @@ public struct XcodeEnvironment: Equatable, Sendable {
         self.version = version
     }
 
-    public static func load(runner: CommandRunning) throws -> XcodeEnvironment {
+    public static func load(
+        readFile: (String) -> Data? = { FileManager.default.contents(atPath: $0) },
+        runner: CommandRunning
+    ) throws -> XcodeEnvironment {
         guard let selectOutput = try? runner.run("/usr/bin/xcode-select", ["-p"]) else {
             throw HelperError.xcodeUnsupported("Xcode not found (xcode-select -p failed)")
         }
-        guard let versionOutput = try? runner.run("/usr/bin/xcodebuild", ["-version"]) else {
-            throw HelperError.xcodeUnsupported("cannot read the Xcode version (xcodebuild -version failed)")
-        }
-        let firstLine = versionOutput.split(separator: "\n").first.map(String.init) ?? ""
-        let version = try parseVersion(firstLine)
+        let developerDir = selectOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let version = try plistVersion(developerDir: developerDir, readFile: readFile)
+            ?? xcodebuildVersion(runner: runner)
         let major = Int(version.split(separator: ".").first ?? "") ?? 0
         guard major >= minimumMajorVersion else {
             throw HelperError.xcodeUnsupported(
                 "Xcode \(version) is not supported (needs \(minimumMajorVersion) or newer)")
         }
-        return XcodeEnvironment(
-            developerDir: selectOutput.trimmingCharacters(in: .whitespacesAndNewlines),
-            version: version)
+        return XcodeEnvironment(developerDir: developerDir, version: version)
+    }
+
+    /// `/Applications/Xcode.app/Contents/Developer` → `…/Contents/version.plist`. Nil when
+    /// the file or the key is missing or the value does not start with a digit.
+    private static func plistVersion(developerDir: String, readFile: (String) -> Data?) -> String? {
+        let path = ((developerDir as NSString).deletingLastPathComponent as NSString)
+            .appendingPathComponent("version.plist")
+        guard let data = readFile(path),
+              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+              let version = plist["CFBundleShortVersionString"] as? String,
+              version.first?.isNumber == true
+        else { return nil }
+        return version
+    }
+
+    private static func xcodebuildVersion(runner: CommandRunning) throws -> String {
+        guard let versionOutput = try? runner.run("/usr/bin/xcodebuild", ["-version"]) else {
+            throw HelperError.xcodeUnsupported("cannot read the Xcode version (xcodebuild -version failed)")
+        }
+        let firstLine = versionOutput.split(separator: "\n").first.map(String.init) ?? ""
+        return try parseVersion(firstLine)
     }
 
     /// `"Xcode 26.6"` → `"26.6"`.
