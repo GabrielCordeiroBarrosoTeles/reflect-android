@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import ReflectSimHelperCore
 
@@ -45,7 +46,7 @@ NSSetUncaughtExceptionHandler { exception in
 }
 
 /// Runs a write; if stdout is gone the parent is gone, so exit 0.
-func send(_ write: () throws -> Void) {
+@Sendable func send(_ write: () throws -> Void) {
     do {
         try write()
     } catch {
@@ -62,11 +63,12 @@ func fail(_ error: HelperError) -> Never {
 }
 
 let environment: XcodeEnvironment
+let resolver: DynamicFrameworkResolver
 let located: LocatedDevice
 let capabilities: [String]
 do {
     environment = try XcodeEnvironment.load(runner: ProcessCommandRunner())
-    let resolver = try DynamicFrameworkResolver(developerDir: environment.developerDir)
+    resolver = try DynamicFrameworkResolver(developerDir: environment.developerDir)
     switch CompatibilityProbe.run(resolver: resolver) {
     case .supported(let found):
         capabilities = found
@@ -116,20 +118,51 @@ func shutDown() -> Never {
     exit(0)
 }
 
-while let line = readLine() {
-    switch CommandReader.parse(line: line) {
-    case .command(.stop):
-        shutDown()
-    case .command(.keyframe):
-        encoder.requestKeyframe()
-    case .command(.quality(let bitrate, let fps, let maxSize)):
-        encoder.update(EncoderSettings(fps: fps, bitrate: bitrate, maxSize: maxSize))
-    case .command:
-        break
-    case .unknown(let type):
-        send { try writer.writeEvent(type: "warning", message: "unknown command \(type)") }
-    case .invalid:
-        send { try writer.writeEvent(type: "warning", message: "invalid command") }
-    }
+@Sendable func warn(_ message: String) {
+    send { try writer.writeEvent(type: "warning", message: message) }
 }
-shutDown()
+
+// Input runs on the main queue: the Indigo HID builders read AppKit thread state.
+let input = SimulatorInput(
+    device: located.device,
+    udid: udid,
+    resolver: resolver,
+    pointSize: CGSize(width: located.info.pointWidth, height: located.info.pointHeight),
+    runner: ProcessCommandRunner(),
+    onError: { error in send { try writer.writeError(error) } },
+    onWarning: { message in warn(message) },
+    onOrientation: { orientation in send { try writer.writeOrientationChanged(orientation) } },
+    log: log)
+let dispatcher = InputDispatcher(
+    sink: input,
+    pointSize: CGSize(width: located.info.pointWidth, height: located.info.pointHeight),
+    onWarning: { message in warn(message) })
+
+/// Reads stdin on a background thread so the main queue stays free for input. `stop` and
+/// EOF shut down on the main queue, after the input already queued there.
+@Sendable func readCommands() {
+    while let line = readLine() {
+        switch CommandReader.parse(line: line) {
+        case .command(.stop):
+            DispatchQueue.main.async { shutDown() }
+            return
+        case .command(.keyframe):
+            encoder.requestKeyframe()
+        case .command(.quality(let bitrate, let fps, let maxSize)):
+            encoder.update(EncoderSettings(fps: fps, bitrate: bitrate, maxSize: maxSize))
+        case .command(.simulatorApp(let action)):
+            DispatchQueue.main.async { SimulatorAppWindow.apply(action) }
+        case .command(let command):
+            DispatchQueue.main.async { dispatcher.dispatch(command) }
+        case .unknown(let type):
+            warn("unknown command \(type)")
+        case .invalid:
+            warn("invalid command")
+        }
+    }
+    DispatchQueue.main.async { shutDown() }
+}
+
+DispatchQueue.main.async { input.prepare() }
+Thread { readCommands() }.start()
+dispatchMain()

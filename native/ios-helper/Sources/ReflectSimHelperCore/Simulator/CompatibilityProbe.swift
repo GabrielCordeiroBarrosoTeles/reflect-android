@@ -27,6 +27,8 @@ public enum CompatibilityProbe {
         ("IndigoHIDMessageForTrackpadEventFromHIDEventRef", PrivateFramework.simulatorKit),
         ("IndigoHIDMessageForButton", PrivateFramework.simulatorKit),
         ("IndigoHIDMessageToCreatePointerService", PrivateFramework.simulatorKit),
+        ("IndigoHIDMessageToCreateMouseService", PrivateFramework.simulatorKit),
+        ("IndigoHIDMessageForHIDArbitrary", PrivateFramework.simulatorKit),
         ("IOHIDEventCreateDigitizerEvent", PrivateFramework.ioKit),
         ("IOHIDEventCreateDigitizerFingerEvent", PrivateFramework.ioKit),
         ("IOHIDEventAppendEvent", PrivateFramework.ioKit),

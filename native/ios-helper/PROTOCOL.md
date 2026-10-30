@@ -64,6 +64,28 @@ An unknown `type` produces an `event` frame `{"type":"warning","message":"unknow
 malformed lines produce a `warning` event. The helper never crashes on bad input.
 
 ## Start-up errors
+### Input
+
+- Points outside the screen are clamped to `[0, pointWidth] × [0, pointHeight]`.
+- `touch`: one finger per `id`; send `down`, any number of `move`, then `up` with the same `id`.
+- `scroll`: a drag by (`dx`, `dy`) points starting at (`x`, `y`): `down`, 6 moves 16 ms apart,
+  `up`, with a touch id of its own. A negative `dy` moves the finger up (the content scrolls
+  down). Each `scroll` takes about 110 ms and input is handled in order, so coalesce wheel
+  deltas before sending. iOS applies its own momentum after the lift.
+- `key`: USB HID keyboard usage (page 0x07), sent to the simulator's hardware keyboard.
+- `button` names: `home`, `lock`, `volumeUp`, `volumeDown`, `siri`, `shake`, `appSwitcher`.
+  `down: true`/`false` press and release the first five; `appSwitcher` (two Home presses) and
+  `shake` act on `down: true` only. Another name produces a warning
+  `{"type":"warning","message":"unknown button <name>"}`.
+- `rotate` cycles portrait → landscapeLeft → portraitUpsideDown → landscapeRight and emits
+  `{"type":"orientation-changed","orientation":"landscapeLeft"}` (`portrait`, `landscapeLeft`,
+  `portraitUpsideDown`, `landscapeRight`). The helper assumes portrait at start. Apps choose
+  which orientations they follow (iPhones with Face ID ignore `portraitUpsideDown`).
+- `simulatorApp` hides or shows Simulator.app's windows; nothing happens when it is not running.
+- If input cannot reach the simulator (a missing private API, a SimulatorKit exception), the
+  helper reports one `{"type":"error","code":"framework-unavailable",…}` event and keeps
+  streaming video; later input failures are only logged on stderr.
+
 
 Before `hello` the helper checks the Xcode version (26 or newer), loads CoreSimulator and
 SimulatorKit, probes every private class and symbol it needs and finds the simulator.

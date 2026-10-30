@@ -12,6 +12,6 @@ let package = Package(
         .target(name: "CObjCGuard"),
         .target(name: "ReflectSimHelperCore", dependencies: ["CIndigo", "CObjCGuard"]),
         .executableTarget(name: "ReflectSimHelper", dependencies: ["ReflectSimHelperCore"]),
-        .testTarget(name: "ReflectSimHelperCoreTests", dependencies: ["ReflectSimHelperCore"]),
+        .testTarget(name: "ReflectSimHelperCoreTests", dependencies: ["ReflectSimHelperCore", "CIndigo"]),
     ]
 )

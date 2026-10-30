@@ -69,14 +69,14 @@ The library is distributed unmodified. Its source code is available at the proje
 ## idb (Indigo HID structures)
 
 - Project: https://github.com/facebook/idb (commit 8509ca666b5983171a73338114b7d0325ae15bf1, via simbeam-control)
-- Used in: `native/ios-helper/Sources/CIndigo/include/Indigo.h` (Indigo HID wire-format struct layouts and defines), compiled into `assets/ios-helper/reflect-sim-helper`
+- Used in: `native/ios-helper/Sources/CIndigo/include/Indigo.h` (Indigo HID wire-format struct layouts and defines) and `native/ios-helper/Sources/ReflectSimHelperCore/Input/KeyboardInjector.swift` (the hand-built Indigo keyboard message), compiled into `assets/ios-helper/reflect-sim-helper`
 - Copyright (c) Meta Platforms, Inc. and affiliates
 - License: MIT (same terms as the MIT license text above; the full notice is kept in the header)
 
 ## simbeam-control (Indigo HID annotations)
 
 - Project: https://github.com/gabrielvisser/simbeam-control (forked from https://github.com/kei-sidorov/simbeam-control)
-- Used in: `native/ios-helper/Sources/CIndigo/include/Indigo.h`. simbeam-control redistributes the idb headers above and adds field annotations derived from disassembly (Xcode 26.2); those additions are under Apache-2.0. Modified: the headers were merged into one file and an include guard added.
+- Used in: `native/ios-helper/Sources/CIndigo/include/Indigo.h`, and `KeyboardInjector.swift` / `NotifyEvents.swift` under `native/ios-helper/Sources/ReflectSimHelperCore/Input/` (keyboard message layout, the Shake notification). simbeam-control redistributes the idb headers above and adds field annotations derived from disassembly (Xcode 26.2); those additions are under Apache-2.0. Modified: the headers were merged into one file and an include guard added.
 - License: Apache License 2.0
 
 simbeam-control `NOTICE`:
@@ -296,8 +296,8 @@ Upstream source: https://github.com/facebook/idb/tree/8509ca666b5983171a73338114
    limitations under the License.
 ```
 
-## baguette (screen capture and H.264 encoder recipes)
+## baguette (screen capture, H.264 encoder and input recipes)
 
 - Project: https://github.com/luispadron/baguette
-- Used in: `native/ios-helper/Sources/ReflectSimHelperCore/Screen/ScreenSource.swift` (finding the `com.apple.framebuffer.display` descriptor and registering SimulatorKit screen callbacks) and `native/ios-helper/Sources/ReflectSimHelperCore/Encoding/H264Encoder.swift` (VideoToolbox session setup and sample extraction), compiled into `assets/ios-helper/reflect-sim-helper`. Modified: rewritten for Reflect (Baseline profile, copy instead of wrapping the live IOSurface, Annex-B output, throttling, idle refresh and Objective-C exception guarding).
+- Used in: `native/ios-helper/Sources/ReflectSimHelperCore/Screen/ScreenSource.swift` (finding the `com.apple.framebuffer.display` descriptor and registering SimulatorKit screen callbacks) and `native/ios-helper/Sources/ReflectSimHelperCore/Encoding/H264Encoder.swift` (VideoToolbox session setup and sample extraction), and in `native/ios-helper/Sources/ReflectSimHelperCore/Input/` (`TouchInjector.swift`, `DigitizerMessage.swift`, `HIDClient.swift`: the digitizer touch recipe, its byte patches and the SimulatorKit/IOKit signatures; `ButtonInjector.swift`: button codes and the double-Home app switcher; `OrientationController.swift`: the PurpleWorkspacePort GSEvent layout), compiled into `assets/ios-helper/reflect-sim-helper`. Modified: rewritten for Reflect (Baseline profile, copy instead of wrapping the live IOSurface, Annex-B output, throttling, idle refresh, Objective-C exception guarding, interior touches only, main-queue input dispatch).
 - License: Apache License 2.0

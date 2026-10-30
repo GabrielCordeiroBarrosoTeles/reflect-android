@@ -53,6 +53,11 @@ public final class FrameWriter: @unchecked Sendable {
         try writeEvent(["type": "error", "code": error.code, "message": error.message])
     }
 
+    /// `{"type":"orientation-changed","orientation":…}`
+    public func writeOrientationChanged(_ orientation: DeviceOrientation) throws {
+        try writeEvent(["type": "orientation-changed", "orientation": orientation.name])
+    }
+
     private func writeEvent(_ fields: [String: String]) throws {
         try write(.event, try JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys]))
     }

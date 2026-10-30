@@ -67,4 +67,12 @@ final class Capture: @unchecked Sendable {
         let obj = try JSONSerialization.jsonObject(with: Data(c.data[5...])) as? [String: String]
         #expect(obj == ["type": "warning", "message": "unknown command x"])
     }
+
+    @Test func orientationChangedEvent() throws {
+        let (w, c) = makeWriter()
+        try w.writeOrientationChanged(.landscapeLeft)
+        #expect(c.data[0] == 0x04)
+        let obj = try JSONSerialization.jsonObject(with: Data(c.data[5...])) as? [String: String]
+        #expect(obj == ["type": "orientation-changed", "orientation": "landscapeLeft"])
+    }
 }
