@@ -5,13 +5,13 @@ import { MetroUnavailableError } from '../../src/core/errors';
 import { byteSize, formatBytes, imageSourceOf, jsonProblem, parseStorageValue, toEditableText, toStoredText, valueKind } from '../../src/storage/storageValue';
 import { StorageTab } from '../../src/tools/StorageTab';
 import type { IStorageReader, StorageResult } from '../../src/storage/types';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { FakeActiveDeviceContext } from '../fakes/FakeActiveDeviceContext';
 import { FakeClipboard } from '../fakes/FakeClipboard';
 import { FakeToolsChannel } from '../fakes/FakeToolsChannel';
 import { flushPromises } from '../fakes/PushStream';
 
-const device = deviceInfo({ serial: 'A' });
+const phone = device({ id: 'A' });
 const loaded = (entries: { key: string; value: string | null }[]): StorageResult => ({ status: 'ok', entries });
 
 describe('storage values', () => {
@@ -47,7 +47,7 @@ const setup = (results: (StorageResult | Error | string)[] = [loaded([{ key: 'a'
   };
   const reader: IStorageReader = { readAll: vi.fn(next), remove: vi.fn(next), set: vi.fn(next), clear: vi.fn(next) };
   const context = new FakeActiveDeviceContext();
-  context.mirroredDevice = device;
+  context.mirroredDevice = phone;
   const connection = new Emitter<boolean>();
   const confirm = vi.fn((_message: string, _action: string) => Promise.resolve(true));
   const notify = vi.fn();
@@ -79,7 +79,7 @@ describe('StorageTab', () => {
     const { tab, reader, channel, notify } = setup();
     await tab.write('a', '{"x":2}', false);
     await tab.write('b', 'novo', true);
-    expect(reader.set).toHaveBeenCalledWith(device, 'a', '{"x":2}');
+    expect(reader.set).toHaveBeenCalledWith(phone, 'a', '{"x":2}');
     expect(channel.posted).toContainEqual({ type: 'storage-saved', key: 'b' });
     expect(notify.mock.calls).toEqual([['Saved "a"'], ['Created "b"']]);
   });
@@ -97,12 +97,12 @@ describe('StorageTab', () => {
     await tab.remove('a');
     expect(reader.remove).not.toHaveBeenCalled();
     await tab.remove('a');
-    expect(reader.remove).toHaveBeenCalledWith(device, 'a');
+    expect(reader.remove).toHaveBeenCalledWith(phone, 'a');
     confirm.mockResolvedValueOnce(false);
     await tab.clear();
     expect(reader.clear).not.toHaveBeenCalled();
     await tab.clear();
-    expect(reader.clear).toHaveBeenCalledWith(device);
+    expect(reader.clear).toHaveBeenCalledWith(phone);
     expect(confirm.mock.calls.map(([message, action]) => [message, action])).toEqual([
       ['Delete "a" from the app\'s AsyncStorage?', 'Delete'],
       ['Delete "a" from the app\'s AsyncStorage?', 'Delete'],
@@ -140,13 +140,13 @@ describe('StorageTab', () => {
     const { reader, context, setConnected, channel, tab } = setup();
     channel.active = 'device';
     setConnected(true);
-    context.setMirroredDevice(device);
+    context.setMirroredDevice(phone);
     await flushPromises();
     expect(reader.readAll).not.toHaveBeenCalled();
     channel.active = 'storage';
     setConnected(false);
     setConnected(true);
-    context.setMirroredDevice(device);
+    context.setMirroredDevice(phone);
     await flushPromises();
     expect(reader.readAll).toHaveBeenCalledTimes(2);
     tab.dispose();

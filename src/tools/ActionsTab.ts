@@ -85,14 +85,14 @@ export class ActionsTab {
       this.show({ kind: 'idle' });
       return;
     }
-    const output = await this.services.shell.run(device.serial, STATE_COMMAND).catch((error: unknown) => new Error(errorMessage(error)));
+    const output = await this.services.shell.run(device.id, STATE_COMMAND).catch((error: unknown) => new Error(errorMessage(error)));
     if (output instanceof Error) {
       this.show({ kind: 'failed', message: output.message });
       return;
     }
     const snapshot = parseActionsState(output);
     this.app = snapshot.app;
-    this.show({ kind: 'ready', ...snapshot, links: this.services.links.get(), wirelessAdb: isWireless(device.serial) });
+    this.show({ kind: 'ready', ...snapshot, links: this.services.links.get(), wirelessAdb: isWireless(device.id) });
   }
 
   async run(action: AppAction): Promise<void> {
@@ -102,14 +102,14 @@ export class ActionsTab {
       this.result(false, !device ? 'Open a device first.' : action.kind === 'deep-link' ? 'Enter a link like myapp://screen or https://example.com/page.' : 'This action needs an app in the foreground.');
       return;
     }
-    if (action.kind === 'toggle' && NETWORK_TOGGLES.has(action.setting) && isWireless(device.serial)) {
+    if (action.kind === 'toggle' && NETWORK_TOGGLES.has(action.setting) && isWireless(device.id)) {
       this.result(false, 'Reflect is connected over Wi-Fi, so turning Wi-Fi or airplane mode off would drop the connection. Use a USB cable for this.');
       return;
     }
     if (action.kind === 'clear-data' && !(await this.services.confirm(`Clear all data of ${this.app}? The app goes back to its first launch.`, 'Clear Data'))) {
       return;
     }
-    const output = await this.services.shell.run(device.serial, command).catch((error: unknown) => `Error: ${errorMessage(error)}`);
+    const output = await this.services.shell.run(device.id, command).catch((error: unknown) => `Error: ${errorMessage(error)}`);
     const failure = failureOf(output);
     if (failure !== undefined) {
       this.result(false, failure);

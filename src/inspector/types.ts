@@ -1,4 +1,4 @@
-import type { DeviceInfo } from '../adb/types';
+import type { Device } from '../devices/types';
 import type { Event, IDisposable } from '../core/types';
 import type { BoxEdges, InspectHighlight } from '../shared/protocol';
 
@@ -101,7 +101,7 @@ export interface ICdpSession extends IDisposable {
 export type CdpConnector = (url: string) => Promise<ICdpSession>;
 
 export interface IComponentInspector extends IDisposable {
-  inspectAt(device: DeviceInfo, point: InspectPoint): Promise<InspectedComponent | undefined>;
-  highlightAt(device: DeviceInfo, point: InspectPoint): Promise<InspectHighlight | undefined>;
+  inspectAt(device: Device, point: InspectPoint): Promise<InspectedComponent | undefined>;
+  highlightAt(device: Device, point: InspectPoint): Promise<InspectHighlight | undefined>;
   disconnect(): void;
 }

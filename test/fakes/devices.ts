@@ -1,12 +1,14 @@
 import type { AdbServerClient } from '@yume-chan/adb';
-import type { DeviceInfo } from '../../src/adb/types';
+import type { Device } from '../../src/devices/types';
 
-export const deviceInfo = (overrides: Partial<DeviceInfo> = {}): DeviceInfo => ({
-  serial: 'R5CX123',
-  state: 'device',
+export const device = (overrides: Partial<Device> = {}): Device => ({
+  id: 'R5CX123',
+  platform: 'android',
+  kind: 'physical',
+  name: 'SM F741B',
   model: 'SM F741B',
-  product: 'b6qxeea',
-  transportId: 1n,
+  detail: 'b6qxeea',
+  state: 'ready',
   ...overrides,
 });
 

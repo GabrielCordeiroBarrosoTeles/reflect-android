@@ -55,7 +55,7 @@ export class PerformanceTab implements IDisposable {
     const device = this.context.mirroredDevice;
     if (device && this.app) {
       this.previous = undefined;
-      await this.reader.resetFrames(device.serial, this.app).catch(() => undefined);
+      await this.reader.resetFrames(device.id, this.app).catch(() => undefined);
     }
   }
 
@@ -98,7 +98,7 @@ export class PerformanceTab implements IDisposable {
       this.setStatus({ kind: 'idle' });
       return;
     }
-    const reading = await this.reader.read(device.serial).then(
+    const reading = await this.reader.read(device.id).then(
       (value): PerformanceReading | Error => value,
       (error: unknown) => new Error(errorMessage(error)),
     );

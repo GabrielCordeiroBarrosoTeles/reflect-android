@@ -113,6 +113,25 @@ describe('VideoRenderer', () => {
     expect(state.decoders[0]?.disposed).toBe(1);
   });
 
+  it('creates the next decoder with a newly chosen acceleration', () => {
+    const { renderer } = setup();
+    renderer.useAcceleration('prefer-software');
+    renderer.configure({ codec: 7, width: 1, height: 1 });
+    expect(state.decoders[0]?.options.hardwareAcceleration).toBe('prefer-software');
+  });
+
+  it('recreates a running decoder when the acceleration changes and asks for a resync', () => {
+    const { renderer, listener } = setup();
+    renderer.configure({ codec: 7, width: 1, height: 1 });
+    renderer.useAcceleration('prefer-hardware');
+    expect(state.decoders).toHaveLength(1);
+    renderer.useAcceleration('prefer-software');
+    expect(state.decoders).toHaveLength(2);
+    expect(state.decoders[0]?.disposed).toBe(1);
+    expect(state.decoders[1]?.options).toMatchObject({ codec: 7, hardwareAcceleration: 'prefer-software' });
+    expect(listener.onResyncNeeded).toHaveBeenCalledTimes(1);
+  });
+
   it('ignores packets before configure', () => {
     const { renderer } = setup();
     renderer.render(configuration);

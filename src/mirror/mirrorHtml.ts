@@ -25,7 +25,9 @@ export const renderMirrorHtml = ({ cspSource, scriptUri, styleUri }: MirrorHtmlA
     <div class="status" role="status">
       <span class="status__title"></span>
       <span class="status__detail"></span>
+      <div class="status__devices"></div>
       <button class="status__action" type="button" hidden>Open Device</button>
+      <button class="status__link" type="button" hidden>Show in Simulator</button>
     </div>
   </main>
   <script type="module" nonce="${nonce}" src="${scriptUri}"></script>

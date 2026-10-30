@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Emitter } from '../../src/core/Emitter';
 import { SidebarResume } from '../../src/mirror/SidebarResume';
 import type { MirrorClosed } from '../../src/mirror/types';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 
 const setup = () => {
   const closed = new Emitter<MirrorClosed>();
@@ -15,13 +15,13 @@ const setup = () => {
 describe('SidebarResume', () => {
   it('reopens a sidebar mirror that was shut down while hidden', () => {
     const { closed, visibility, mirrors } = setup();
-    const device = deviceInfo();
-    closed.fire({ device, location: 'secondarySidebar', reason: 'hidden' });
+    const phone = device();
+    closed.fire({ device: phone, location: 'secondarySidebar', reason: 'hidden' });
     visibility.fire(false);
     visibility.fire(true);
     visibility.fire(true);
     expect(mirrors.open).toHaveBeenCalledOnce();
-    expect(mirrors.open).toHaveBeenCalledWith(device, 'secondarySidebar');
+    expect(mirrors.open).toHaveBeenCalledWith(phone, 'secondarySidebar');
   });
 
   it.each([
@@ -29,15 +29,15 @@ describe('SidebarResume', () => {
     ['hidden in an editor tab', { location: 'editor', reason: 'hidden' }],
   ] as const)('does not reopen a mirror %s', (_label, closedWith) => {
     const { closed, visibility, mirrors } = setup();
-    closed.fire({ device: deviceInfo(), ...closedWith });
+    closed.fire({ device: device(), ...closedWith });
     visibility.fire(true);
     expect(mirrors.open).not.toHaveBeenCalled();
   });
 
   it('forgets a pending resume when another mirror closes normally', () => {
     const { closed, visibility, mirrors } = setup();
-    closed.fire({ device: deviceInfo(), location: 'secondarySidebar', reason: 'hidden' });
-    closed.fire({ device: deviceInfo({ serial: 'B' }), location: 'editor', reason: 'closed' });
+    closed.fire({ device: device(), location: 'secondarySidebar', reason: 'hidden' });
+    closed.fire({ device: device({ id: 'B' }), location: 'editor', reason: 'closed' });
     visibility.fire(true);
     expect(mirrors.open).not.toHaveBeenCalled();
   });
@@ -45,7 +45,7 @@ describe('SidebarResume', () => {
   it('stops listening after dispose', () => {
     const { closed, visibility, mirrors, resume } = setup();
     resume.dispose();
-    closed.fire({ device: deviceInfo(), location: 'secondarySidebar', reason: 'hidden' });
+    closed.fire({ device: device(), location: 'secondarySidebar', reason: 'hidden' });
     visibility.fire(true);
     expect(mirrors.open).not.toHaveBeenCalled();
   });

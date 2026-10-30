@@ -1,7 +1,7 @@
-import type { WebviewToHostMessage } from '../shared/protocol';
+import type { MirrorEnvelope, WebviewToHostMessage } from '../shared/protocol';
 
 export interface VsCodeApi {
-  postMessage(message: WebviewToHostMessage): void;
+  postMessage(message: MirrorEnvelope<WebviewToHostMessage>): void;
   getState(): unknown;
   setState(state: unknown): void;
 }

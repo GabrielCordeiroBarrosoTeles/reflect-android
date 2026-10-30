@@ -2,16 +2,17 @@ import { AdbScrcpyExitedError } from '@yume-chan/adb-scrcpy';
 import type { ScrcpyMediaStreamPacket } from '@yume-chan/scrcpy';
 import type { ReadableStream } from '@yume-chan/stream-extra';
 import { WritableStream } from '@yume-chan/stream-extra';
-import type { DeviceInfo } from '../adb/types';
+import type { Device } from '../devices/types';
 import { Emitter } from '../core/Emitter';
 import type { DeviceLease, IDeviceLeasePool } from '../device/types';
 import { MirrorStartError, isReflectError } from '../core/errors';
 import type { ILogger } from '../core/types';
 import type { SessionStateKind, VideoConfig, VideoPacket } from '../shared/protocol';
 import { ControlChannel } from './ControlChannel';
-import { SessionStateMachine } from './SessionStateMachine';
+import { SessionStateMachine } from '../platform/SessionStateMachine';
 import { toVideoPacket } from './toVideoPacket';
-import type { IDeviceControl, IMirrorSession, IScrcpyLauncher, IServerBinary, MirrorOptions, ScrcpyClientLike } from './types';
+import type { IDeviceControl, IMirrorSession } from '../platform/types';
+import type { IScrcpyLauncher, IServerBinary, MirrorOptions, ScrcpyClientLike } from './types';
 
 type ScrcpyClient = ScrcpyClientLike;
 
@@ -35,7 +36,7 @@ export class MirrorSession implements IMirrorSession {
   );
 
   constructor(
-    private readonly device: DeviceInfo,
+    private readonly device: Device,
     private readonly pool: IDeviceLeasePool,
     private readonly launcher: IScrcpyLauncher,
     private readonly serverBinary: IServerBinary,
@@ -86,7 +87,7 @@ export class MirrorSession implements IMirrorSession {
   }
 
   private async launchServer(): Promise<ScrcpyClient> {
-    this.lease = await this.pool.acquire(this.device.serial);
+    this.lease = await this.pool.acquire(this.device.id);
     const client = await this.launcher.launch(this.lease.adb, this.serverBinary, this.options);
     this.client = client;
     void this.drainOutput(client.output);
@@ -170,7 +171,7 @@ export class MirrorSession implements IMirrorSession {
     if (this.disposed) {
       return;
     }
-    this.logger.info(`scrcpy server on ${this.device.serial} stopped`);
+    this.logger.info(`scrcpy server on ${this.device.id} stopped`);
     void this.teardown();
     this.stateMachine.transitionTo('disconnected');
   }
@@ -189,7 +190,7 @@ export class MirrorSession implements IMirrorSession {
       return error;
     }
     const details = error instanceof AdbScrcpyExitedError ? error.output : [];
-    this.logger.error(`Failed to start mirroring on ${this.device.serial}`, error);
-    return new MirrorStartError(this.device.serial, details, error);
+    this.logger.error(`Failed to start mirroring on ${this.device.id}`, error);
+    return new MirrorStartError(this.device.id, details, error);
   }
 }

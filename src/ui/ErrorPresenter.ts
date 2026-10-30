@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { ReflectError, ReflectErrorCode } from '../core/errors';
+import type { ReflectError, ReflectErrorCode, SimulatorNotBootedError, XcodeUnsupportedError } from '../core/errors';
 import { isReflectError } from '../core/errors';
 import type { ErrorAction } from './types';
 
@@ -25,7 +25,7 @@ export class ErrorPresenter {
       this.show('Reflect: could not start the adb server. Run "adb start-server" in a terminal and try again.', this.retryAction),
     'no-device': () =>
       this.show(
-        'Reflect: no Android device found. Connect it via USB and enable USB debugging.',
+        'Reflect: no device found. Connect an Android device via USB with USB debugging on, or boot an iOS Simulator.',
         { title: 'How to enable', run: () => this.openUrl(USB_DEBUGGING_URL) },
         this.retryAction,
       ),
@@ -46,6 +46,13 @@ export class ErrorPresenter {
       }),
     'react-native-app-not-found': () =>
       this.show('Reflect: no debuggable React Native app found on the device. Open your app in development mode (React Native 0.76+).'),
+    'ios-helper-unavailable': () => this.show("Reflect's iOS helper is missing. Reinstall the extension."),
+    'xcode-unsupported': (error) => {
+      const { xcodeVersion, missing } = error as XcodeUnsupportedError;
+      const detail = missing.length > 0 ? ` (${missing.join('; ')})` : '';
+      return this.show(`Reflect: ${xcodeVersion === undefined ? 'This Xcode' : `Xcode ${xcodeVersion}`} is not supported yet by Reflect.${detail}`);
+    },
+    'simulator-not-booted': (error) => this.show(`Reflect: ${(error as SimulatorNotBootedError).simulatorName} is not booted.`),
   };
 
   constructor(

@@ -1,5 +1,7 @@
 import type { ActionId } from './actions';
 
+export type VideoDecoderPreference = 'hardware' | 'software';
+
 export type SessionStateKind = 'idle' | 'connecting' | 'streaming' | 'disconnected' | 'error' | 'closed';
 
 export interface VideoConfig {
@@ -39,8 +41,25 @@ export interface InspectHighlight {
   readonly padding: BoxEdges;
 }
 
+export interface DeviceListItem {
+  readonly id: string;
+  readonly name: string;
+  readonly detail: string | undefined;
+  readonly platform: 'android' | 'ios';
+  readonly kind: 'physical' | 'emulator' | 'simulator';
+  readonly state: 'ready' | 'unauthorized' | 'offline' | 'shutdown';
+}
+
+export interface MirrorEnvelope<T> {
+  readonly deviceId: string | undefined;
+  readonly message: T;
+}
+
 export type HostToWebviewMessage =
   | { readonly type: 'idle' }
+  | { readonly type: 'device-list'; readonly devices: readonly DeviceListItem[] }
+  | { readonly type: 'simulator-hidden'; readonly hidden: boolean }
+  | { readonly type: 'capabilities'; readonly actions: readonly ActionId[]; readonly videoDecoder: VideoDecoderPreference }
   | { readonly type: 'toolbar-state'; readonly state: ToolbarState }
   | { readonly type: 'capture-screenshot'; readonly requestId: number }
   | { readonly type: 'inspect-mode'; readonly active: boolean }
@@ -100,7 +119,9 @@ export type WebviewToHostMessage =
   | { readonly type: 'text'; readonly text: string }
   | { readonly type: 'paste' }
   | { readonly type: 'mouse-shortcut'; readonly shortcut: MouseShortcut }
-  | { readonly type: 'open-device' }
+  | { readonly type: 'open-device'; readonly deviceId?: string }
+  | { readonly type: 'boot-device'; readonly deviceId: string }
+  | { readonly type: 'show-in-simulator' }
   | { readonly type: 'reconnect' }
   | { readonly type: 'inspect-at'; readonly x: number; readonly y: number }
   | { readonly type: 'inspect-hover'; readonly x: number; readonly y: number }

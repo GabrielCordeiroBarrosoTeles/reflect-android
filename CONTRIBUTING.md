@@ -1,4 +1,4 @@
-# Contributing to Reflect for Android
+# Contributing to Reflect
 
 Thanks for your interest in improving Reflect! This guide explains how to set up the project, the rules every change must follow, and how pull requests are reviewed.
 
@@ -10,6 +10,7 @@ Thanks for your interest in improving Reflect! This guide explains how to set up
 - [The 100% coverage rule](#the-100-coverage-rule)
 - [Writing tests](#writing-tests)
 - [Testing with a real device](#testing-with-a-real-device)
+- [The iOS helper](#the-ios-helper)
 - [Commit convention](#commit-convention)
 - [Pull request flow](#pull-request-flow)
 - [Pull request checklist](#pull-request-checklist)
@@ -50,7 +51,10 @@ src/
   adb/           adb discovery (Chain of Responsibility), adb server gateway, device tracking and selection.
   device/        Device leases, shell access, active device context and `adb reverse`.
   deviceInfo/    Device Info view: collectors and tree provider.
-  scrcpy/        Mirror session (Facade), state machine, control channel, scrcpy launcher.
+  devices/       Platform-neutral device model, composite discovery and discovery-backed availability.
+  platform/      Platform contract (mirror session, device control, capabilities), registry, session state machine and the Android adapter.
+  ios/           iOS Simulator adapter: simctl discovery, helper process and mirror session, HID control, shared simulator pasteboard.
+  scrcpy/        Android mirror session (Facade), control channel, scrcpy launcher.
   mirror/        Webview surfaces, typed bridge (Mediator), controller, manager, auto reconnection (Strategy) and screenshot requests.
   actions/       Toolbar actions as a registry of Commands shared by the webview, commands and shortcuts.
   capture/       Capture storage and the per-platform system clipboard (Strategy).
@@ -114,9 +118,26 @@ npx expo start   # scan the QR code with the Expo Go app on your phone
 2. Press **F5** and run **Reflect: Open Device**.
 3. Check mirroring, touch, scroll, keyboard and clipboard, and anything your change touches.
 4. Close the tab and make sure nothing keeps running: `adb shell ps -A | grep scrcpy` must print nothing.
-5. Logs are in **View → Output → Reflect for Android**.
+5. Logs are in **View → Output → Reflect**.
 
 Mention in the pull request which device and Android version you used.
+
+## The iOS helper
+
+The iOS Simulator support uses a small Swift helper in `native/ios-helper/` (macOS with Xcode 26+ only). It is not part of the TypeScript build and is not covered by `npm run coverage`.
+
+```bash
+swift test --package-path native/ios-helper   # unit tests
+npm run build:ios-helper                      # universal, ad-hoc-signed binary -> assets/ios-helper/reflect-sim-helper
+```
+
+`npm run build:ios-helper` exits 0 without doing anything on other platforms. The binary is git-ignored: CI builds it in the `ios-helper` job (macOS) and the jobs that run `vsce package` download it, so the VSIX always contains it. The wire protocol is documented in `native/ios-helper/PROTOCOL.md`.
+
+Manual checklist when you change the helper (booted simulator, Xcode 26+):
+
+1. Run `npm run build:ios-helper`, press **F5** and open the simulator from Reflect.
+2. Check video (including after a rotation), touch, scroll, hardware buttons and keyboard typing.
+3. Close the tab and make sure no helper survives: `pgrep reflect-sim-helper` must print nothing.
 
 ## Commit convention
 
@@ -159,7 +180,7 @@ For larger features, open an issue or a discussion first so we can agree on the 
 
 1. Update `version` in `package.json` and move the **Unreleased** entries in `CHANGELOG.md` to the new version.
 2. Merge to `main`, then tag: `git tag v0.1.0 && git push origin v0.1.0`.
-3. The `release.yml` workflow runs the tests, packages the `.vsix`, attaches it to a GitHub Release and publishes to the VS Code Marketplace and Open VSX.
+3. The `release.yml` workflow builds the iOS helper on macOS from the tagged commit, runs the tests, packages the `.vsix`, attaches it to a GitHub Release and publishes to the VS Code Marketplace and Open VSX.
 
 ### Repository secrets
 

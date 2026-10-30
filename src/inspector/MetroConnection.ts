@@ -1,5 +1,5 @@
-import type { DeviceInfo } from '../adb/types';
-import { deviceLabel } from '../adb/toDeviceInfo';
+import type { Device } from '../devices/types';
+import { deviceLabel } from '../devices/types';
 import { MetroUnavailableError, ReactNativeAppNotFoundError } from '../core/errors';
 import type { IDisposable } from '../core/types';
 import { ReactDevToolsBackend } from './ReactDevToolsBackend';
@@ -26,12 +26,12 @@ export class MetroConnection implements IDisposable {
     private readonly timeoutMs: number,
   ) {}
 
-  connectionFor(device: DeviceInfo): Promise<AppConnection> {
-    if (this.current?.serial === device.serial) {
+  connectionFor(device: Device): Promise<AppConnection> {
+    if (this.current?.serial === device.id) {
       return this.current.connection.catch(() => this.connectionFor(device));
     }
     this.disconnect();
-    const current: CurrentConnection = { serial: device.serial, connection: this.open(device) };
+    const current: CurrentConnection = { serial: device.id, connection: this.open(device) };
     this.current = current;
     const forget = (): void => {
       if (this.current === current) {
@@ -58,7 +58,7 @@ export class MetroConnection implements IDisposable {
     this.disconnect();
   }
 
-  private async open(device: DeviceInfo): Promise<AppConnection> {
+  private async open(device: Device): Promise<AppConnection> {
     const targets = await this.metro.listTargets().catch((error: unknown) => {
       throw new MetroUnavailableError(this.metro.port, error);
     });
@@ -75,6 +75,6 @@ export class MetroConnection implements IDisposable {
       session.dispose();
       throw error;
     }
-    return { serial: device.serial, session, backend };
+    return { serial: device.id, session, backend };
   }
 }

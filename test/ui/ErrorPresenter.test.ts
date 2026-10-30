@@ -5,9 +5,12 @@ import {
   DeviceOfflineError,
   DeviceUnauthorizedError,
   MetroUnavailableError,
+  IosHelperUnavailableError,
   MirrorStartError,
   NoDeviceError,
   ReactNativeAppNotFoundError,
+  SimulatorNotBootedError,
+  XcodeUnsupportedError,
 } from '../../src/core/errors';
 import { ErrorPresenter } from '../../src/ui/ErrorPresenter';
 import { commands, env, window } from '../mocks/vscode';
@@ -23,13 +26,18 @@ const lastMessage = () => window.showErrorMessage.mock.calls.at(-1)!;
 describe('ErrorPresenter', () => {
   it.each([
     [new AdbServerUnavailableError(), 'could not start the adb server', ['Retry']],
-    [new NoDeviceError(), 'no Android device found', ['How to enable', 'Retry']],
+    [new NoDeviceError(), 'no device found. Connect an Android device via USB with USB debugging on, or boot an iOS Simulator.', ['How to enable', 'Retry']],
     [new DeviceUnauthorizedError('S'), 'device not authorized', ['Retry']],
     [new DeviceOfflineError('S'), 'device is offline', ['Retry']],
     [new MirrorStartError('S', []), 'could not start mirroring', ['Show logs', 'Retry']],
     [new AdbNotFoundError([]), 'adb not found', ['Set adb path', 'Download platform-tools']],
     [new MetroUnavailableError(8081), 'Metro is not running', ['Set Metro port']],
     [new ReactNativeAppNotFoundError('Pixel'), 'no debuggable React Native app', []],
+    [new IosHelperUnavailableError('/h'), "Reflect's iOS helper is missing. Reinstall the extension.", []],
+    [new XcodeUnsupportedError('25.1', []), 'Xcode 25.1 is not supported yet by Reflect.', []],
+    [new XcodeUnsupportedError(undefined, ['x']), 'This Xcode is not supported yet by Reflect. (x)', []],
+    [new XcodeUnsupportedError('26.6', ['missing SimulatorKit', 'y']), 'Xcode 26.6 is not supported yet by Reflect. (missing SimulatorKit; y)', []],
+    [new SimulatorNotBootedError('iPhone 15'), 'iPhone 15 is not booted.', []],
   ])('explains %s with actions', async (error, text, actions) => {
     const { presenter } = setup();
     await presenter.present(error);

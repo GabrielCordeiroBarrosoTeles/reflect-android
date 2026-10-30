@@ -1,6 +1,5 @@
-import type { AndroidKeyCode } from '@yume-chan/scrcpy';
 import { Emitter } from '../../src/core/Emitter';
-import type { IDeviceControl, IMirrorSession, SessionStateChange } from '../../src/scrcpy/types';
+import type { HardwareButton, IDeviceControl, IMirrorSession, SessionStateChange } from '../../src/platform/types';
 import type { KeyInput, ScrollInput, SessionStateKind, TouchInput, VideoConfig, VideoPacket } from '../../src/shared/protocol';
 
 export class FakeDeviceControl implements IDeviceControl {
@@ -14,14 +13,12 @@ export class FakeDeviceControl implements IDeviceControl {
   touch = (input: TouchInput) => this.record('touch', input);
   scroll = (input: ScrollInput) => this.record('scroll', input);
   key = (input: KeyInput) => this.record('key', input);
-  press = (keyCode: AndroidKeyCode) => this.record('press', keyCode);
+  pressButton = (button: HardwareButton) => this.record('pressButton', button);
   text = (text: string) => this.record('text', text);
-  back = () => this.record('back');
-  home = () => this.record('home');
-  recents = () => this.record('recents');
   rotate = () => this.record('rotate');
   setScreenPower = (on: boolean) => this.record('setScreenPower', on);
   paste = (text: string) => this.record('paste', text);
+  reloadShortcut = () => this.record('reloadShortcut');
 }
 
 export class FakeMirrorSession implements IMirrorSession {

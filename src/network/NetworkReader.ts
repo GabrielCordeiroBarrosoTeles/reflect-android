@@ -1,4 +1,4 @@
-import type { DeviceInfo } from '../adb/types';
+import type { Device } from '../devices/types';
 import type { MetroConnection } from '../inspector/MetroConnection';
 import { buildReadNetworkScript, CLEAR_NETWORK_SCRIPT, INSTALL_NETWORK_SCRIPT, parseNetworkRead } from './networkScripts';
 import type { INetworkReader, NetworkResult } from './types';
@@ -6,7 +6,7 @@ import type { INetworkReader, NetworkResult } from './types';
 export class NetworkReader implements INetworkReader {
   constructor(private readonly connections: Pick<MetroConnection, 'connectionFor'>) {}
 
-  async read(device: DeviceInfo, since: number): Promise<NetworkResult> {
+  async read(device: Device, since: number): Promise<NetworkResult> {
     const { backend } = await this.connections.connectionFor(device);
     const first = parseNetworkRead(await backend.evaluate(buildReadNetworkScript(since)));
     if (first.status !== 'not-installed') {
@@ -19,7 +19,7 @@ export class NetworkReader implements INetworkReader {
     return second.status === 'not-installed' ? { status: 'unavailable' } : second;
   }
 
-  async clear(device: DeviceInfo): Promise<void> {
+  async clear(device: Device): Promise<void> {
     const { backend } = await this.connections.connectionFor(device);
     await backend.evaluate(CLEAR_NETWORK_SCRIPT);
   }

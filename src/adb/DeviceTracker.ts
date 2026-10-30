@@ -1,23 +1,24 @@
 import type { AdbServerClient } from '@yume-chan/adb';
 import { Emitter } from '../core/Emitter';
-import type { IAdbServerGateway, DeviceInfo, IDeviceTracker } from './types';
-import { toDeviceInfo } from './toDeviceInfo';
+import type { Device, IDeviceDiscovery } from '../devices/types';
+import type { IAdbServerGateway } from './types';
+import { toAndroidDevice } from './toAndroidDevice';
 
 const TRACKED_STATES: readonly AdbServerClient.ConnectionState[] = ['device', 'unauthorized', 'offline'];
 
-export class DeviceTracker implements IDeviceTracker {
-  private readonly changeEmitter = new Emitter<readonly DeviceInfo[]>();
+export class DeviceTracker implements IDeviceDiscovery {
+  private readonly changeEmitter = new Emitter<readonly Device[]>();
   private readonly failEmitter = new Emitter<Error>();
   private observer: AdbServerClient.DeviceObserver | undefined;
   private starting: Promise<void> | undefined;
-  private current: readonly DeviceInfo[] = [];
+  private current: readonly Device[] = [];
 
   readonly onDidChangeDevices = this.changeEmitter.event;
   readonly onDidFail = this.failEmitter.event;
 
   constructor(private readonly gateway: IAdbServerGateway) {}
 
-  get devices(): readonly DeviceInfo[] {
+  get devices(): readonly Device[] {
     return this.current;
   }
 
@@ -48,7 +49,7 @@ export class DeviceTracker implements IDeviceTracker {
   }
 
   private update(devices: readonly AdbServerClient.Device[]): void {
-    this.current = devices.map(toDeviceInfo);
+    this.current = devices.map(toAndroidDevice);
     this.changeEmitter.fire(this.current);
   }
 

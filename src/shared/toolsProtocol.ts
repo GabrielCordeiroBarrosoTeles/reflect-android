@@ -53,6 +53,7 @@ export type PerformanceStatus =
 
 export type HostToToolsMessage =
   | { readonly type: 'app-available'; readonly available: boolean }
+  | { readonly type: 'tabs-available'; readonly tabs: readonly ToolsTab[] }
   | { readonly type: 'select-tab'; readonly tab: ToolsTab }
   | { readonly type: 'component'; readonly view: ComponentPanelView | undefined }
   | { readonly type: 'device'; readonly state: DevicePanelState }

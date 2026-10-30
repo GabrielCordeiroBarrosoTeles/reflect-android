@@ -11,6 +11,7 @@ const formatElapsed = (milliseconds: number): string => {
 
 export class Toolbar {
   private readonly buttons = new Map<ActionId, HTMLButtonElement>();
+  private readonly groups: { readonly element: HTMLElement; readonly ids: readonly ActionId[] }[] = [];
   private readonly timer: HTMLSpanElement;
   private ticker: ReturnType<typeof setInterval> | undefined;
 
@@ -26,11 +27,21 @@ export class Toolbar {
         container.append(this.createButton(item));
       }
       root.append(container);
+      this.groups.push({ element: container, ids: group.map(({ id }) => id) });
     }
     this.timer = document.createElement('span');
     this.timer.className = 'toolbar__timer';
     this.timer.hidden = true;
     root.append(this.timer);
+  }
+
+  setAvailable(actions: readonly ActionId[]): void {
+    for (const [id, button] of this.buttons) {
+      button.hidden = !actions.includes(id);
+    }
+    for (const { element, ids } of this.groups) {
+      element.hidden = ids.every((id) => !actions.includes(id));
+    }
   }
 
   update(state: ToolbarState): void {

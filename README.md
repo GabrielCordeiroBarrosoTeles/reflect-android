@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="assets/icon.png" width="96" alt="Reflect for Android logo">
+  <img src="assets/icon.png" width="96" alt="Reflect logo">
 </p>
 
-<h1 align="center">Reflect for Android</h1>
+<h1 align="center">Reflect — Android &amp; iOS Simulator</h1>
 
 <p align="center">
-  Mirror and control a physical Android device inside a VS Code tab — no emulator, no external window.
+  Mirror and control Android devices and iOS Simulators inside a VS Code tab — no external window.
 </p>
 
 <p align="center">
@@ -68,6 +68,26 @@ Below the mirror, a single **Tools** panel groups everything about the device an
 - **Nothing left running**: closing the mirror stops the scrcpy server, closes the sockets, finishes any recording and releases the decoder. If the side bar stays hidden for 30 seconds the session is paused, and it resumes when you show it again.
 - **No telemetry.**
 
+### iOS Simulator
+
+On a Mac, Reflect also mirrors the iOS Simulators you already have in Xcode, in the same side bar and with the same tools. Booted simulators show up under **iOS Simulators** in the empty Device view (and in the device picker); press **Bring to Reflect** to mirror one. Shut-down simulators have a **Boot** button that boots them headless — no Simulator window appears — and opens them as soon as they are ready.
+
+**Requirements**
+
+- macOS and **Xcode 26** or newer (older versions are reported as not supported).
+- Nothing else to install: the small native helper that talks to the Simulator is bundled with the extension. Reflect clears the macOS quarantine flag on it the first time it runs.
+
+**What works in this release**
+
+- Live mirroring, touch, drag, scroll, keyboard and clipboard sync (paste into the simulator and copy back).
+- Toolbar: Home, Recent Apps, Rotate, screen on/off, screenshot, recording, Dev Menu and Reload.
+- Tools: Component inspector, Network and Storage for React Native apps in development mode.
+- Closing and booting a simulator from the terminal is picked up within a couple of seconds: the mirror shows **Disconnected** and returns by itself when the simulator boots again.
+
+**The Simulator app window.** When you bring a simulator into Reflect, the Simulator app quits so the device lives only in your editor. The simulator itself keeps running: Reflect first turns on Simulator's `DetachOnAppQuit` preference, which makes quitting the app leave booted devices running. Change this with `reflect.ios.simulatorWindow`: `quit` (default), `hide` (hides the whole app, so **all** its windows) or `leave`. **Show in Simulator** in the empty Device view (also **Reflect: Show in Simulator**) opens the app again.
+
+Android devices and iOS Simulators can be connected at the same time. When you have several, the device picker lists both.
+
 ### Roadmap
 
 Annotated screenshots and GIF export, Wi-Fi connections, dev tools (deep links, app actions, APK install, dark mode/font scale/locale, show touches, layout bounds, network toggles) and a filtered logcat panel.
@@ -77,10 +97,11 @@ Annotated screenshots and GIF export, Wi-Fi connections, dev tools (deep links, 
 - **VS Code 1.106** or newer (Cursor, Windsurf and VSCodium support through Open VSX is coming soon).
 - **Android platform-tools** (`adb`). Install them with Android Studio or download them from [developer.android.com](https://developer.android.com/tools/releases/platform-tools).
 - An Android device with **USB debugging enabled** ([how to enable](https://developer.android.com/studio/debug/dev-options#enable)) and Android 5.0 or newer.
+- For iOS Simulators: a Mac with **Xcode 26** or newer. See [iOS Simulator](#ios-simulator).
 
 ## Installation
 
-- **VS Code Marketplace**: search for "Reflect for Android" in the Extensions view, or run `code --install-extension GabrielCordeiro.reflect-android`.
+- **VS Code Marketplace**: search for "Reflect — Android & iOS Simulator" in the Extensions view, or run `code --install-extension GabrielCordeiro.reflect-android`.
 - **Open VSX** (Cursor, Windsurf, VSCodium): coming soon.
 
 ## Usage
@@ -139,6 +160,7 @@ Every toolbar action is also a command (**Reflect: Back**, **Reflect: Take Scree
 | `reflect.privacy.maskIpAddress` | `false` | Hide the last part of the IP address in the Device tab (handy for screenshots). |
 | `reflect.capturesDirectory` | `reflect-captures` | Folder for screenshots and recordings. Relative paths use the first workspace folder; without a workspace they go to `~/Pictures/Reflect`. |
 | `reflect.copyCapturesToClipboard` | `true` | Copy screenshots (as images) and recordings (as files) to the clipboard. |
+| `reflect.ios.simulatorWindow` | `quit` | What to do with the Simulator app when a simulator is brought into Reflect: `quit` (the simulator keeps running), `hide` or `leave`. |
 
 When `reflect.adbPath` is empty, Reflect looks for `adb` in this order: `$ANDROID_HOME/platform-tools` (or `$ANDROID_SDK_ROOT`), the default SDK location for your OS, then your `PATH`.
 
@@ -149,7 +171,7 @@ When `reflect.adbPath` is empty, Reflect looks for `adb` in this order: `$ANDROI
 | "adb not found" | Install platform-tools or set `reflect.adbPath`. |
 | "device not authorized" | Unlock the phone and accept the USB debugging prompt. If it does not appear, revoke USB debugging authorizations in Developer options and reconnect. |
 | "device is offline" | Reconnect the cable, try another USB port or cable, or toggle USB debugging. |
-| Black screen | Open **View → Output → Reflect for Android** and check the `[webview]` lines. Include them when you open an issue. |
+| Black screen | Open **View → Output → Reflect** and check the `[webview]` lines. Include them when you open an issue. |
 | Input does nothing | Click the mirrored screen first so it receives focus. |
 | "Metro is not running" when inspecting | Start your app with `npx expo start` or `npx react-native start`, or set `reflect.metroPort`. |
 | "No debuggable React Native app" | Open the app in development mode. The inspector needs React Native 0.76 or newer. |
@@ -172,13 +194,13 @@ Reflect is free and open source. If it saves you time, you can support its devel
 - [GitHub Sponsors](https://github.com/sponsors/GabrielCordeiroBarrosoTeles)
 - 🇧🇷 **PIX**: scan the QR code below with your bank app
 
-<img src="assets/pix-card.png" width="260" alt="PIX QR code card to support Reflect for Android">
+<img src="assets/pix-card.png" width="260" alt="PIX QR code card to support Reflect">
 
 Starring the repository and sharing it with other developers helps a lot too.
 
 ## Credits and licenses
 
-- Reflect for Android is released under the [MIT License](LICENSE).
+- Reflect is released under the [MIT License](LICENSE).
 - It bundles the **scrcpy server** by Genymobile and Romain Vimont, licensed under the [Apache License 2.0](assets/scrcpy-server.LICENSE).
 - It uses the **Tango** (`@yume-chan/*`) libraries by Simon Chan, licensed under the MIT License.
 

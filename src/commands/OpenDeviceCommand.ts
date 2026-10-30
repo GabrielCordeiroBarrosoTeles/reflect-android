@@ -1,3 +1,5 @@
+import { NoDeviceError } from '../core/errors';
+import { isReady, type Device } from '../devices/types';
 import type { IDeviceSelectionService } from '../adb/types';
 import type { IActiveDeviceContext } from '../device/types';
 import type { MirrorManager } from '../mirror/MirrorManager';
@@ -15,9 +17,9 @@ export class OpenDeviceCommand implements ICommand {
     private readonly errors: ErrorPresenter,
   ) {}
 
-  async execute(): Promise<void> {
+  async execute(deviceId?: unknown): Promise<void> {
     try {
-      const device = await this.selection.select();
+      const device = typeof deviceId === 'string' ? this.findReady(deviceId) : await this.selection.select();
       if (!device) {
         return;
       }
@@ -26,5 +28,13 @@ export class OpenDeviceCommand implements ICommand {
     } catch (error) {
       await this.errors.present(error);
     }
+  }
+
+  private findReady(deviceId: string): Device {
+    const device = this.activeDevice.devices.find((candidate) => candidate.id === deviceId && isReady(candidate));
+    if (!device) {
+      throw new NoDeviceError();
+    }
+    return device;
   }
 }

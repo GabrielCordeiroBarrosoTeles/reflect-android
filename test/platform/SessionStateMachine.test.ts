@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { SessionStateMachine } from '../../src/scrcpy/SessionStateMachine';
+import { SessionStateMachine } from '../../src/platform/SessionStateMachine';
 import type { SessionStateKind } from '../../src/shared/protocol';
 
 const STATES: readonly SessionStateKind[] = ['idle', 'connecting', 'streaming', 'disconnected', 'error', 'closed'];

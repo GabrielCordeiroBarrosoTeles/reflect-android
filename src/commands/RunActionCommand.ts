@@ -8,15 +8,18 @@ export class RunActionCommand implements ICommand {
 
   constructor(
     private readonly actionId: ActionId,
-    private readonly mirrors: { runAction(id: ActionId): boolean },
+    private readonly mirrors: { runAction(id: ActionId): 'ran' | 'no-mirror' | 'unsupported' },
     private readonly notify: (message: string) => void,
   ) {
     this.id = actionCommandId(actionId);
   }
 
   execute(): Promise<void> {
-    if (!this.mirrors.runAction(this.actionId)) {
+    const outcome = this.mirrors.runAction(this.actionId);
+    if (outcome === 'no-mirror') {
       this.notify('Open a device first');
+    } else if (outcome === 'unsupported') {
+      this.notify('Not available on this device');
     }
     return Promise.resolve();
   }

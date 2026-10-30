@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { deviceLabel } from '../adb/toDeviceInfo';
-import type { DeviceInfo } from '../adb/types';
+import { deviceLabel } from '../devices/types';
+import type { Device } from '../devices/types';
 import { Emitter } from '../core/Emitter';
 import { applyMirrorWebview } from './mirrorWebview';
 import type { IMirrorSurface } from './types';
@@ -15,12 +15,12 @@ export class MirrorPanel implements IMirrorSurface {
   readonly onDidDispose = this.disposeEmitter.event;
   readonly onDidChangeVisibility = this.visibilityEmitter.event;
 
-  constructor(device: DeviceInfo, extensionUri: vscode.Uri) {
+  constructor(device: Device, extensionUri: vscode.Uri) {
     this.panel = vscode.window.createWebviewPanel('reflect.mirror', deviceLabel(device), vscode.ViewColumn.Beside, {
       enableScripts: true,
       localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')],
     });
-    this.channel = new WebviewBridge(this.panel.webview);
+    this.channel = new WebviewBridge(this.panel.webview, device.id);
     applyMirrorWebview(this.panel.webview, extensionUri);
     this.panel.onDidChangeViewState(({ webviewPanel }) => this.visibilityEmitter.fire(webviewPanel.visible));
     this.panel.onDidDispose(() => {

@@ -1,11 +1,11 @@
-import { deviceLabel } from '../adb/toDeviceInfo';
-import type { DeviceInfo } from '../adb/types';
+import { deviceLabel } from '../devices/types';
+import type { Device } from '../devices/types';
 import { DisposableStore } from '../core/Disposable';
 import { Emitter } from '../core/Emitter';
 import { DEVICE_ACTIONS } from '../actions/deviceActions';
 import type { MirrorCapabilities } from '../actions/types';
 import type { IRecorder } from '../recording/types';
-import type { IMirrorSession, SessionStateChange } from '../scrcpy/types';
+import type { IMirrorSession, SessionStateChange } from '../platform/types';
 import type { ActionId } from '../shared/actions';
 import type { LogLevel, VideoPacket, WebviewToHostMessage } from '../shared/protocol';
 import { AutoReconnect } from './AutoReconnect';
@@ -16,8 +16,6 @@ import type { IMirrorController, IMirrorSurface, MirrorCloseReason, MirrorServic
 
 export const HIDDEN_SHUTDOWN_MS = 30_000;
 export const SCREENSHOT_TIMEOUT_MS = 5_000;
-const RECONNECTING_DETAIL = 'Reconnecting… plug the cable back in';
-const GAVE_UP_DETAIL = 'Device not found. Check the cable and USB debugging.';
 
 type MessageHandlers = {
   [K in WebviewToHostMessage['type']]: (message: Extract<WebviewToHostMessage, { type: K }>) => Promise<void> | void;
@@ -43,6 +41,8 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
 
   private readonly handlers: MessageHandlers = {
     ready: () => {
+      const { actions, videoDecoder } = this.services.capabilities(this.device);
+      this.surface.channel.post({ type: 'capabilities', actions, videoDecoder });
       this.postState({ state: this.session.state });
       this.surface.channel.post({ type: 'inspect-mode', active: this.inspecting });
       this.postToolbarState();
@@ -55,8 +55,10 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
     key: ({ input }) => this.session.control.key(input),
     text: ({ text }) => this.session.control.text(text),
     paste: async () => this.session.control.paste(await this.services.clipboard.readText()),
-    'mouse-shortcut': ({ shortcut }) => (shortcut === 'back' ? this.session.control.back() : this.session.control.home()),
+    'mouse-shortcut': ({ shortcut }) => this.session.control.pressButton(shortcut),
     'open-device': () => undefined,
+    'boot-device': () => undefined,
+    'show-in-simulator': () => undefined,
     reconnect: () => this.reconnectNow(),
     'inspect-at': ({ x, y }) => this.services.inspector.inspectAt(this.device, { x, y }),
     'inspect-hover': ({ x, y }) =>
@@ -67,20 +69,20 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
   };
 
   constructor(
-    readonly device: DeviceInfo,
+    readonly device: Device,
     private readonly surface: IMirrorSurface,
     private readonly session: IMirrorSession,
     private readonly services: MirrorServices,
   ) {
     this.screenshots = new ScreenshotRequester(surface.channel, SCREENSHOT_TIMEOUT_MS);
     this.reconnect = new AutoReconnect({
-      serial: device.serial,
+      serial: device.id,
       availability: services.availability,
       timing: services.reconnectTiming,
       reconnect: () => session.start(),
       onGiveUp: () => {
         this.gaveUp = true;
-        this.postState({ state: 'disconnected', detail: GAVE_UP_DETAIL });
+        this.postState({ state: 'disconnected', detail: this.services.capabilities(device).copy.gaveUp });
       },
     });
     this.store.add(this.reconnect);
@@ -108,7 +110,11 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
   private reconnectNow(): void {
     this.gaveUp = false;
     this.reconnect.start();
-    this.postState({ state: 'disconnected', detail: RECONNECTING_DETAIL });
+    this.postState({ state: 'disconnected', detail: this.services.capabilities(this.device).copy.reconnecting });
+  }
+
+  supports(id: ActionId): boolean {
+    return this.services.capabilities(this.device).actions.includes(id);
   }
 
   runAction(id: ActionId): Promise<void> {

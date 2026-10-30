@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { StatusBarAlignment } from 'vscode';
 import { StatusBarPresenter } from '../../src/ui/StatusBarPresenter';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { FakeActiveDeviceContext } from '../fakes/FakeActiveDeviceContext';
 import { window } from '../mocks/vscode';
 
@@ -14,7 +14,7 @@ describe('StatusBarPresenter', () => {
   it('creates a visible item bound to the open command', () => {
     const { item } = setup();
     expect(item).toMatchObject({ id: 'reflect.device', alignment: StatusBarAlignment.Left, command: 'reflect.openDevice', visible: true });
-    expect(item.name).toBe('Reflect for Android');
+    expect(item.name).toBe('Reflect');
   });
 
   it('shows when no device is connected', () => {
@@ -24,21 +24,21 @@ describe('StatusBarPresenter', () => {
 
   it('shows the single ready device and ignores unauthorized ones', () => {
     const { item, tracker } = setup();
-    tracker.setDevices([deviceInfo({ model: 'Pixel 8' }), deviceInfo({ serial: 'X', state: 'unauthorized' })]);
+    tracker.setDevices([device({ name: 'Pixel 8', model: 'Pixel 8' }), device({ id: 'X', state: 'unauthorized' })]);
     expect(item.text).toBe('$(device-mobile) Pixel 8');
     expect(item.tooltip).toBe('Reflect: click to open device');
   });
 
   it('counts several ready devices', () => {
     const { item, tracker } = setup();
-    tracker.setDevices([deviceInfo({ serial: 'A' }), deviceInfo({ serial: 'B' })]);
+    tracker.setDevices([device({ id: 'A' }), device({ id: 'B' })]);
     expect(item.text).toBe('$(device-mobile) 2 devices');
   });
 
   it('reflects the active device connection', () => {
-    const device = deviceInfo({ model: 'Pixel 8' });
-    const { item, tracker } = setup(new FakeActiveDeviceContext([device]));
-    tracker.setMirroredDevice(device);
+    const phone = device({ name: 'Pixel 8', model: 'Pixel 8' });
+    const { item, tracker } = setup(new FakeActiveDeviceContext([phone]));
+    tracker.setMirroredDevice(phone);
     expect(item.text).toBe('$(device-mobile) Pixel 8');
     tracker.setDevices([]);
     expect(item.text).toBe('$(debug-disconnect) Pixel 8');
@@ -50,7 +50,7 @@ describe('StatusBarPresenter', () => {
   it('stops rendering and disposes the item', () => {
     const { item, tracker, presenter } = setup();
     presenter.dispose();
-    tracker.setDevices([deviceInfo()]);
+    tracker.setDevices([device()]);
     expect(item.disposed).toBe(true);
     expect(item.text).toBe('$(device-mobile) No device');
   });

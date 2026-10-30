@@ -1,4 +1,4 @@
-import type { DeviceInfo } from '../adb/types';
+import type { Device } from '../devices/types';
 import type { InspectHighlight } from '../shared/protocol';
 import { buildHitTestScript, buildHoverScript, parseHitResult, parseHoverResult, READ_HIT_RESULT_SCRIPT, READ_HOVER_RESULT_SCRIPT } from './hitTestScript';
 import type { MetroConnection } from './MetroConnection';
@@ -30,7 +30,7 @@ export class ComponentInspector implements IComponentInspector {
     this.owners = new UserOwnerResolver(metro, OWNER_CACHE_SIZE);
   }
 
-  async inspectAt(device: DeviceInfo, point: InspectPoint): Promise<InspectedComponent | undefined> {
+  async inspectAt(device: Device, point: InspectPoint): Promise<InspectedComponent | undefined> {
     const { backend } = await this.connections.connectionFor(device);
     await backend.evaluate(buildHitTestScript(point));
     const hit = await this.poll(backend, READ_HIT_RESULT_SCRIPT, parseHitResult);
@@ -41,7 +41,7 @@ export class ComponentInspector implements IComponentInspector {
     return toInspectedComponent(payload, await this.resolveSource(hit.stacks));
   }
 
-  async highlightAt(device: DeviceInfo, point: InspectPoint): Promise<InspectHighlight | undefined> {
+  async highlightAt(device: Device, point: InspectPoint): Promise<InspectHighlight | undefined> {
     const { backend } = await this.connections.connectionFor(device);
     await backend.evaluate(buildHoverScript(point));
     const hover = await this.poll(backend, READ_HOVER_RESULT_SCRIPT, parseHoverResult);

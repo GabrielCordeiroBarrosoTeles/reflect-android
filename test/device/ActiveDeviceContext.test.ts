@@ -1,24 +1,24 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ActiveDeviceContext } from '../../src/device/ActiveDeviceContext';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { FakeDeviceTracker } from '../fakes/FakeDeviceTracker';
 
 describe('ActiveDeviceContext', () => {
   it('targets the first ready device when nothing is mirrored', () => {
-    const tracker = new FakeDeviceTracker([deviceInfo({ serial: 'U', state: 'unauthorized' }), deviceInfo({ serial: 'A' })]);
+    const tracker = new FakeDeviceTracker([device({ id: 'U', state: 'unauthorized' }), device({ id: 'A' })]);
     const context = new ActiveDeviceContext(tracker);
     expect(context.devices).toBe(tracker.devices);
-    expect(context.target?.serial).toBe('A');
+    expect(context.target?.id).toBe('A');
   });
 
   it('targets the mirrored device while it is connected', () => {
-    const tracker = new FakeDeviceTracker([deviceInfo({ serial: 'A' }), deviceInfo({ serial: 'B' })]);
+    const tracker = new FakeDeviceTracker([device({ id: 'A' }), device({ id: 'B' })]);
     const context = new ActiveDeviceContext(tracker);
-    context.setMirroredDevice(deviceInfo({ serial: 'B' }));
-    expect(context.mirroredDevice?.serial).toBe('B');
-    expect(context.target?.serial).toBe('B');
-    tracker.setDevices([deviceInfo({ serial: 'A' })]);
-    expect(context.target?.serial).toBe('A');
+    context.setMirroredDevice(device({ id: 'B' }));
+    expect(context.mirroredDevice?.id).toBe('B');
+    expect(context.target?.id).toBe('B');
+    tracker.setDevices([device({ id: 'A' })]);
+    expect(context.target?.id).toBe('A');
   });
 
   it('has no target without ready devices', () => {
@@ -30,7 +30,7 @@ describe('ActiveDeviceContext', () => {
     const context = new ActiveDeviceContext(tracker);
     const listener = vi.fn();
     context.onDidChange(listener);
-    tracker.setDevices([deviceInfo()]);
+    tracker.setDevices([device()]);
     context.setMirroredDevice(undefined);
     context.dispose();
     tracker.setDevices([]);

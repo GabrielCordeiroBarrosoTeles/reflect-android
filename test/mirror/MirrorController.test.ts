@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HIDDEN_SHUTDOWN_MS, MirrorController } from '../../src/mirror/MirrorController';
 import type { MirrorCloseReason } from '../../src/mirror/types';
 import type { VideoPacket, WebviewToHostMessage } from '../../src/shared/protocol';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { FakeClipboard } from '../fakes/FakeClipboard';
 import { FakeLogger } from '../fakes/FakeLogger';
 import { FakeMirrorSession } from '../fakes/FakeMirrorSession';
@@ -54,8 +54,14 @@ const setup = () => {
   const onCaptured = vi.fn();
   const availabilityChanges = new Emitter<void>();
   const availability = { onDidChange: availabilityChanges.event, isReady: vi.fn(() => false) };
+  const capabilities = vi.fn(() => ({
+    actions: ['home', 'back'] as const,
+    tools: ['device'] as const,
+    copy: { reconnecting: 'Reconnecting… plug the cable back in', gaveUp: 'Device not found. Check the cable and USB debugging.' },
+    videoDecoder: 'software' as const,
+  }));
   const surface = new FakeSurface();
-  const controller = new MirrorController(deviceInfo({ model: 'Pixel 8' }), surface, session, {
+  const controller = new MirrorController(device({ name: 'Pixel 8', model: 'Pixel 8' }), surface, session, {
     logger,
     clipboard,
     onError,
@@ -66,6 +72,7 @@ const setup = () => {
     onCaptured,
     availability,
     reconnectTiming: { baseDelayMs: 100, maxDelayMs: 400, giveUpAfterMs: 1000 },
+    capabilities,
   });
   const reasons: MirrorCloseReason[] = [];
   controller.onDidDispose((reason) => reasons.push(reason));
@@ -73,7 +80,7 @@ const setup = () => {
     surface.channel.messages.fire(message);
     await flushPromises();
   };
-  return { session, logger, clipboard, onError, inspector, actions, captures, recorders, createRecorder, onCaptured, availability, availabilityChanges, surface, controller, send, reasons, posted: surface.channel.posted };
+  return { session, logger, clipboard, onError, inspector, actions, captures, recorders, createRecorder, onCaptured, availability, availabilityChanges, capabilities, surface, controller, send, reasons, posted: surface.channel.posted };
 };
 
 describe('MirrorController', () => {
@@ -117,6 +124,7 @@ describe('MirrorController', () => {
     posted.length = 0;
     await send({ type: 'ready' });
     expect(posted).toEqual([
+      { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software' },
       { type: 'session-state', state: 'streaming', deviceName: 'Pixel 8' },
       { type: 'inspect-mode', active: false },
       { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } },
@@ -124,6 +132,12 @@ describe('MirrorController', () => {
       { type: 'video-packet', packet: configurationPacket },
     ]);
     expect(session.keyframes).toBe(1);
+  });
+
+  it('reports whether the device supports an action', () => {
+    const { controller, capabilities } = setup();
+    expect([controller.supports('home'), controller.supports('record')]).toEqual([true, false]);
+    expect(capabilities).toHaveBeenCalledWith(controller.device);
   });
 
   it('throttles keyframe requests and skips the cached packet when absent', async () => {
@@ -168,13 +182,19 @@ describe('MirrorController', () => {
     await send({ type: 'paste' });
     await send({ type: 'mouse-shortcut', shortcut: 'back' });
     await send({ type: 'mouse-shortcut', shortcut: 'home' });
-    expect(session.control.calls.map((call) => call.method)).toEqual(['touch', 'scroll', 'key', 'text', 'paste', 'back', 'home']);
+    expect(session.control.calls.map((call) => call.method)).toEqual(['touch', 'scroll', 'key', 'text', 'paste', 'pressButton', 'pressButton']);
+    expect(session.control.calls.slice(5)).toEqual([
+      { method: 'pressButton', arg: 'back' },
+      { method: 'pressButton', arg: 'home' },
+    ]);
     expect(session.control.calls[4]).toEqual({ method: 'paste', arg: 'from mac' });
   });
 
-  it('leaves open-device requests to the sidebar host', async () => {
+  it('leaves device-list requests to the sidebar host', async () => {
     const { session, logger, send } = setup();
     await send({ type: 'open-device' });
+    await send({ type: 'boot-device', deviceId: 'UDID-1' });
+    await send({ type: 'show-in-simulator' });
     expect(session.control.calls).toEqual([]);
     expect(logger.errors).toEqual([]);
   });
@@ -185,6 +205,7 @@ describe('MirrorController', () => {
     await send({ type: 'ready' });
     expect(posted).toEqual([
       { type: 'inspect-mode', active: true },
+      { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software' },
       { type: 'session-state', state: 'idle', deviceName: 'Pixel 8' },
       { type: 'inspect-mode', active: true },
       { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } },
@@ -209,7 +230,7 @@ describe('MirrorController', () => {
   it('runs toolbar actions on the device', async () => {
     const { session, send } = setup();
     await send({ type: 'action', id: 'home' });
-    expect(session.control.calls).toEqual([{ method: 'home' }]);
+    expect(session.control.calls).toEqual([{ method: 'pressButton', arg: 'home' }]);
   });
 
   it('saves screenshots taken by the webview', async () => {

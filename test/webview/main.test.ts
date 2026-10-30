@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol';
+import type { HostToWebviewMessage, MirrorEnvelope, WebviewToHostMessage } from '../../src/shared/protocol';
 import { flushPromises } from '../fakes/PushStream';
 
 const fakes = vi.hoisted(() => ({
@@ -25,6 +25,10 @@ vi.mock('../../src/webview/VideoRenderer', () => ({
     rendered: unknown[] = [];
     disposed = 0;
     framesRendered = 12;
+    accelerations: string[] = [];
+    useAcceleration(acceleration: string) {
+      this.accelerations.push(acceleration);
+    }
     snapshotResult: Promise<Uint8Array | undefined> = Promise.resolve(new Uint8Array([4]));
     snapshot() {
       return this.snapshotResult;
@@ -54,23 +58,30 @@ vi.mock('../../src/webview/decoderSupport', () => ({
 }));
 
 const MARKUP =
-  '<nav class="toolbar"></nav><div class="inspect-banner" hidden></div><main class="stage"><canvas class="screen" hidden></canvas><div class="inspect-highlight" hidden><span class="inspect-highlight__label"></span></div><div class="status"><span class="status__title"></span><span class="status__detail"></span><button class="status__action" hidden></button></div></main>';
+  '<nav class="toolbar"></nav><div class="inspect-banner" hidden></div><main class="stage"><canvas class="screen" hidden></canvas><div class="inspect-highlight" hidden><span class="inspect-highlight__label"></span></div><div class="status"><span class="status__title"></span><span class="status__detail"></span><div class="status__devices"></div><button class="status__action" hidden></button><button class="status__link" hidden></button></div></main>';
 
 const boot = async (markup = MARKUP) => {
   document.body.innerHTML = markup;
   const posted: WebviewToHostMessage[] = [];
+  const envelopes: MirrorEnvelope<WebviewToHostMessage>[] = [];
   vi.stubGlobal('acquireVsCodeApi', () => ({
-    postMessage: (message: WebviewToHostMessage) => posted.push(message),
+    postMessage: (envelope: MirrorEnvelope<WebviewToHostMessage>) => {
+      envelopes.push(envelope);
+      posted.push(envelope.message);
+    },
     getState: () => undefined,
     setState: vi.fn(),
   }));
   vi.resetModules();
   await import('../../src/webview/main');
   await flushPromises();
-  return { posted, canvas: document.querySelector<HTMLCanvasElement>('.screen'), title: () => document.querySelector('.status__title')?.textContent };
+  return { posted, envelopes, canvas: document.querySelector<HTMLCanvasElement>('.screen'), title: () => document.querySelector('.status__title')?.textContent };
 };
 
-const deliver = (message: HostToWebviewMessage) => window.dispatchEvent(new MessageEvent('message', { data: message }));
+const deliverTo = (deviceId: string | undefined, message: HostToWebviewMessage) =>
+  window.dispatchEvent(new MessageEvent('message', { data: { deviceId, message } satisfies MirrorEnvelope<HostToWebviewMessage> }));
+
+const deliver = (message: HostToWebviewMessage) => deliverTo('R5CX123', message);
 
 beforeEach(() => {
   fakes.supported = true;
@@ -155,6 +166,26 @@ describe('webview main', () => {
     expect(posted.at(-1)).toEqual({ type: 'open-device' });
   });
 
+  it('renders the device list, posts row actions and shows Show in Simulator', async () => {
+    const { posted } = await boot();
+    deliver({ type: 'idle' });
+    deliver({
+      type: 'device-list',
+      devices: [
+        { id: 'S1', name: 'iPhone 15', detail: 'iOS 26.0', platform: 'ios', kind: 'simulator', state: 'ready' },
+        { id: 'S2', name: 'iPhone SE', detail: 'iOS 26.0', platform: 'ios', kind: 'simulator', state: 'shutdown' },
+      ],
+    });
+    deliver({ type: 'simulator-hidden', hidden: true });
+    const click = (selector: string) => document.querySelector<HTMLButtonElement>(selector)?.click();
+    click('.status__row button[data-device-id="S1"]');
+    expect(posted.at(-1)).toEqual({ type: 'open-device', deviceId: 'S1' });
+    click('.status__row button[data-device-id="S2"]');
+    expect(posted.at(-1)).toEqual({ type: 'boot-device', deviceId: 'S2' });
+    click('.status__link');
+    expect(posted.at(-1)).toEqual({ type: 'show-in-simulator' });
+  });
+
   it('toggles inspect mode from the host and reports inspect clicks', async () => {
     const { posted, canvas } = await boot();
     deliver({ type: 'inspect-mode', active: true });
@@ -214,6 +245,31 @@ describe('webview main', () => {
   it('logs bootstrap failures when the markup is incomplete', async () => {
     const { posted } = await boot('<div></div>');
     expect(posted).toEqual([{ type: 'log', level: 'error', message: 'Webview bootstrap failed: Error: Missing element .screen' }]);
+  });
+
+  it('echoes the device id of the last envelope it received', async () => {
+    const { envelopes } = await boot();
+    expect(envelopes.at(-1)).toEqual({ deviceId: undefined, message: { type: 'ready' } });
+    deliverTo('A', { type: 'idle' });
+    document.querySelector<HTMLButtonElement>('[aria-label="Home"]')?.click();
+    expect(envelopes.at(-1)).toEqual({ deviceId: 'A', message: { type: 'action', id: 'home' } });
+    deliverTo(undefined, { type: 'idle' });
+    document.querySelector<HTMLButtonElement>('[aria-label="Home"]')?.click();
+    expect(envelopes.at(-1)).toEqual({ deviceId: undefined, message: { type: 'action', id: 'home' } });
+  });
+
+  it('switches the decoder acceleration to what the device prefers', async () => {
+    await boot();
+    const renderer = fakes.renderers.at(-1) as unknown as { accelerations: string[] };
+    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'software' });
+    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'hardware' });
+    expect(renderer.accelerations).toEqual(['prefer-software', 'prefer-hardware']);
+  });
+
+  it('hides toolbar buttons the host did not list as available', async () => {
+    await boot();
+    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'hardware' });
+    expect([document.querySelector<HTMLElement>('[aria-label="Back"]')?.hidden, document.querySelector<HTMLElement>('[aria-label="Home"]')?.hidden]).toEqual([true, false]);
   });
 });
 

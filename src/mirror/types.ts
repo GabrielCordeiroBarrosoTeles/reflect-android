@@ -1,4 +1,5 @@
-import type { DeviceInfo } from '../adb/types';
+import type { Device } from '../devices/types';
+import type { PlatformCapabilities } from '../platform/types';
 import type { Event, IDisposable, ILogger } from '../core/types';
 import type { ActionServices } from '../actions/types';
 import type { CaptureKind, ICaptureStore } from '../capture/types';
@@ -14,7 +15,7 @@ export type MirrorLocation = 'secondarySidebar' | 'editor';
 export type MirrorCloseReason = 'closed' | 'hidden';
 
 export interface MirrorClosed {
-  readonly device: DeviceInfo;
+  readonly device: Device;
   readonly location: MirrorLocation;
   readonly reason: MirrorCloseReason;
 }
@@ -25,8 +26,8 @@ export interface IClipboard {
 }
 
 export interface IInspectHandler {
-  inspectAt(device: DeviceInfo, point: { readonly x: number; readonly y: number }): void;
-  hoverAt(device: DeviceInfo, point: { readonly x: number; readonly y: number }, onHighlight: (highlight: InspectHighlight | undefined) => void): void;
+  inspectAt(device: Device, point: { readonly x: number; readonly y: number }): void;
+  hoverAt(device: Device, point: { readonly x: number; readonly y: number }, onHighlight: (highlight: InspectHighlight | undefined) => void): void;
   cancel(): void;
 }
 
@@ -41,6 +42,7 @@ export interface MirrorServices {
   readonly onCaptured: (kind: CaptureKind, path: string) => void;
   readonly availability: DeviceAvailability;
   readonly reconnectTiming: ReconnectTiming;
+  readonly capabilities: (device: Device) => PlatformCapabilities;
 }
 
 export interface IWebviewChannel {
@@ -57,12 +59,13 @@ export interface IMirrorSurface extends IDisposable {
 }
 
 export interface IMirrorController extends IDisposable {
-  readonly device: DeviceInfo;
+  readonly device: Device;
   readonly onDidDispose: Event<MirrorCloseReason>;
   reveal(): void;
   start(): void;
   setInspectMode(active: boolean): void;
+  supports(id: ActionId): boolean;
   runAction(id: ActionId): Promise<void>;
 }
 
-export type MirrorControllerFactory = (device: DeviceInfo, location: MirrorLocation) => IMirrorController;
+export type MirrorControllerFactory = (device: Device, location: MirrorLocation) => IMirrorController;

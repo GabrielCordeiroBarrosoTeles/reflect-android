@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { createFakeAdb, createTempRoot } from './adb/locator/fs';
 import { FakeScrcpyClient } from './fakes/FakeScrcpyClient';
 import { flushPromises } from './fakes/PushStream';
+import { FakeChildProcess, helloBytes, videoConfigBytes, videoFrameBytes } from './fakes/FakeHelperProcess';
 import { FakeDeviceObserver } from './fakes/FakeDeviceObserver';
 import { tangoDevice } from './fakes/devices';
 import { DEVICE_CONFIGURATION } from './fakes/h264';
@@ -14,12 +15,27 @@ const io = vi.hoisted(() => ({
   reachable: [] as boolean[],
   observer: undefined as unknown,
   trackFailure: undefined as Error | undefined,
-  execFile: vi.fn((_file: string, _args: string[], _options: unknown, callback: (error: Error | null) => void) => callback(null)),
+  simctlJson: '{"devices":{}}',
+  bootedJson: undefined as string | undefined,
+  child: undefined as unknown,
+  execFile: vi.fn((file: string, args: string[], _options: unknown, callback: (error: Error | null, stdout?: string) => void) => {
+    if (file === 'xcrun' && args[1] === 'boot' && io.bootedJson) {
+      io.simctlJson = io.bootedJson;
+    }
+    callback(null, file === 'xcrun' ? io.simctlJson : undefined);
+    return { stdin: null };
+  }),
   scrcpyClient: undefined as unknown,
   startFailure: undefined as Error | undefined,
 }));
 
 vi.mock('node:child_process', () => ({ execFile: io.execFile }));
+
+vi.mock('../src/ios/nodeAdapters', () => ({
+  assertExecutable: () => Promise.resolve(),
+  pathExists: (path: string) => Promise.resolve(path === '/Library/Developer/PrivateFrameworks/CoreSimulator.framework'),
+  spawnHelper: () => io.child,
+}));
 
 const cdp = vi.hoisted(() => ({
   handle: undefined as ((request: { id: number; method: string; params: { expression?: string } }, emit: (message: unknown) => void) => unknown) | undefined,
@@ -86,6 +102,8 @@ vi.mock('@yume-chan/adb-scrcpy', () => ({
 const { activate, deactivate } = await import('../src/extension');
 
 beforeEach(() => {
+  io.simctlJson = '{"devices":{}}';
+  io.bootedJson = undefined;
   vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('ECONNREFUSED'))));
 });
 
@@ -129,7 +147,7 @@ describe('extension', () => {
     expect(commands.registered.has('reflect.openDevice')).toBe(true);
     expect(commands.registered.has('reflect.openDeviceInEditor')).toBe(true);
     expect(window.viewProviders.has('reflect.deviceView')).toBe(true);
-    expect(window.createOutputChannel).toHaveBeenCalledWith('Reflect for Android', { log: true });
+    expect(window.createOutputChannel).toHaveBeenCalledWith('Reflect', { log: true });
     expect(window.statusBarItems[0]?.text).toBe('$(device-mobile) SM F741B');
     expect(window.treeViews).toEqual([]);
     expect(window.viewProviders.has('reflect.tools')).toBe(true);
@@ -138,7 +156,9 @@ describe('extension', () => {
     }
     expect(commands.registered.has('reflect.action.screenshot')).toBe(true);
     expect(commands.registered.has('reflect.moveToEditor')).toBe(true);
-    expect(context.subscriptions).toHaveLength(47);
+    expect(commands.registered.has('reflect.bootSimulator')).toBe(true);
+    expect(commands.registered.has('reflect.showInSimulator')).toBe(true);
+    expect(context.subscriptions).toHaveLength(52);
   });
 
   it('mirrors in the secondary side bar by default', async () => {
@@ -147,7 +167,7 @@ describe('extension', () => {
     await openDevice();
     expect(commands.executeCommand).toHaveBeenCalledWith('reflect.deviceView.focus');
     expect(window.panels).toEqual([]);
-    expect(view.webview.posted).toContainEqual({ type: 'session-state', state: 'streaming', deviceName: 'SM F741B' });
+    expect(view.webview.posted).toContainEqual({ deviceId: 'R5CX123', message: { type: 'session-state', state: 'streaming', deviceName: 'SM F741B' } });
   });
 
   it('mirrors in an editor tab when configured', async () => {
@@ -246,7 +266,7 @@ describe('extension', () => {
     const view = resolveSidebar();
     await openDevice();
     await commands.registered.get('reflect.inspect')?.();
-    view.webview.received.fire({ type: 'inspect-at', x: 0.5, y: 0.3 });
+    view.webview.received.fire({ deviceId: undefined, message: { type: 'inspect-at', x: 0.5, y: 0.3 } });
     await vi.waitFor(() => expect(window.showTextDocument).toHaveBeenCalled());
     expect(window.showTextDocument.mock.calls[0]?.[0]).toMatchObject({ fsPath: '/workspace/src/Demo.tsx' });
     cdp.handle = undefined;
@@ -269,7 +289,7 @@ describe('extension', () => {
     const view = resolveSidebar();
     await openDevice();
     await commands.registered.get('reflect.inspect')?.();
-    view.webview.received.fire({ type: 'inspect-at', x: 0.5, y: 0.3 });
+    view.webview.received.fire({ deviceId: undefined, message: { type: 'inspect-at', x: 0.5, y: 0.3 } });
     await vi.waitFor(() => expect(window.setStatusBarMessage).toHaveBeenCalledWith('$(info) No React component at that point', 2000));
     cdp.handle = undefined;
   });
@@ -279,7 +299,7 @@ describe('extension', () => {
     const view = resolveSidebar();
     await openDevice();
     await commands.registered.get('reflect.inspect')?.();
-    view.webview.received.fire({ type: 'inspect-at', x: 0.5, y: 0.5 });
+    view.webview.received.fire({ deviceId: undefined, message: { type: 'inspect-at', x: 0.5, y: 0.5 } });
     await vi.waitFor(() => expect(window.showErrorMessage).toHaveBeenCalled());
     expect(window.showErrorMessage.mock.calls[0]?.[0]).toContain('Metro is not running');
   });
@@ -308,14 +328,14 @@ describe('extension', () => {
     await openDevice();
     window.showInformationMessage.mockImplementationOnce(() => Promise.resolve('Open'));
     await commands.registered.get('reflect.action.screenshot')?.();
-    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ type: 'capture-screenshot', requestId: 1 }));
-    view.webview.received.fire({ type: 'screenshot', requestId: 1, data: new Uint8Array([137, 80]) });
+    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ deviceId: 'R5CX123', message: { type: 'capture-screenshot', requestId: 1 } }));
+    view.webview.received.fire({ deviceId: undefined, message: { type: 'screenshot', requestId: 1, data: new Uint8Array([137, 80]) } });
     await vi.waitFor(() => expect(commands.executeCommand).toHaveBeenCalledWith('vscode.open', expect.objectContaining({ fsPath: expect.stringContaining(folder) })));
     expect(window.showInformationMessage.mock.calls[0]?.[0]).toMatch(/copied/);
     window.showInformationMessage.mockImplementationOnce(() => Promise.resolve('Reveal'));
     await commands.registered.get('reflect.action.screenshot')?.();
-    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ type: 'capture-screenshot', requestId: 2 }));
-    view.webview.received.fire({ type: 'screenshot', requestId: 2, data: new Uint8Array([1]) });
+    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ deviceId: 'R5CX123', message: { type: 'capture-screenshot', requestId: 2 } }));
+    view.webview.received.fire({ deviceId: undefined, message: { type: 'screenshot', requestId: 2, data: new Uint8Array([1]) } });
     await vi.waitFor(() => expect(commands.executeCommand).toHaveBeenCalledWith('revealFileInOS', expect.anything()));
   });
 
@@ -351,8 +371,8 @@ describe('extension', () => {
     await openDevice();
     io.execFile.mockClear();
     await commands.registered.get('reflect.action.screenshot')?.();
-    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ type: 'capture-screenshot', requestId: 1 }));
-    view.webview.received.fire({ type: 'screenshot', requestId: 1, data: new Uint8Array([1]) });
+    await vi.waitFor(() => expect(view.webview.posted).toContainEqual({ deviceId: 'R5CX123', message: { type: 'capture-screenshot', requestId: 1 } }));
+    view.webview.received.fire({ deviceId: undefined, message: { type: 'screenshot', requestId: 1, data: new Uint8Array([1]) } });
     await vi.waitFor(() => expect(window.showInformationMessage).toHaveBeenCalled());
     expect(window.showInformationMessage.mock.calls[0]?.[0]).not.toMatch(/copied/);
     expect(io.execFile).not.toHaveBeenCalled();
@@ -397,10 +417,10 @@ describe('extension', () => {
     await openDevice();
     io.scrcpyClient = new FakeScrcpyClient().asClient();
     scrcpy.exit();
-    await vi.waitFor(() => expect(view.webview.posted).toContainEqual(expect.objectContaining({ detail: 'Reconnecting… plug the cable back in' })));
+    await vi.waitFor(() => expect(view.webview.posted).toContainEqual(expect.objectContaining({ message: expect.objectContaining({ detail: 'Reconnecting… plug the cable back in' }) })));
     observer.emitList([tangoDevice()]);
     await vi.waitFor(() =>
-      expect(view.webview.posted.filter((message) => (message as { state?: string }).state === 'streaming')).toHaveLength(2),
+      expect(view.webview.posted.filter((message) => (message as { message: { state?: string } }).message.state === 'streaming')).toHaveLength(2),
     );
   });
 
@@ -418,6 +438,103 @@ describe('extension', () => {
     activate((await createContext()) as unknown as vscode.ExtensionContext);
     await flushPromises();
     expect(window.outputChannels[0]?.lines).toContain('error Device tracking unavailable Error: adb server down');
+  });
+
+  describe.each([
+    ['darwin', true],
+    ['linux', false],
+  ])('on %s', (platform, discoversSimulators) => {
+    it(`${discoversSimulators ? 'polls' : 'does not poll'} simctl for iOS Simulators`, async () => {
+      const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
+      Object.defineProperty(process, 'platform', { value: platform });
+      let context: Awaited<ReturnType<typeof setup>>['context'];
+      try {
+        ({ context } = await setup());
+      } finally {
+        Object.defineProperty(process, 'platform', original);
+      }
+      const simctlCalls = io.execFile.mock.calls.filter(([file]) => file === 'xcrun');
+      expect(simctlCalls.length > 0).toBe(discoversSimulators);
+      if (discoversSimulators) {
+        expect(simctlCalls[0]?.[1]).toEqual(['simctl', 'list', 'devices', '-j']);
+      }
+      const clearTimer = vi.spyOn(globalThis, 'clearTimeout');
+      for (const subscription of context.subscriptions) {
+        subscription.dispose();
+      }
+      if (discoversSimulators) {
+        expect(clearTimer).toHaveBeenCalled();
+      }
+    });
+  });
+
+  describe('iOS Simulators on darwin', () => {
+    const simulatorsJson = (state: string) =>
+      JSON.stringify({
+        devices: { 'com.apple.CoreSimulator.SimRuntime.iOS-26-0': [{ udid: 'UDID-1', name: 'iPhone 15', state, isAvailable: true }] },
+      });
+
+    const setupDarwin = async () => {
+      const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+      try {
+        return await setup([]);
+      } finally {
+        Object.defineProperty(process, 'platform', original);
+      }
+    };
+
+    it('brings a booted simulator into Reflect and quits the Simulator app', async () => {
+      io.simctlJson = simulatorsJson('Booted');
+      const child = new FakeChildProcess();
+      io.child = child;
+      await setupDarwin();
+      const view = resolveSidebar();
+      view.webview.received.fire({ deviceId: undefined, message: { type: 'ready' } });
+      expect(view.webview.posted).toContainEqual({
+        deviceId: undefined,
+        message: {
+          type: 'device-list',
+          devices: [{ id: 'UDID-1', name: 'iPhone 15', detail: 'iOS 26.0', platform: 'ios', kind: 'simulator', state: 'ready' }],
+        },
+      });
+      await commands.registered.get('reflect.openDevice')?.('UDID-1');
+      await flushPromises();
+      child.stdout.emit(helloBytes());
+      child.stdout.emit(videoConfigBytes(884, 1920, [0, 0, 0, 1, 0x67]));
+      child.stdout.emit(videoFrameBytes(true, 0, [0, 0, 0, 1, 0x65]));
+      await flushPromises();
+      expect(child.written).toContain('{"type":"simulatorApp","action":"quit"}\n');
+      expect(view.webview.posted).toContainEqual({ deviceId: 'UDID-1', message: { type: 'session-state', state: 'streaming', deviceName: 'iPhone 15' } });
+      await commands.registered.get('reflect.showInSimulator')?.();
+      expect(io.execFile).toHaveBeenCalledWith('open', ['-a', 'Simulator'], expect.anything(), expect.any(Function));
+    });
+
+    it('only hides the Simulator app when configured to', async () => {
+      workspace.configuration.set('reflect.ios.simulatorWindow', 'hide');
+      io.simctlJson = simulatorsJson('Booted');
+      const child = new FakeChildProcess();
+      io.child = child;
+      await setupDarwin();
+      await commands.registered.get('reflect.openDevice')?.('UDID-1');
+      await flushPromises();
+      child.stdout.emit(helloBytes());
+      child.stdout.emit(videoConfigBytes(884, 1920, [0, 0, 0, 1, 0x67]));
+      child.stdout.emit(videoFrameBytes(true, 0, [0, 0, 0, 1, 0x65]));
+      await flushPromises();
+      expect(child.written).toContain('{"type":"simulatorApp","action":"hide"}\n');
+      expect(io.execFile).not.toHaveBeenCalledWith('osascript', expect.anything(), expect.anything(), expect.anything());
+    });
+
+    it('boots a shut-down simulator headless and opens it when discovery reports it ready', async () => {
+      io.simctlJson = simulatorsJson('Shutdown');
+      io.bootedJson = simulatorsJson('Booted');
+      await setupDarwin();
+      commands.executeCommand.mockClear();
+      await commands.registered.get('reflect.bootSimulator')?.('UDID-1');
+      expect(io.execFile).toHaveBeenCalledWith('xcrun', ['simctl', 'boot', 'UDID-1'], { timeout: 120_000 }, expect.any(Function));
+      expect(commands.executeCommand).toHaveBeenCalledWith('reflect.openDevice', 'UDID-1');
+    }, 10_000);
   });
 
   it('starts the adb server with the configured adb when it is not running', async () => {
@@ -438,8 +555,8 @@ describe('extension', () => {
     expect(panel.title).toBe('SM F741B');
     scrcpy.output.push('server ready');
     scrcpy.clipboard.push('from phone');
-    panel.webview.received.fire({ type: 'paste' });
-    panel.webview.received.fire({ type: 'log', level: 'error', message: 'decoder' });
+    panel.webview.received.fire({ deviceId: undefined, message: { type: 'paste' } });
+    panel.webview.received.fire({ deviceId: undefined, message: { type: 'log', level: 'error', message: 'decoder' } });
     await vi.waitFor(() => expect(channel.lines).toContain('info [scrcpy] server ready'));
     expect(channel.lines).toContain('error [webview] decoder');
     expect(await vscode.env.clipboard.readText()).toBe('from phone');

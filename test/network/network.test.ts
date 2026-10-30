@@ -3,7 +3,7 @@ import { toCurl } from '../../src/network/curl';
 import { NetworkReader } from '../../src/network/NetworkReader';
 import { buildReadNetworkScript, CLEAR_NETWORK_SCRIPT, INSTALL_NETWORK_SCRIPT, MAX_BODY, MAX_ENTRIES, parseNetworkRead, parseResponseHeaders } from '../../src/network/networkScripts';
 import type { NetworkEntry } from '../../src/network/types';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { createXhrSandbox } from '../fakes/xhrSandbox';
 
 const read = (sandbox: ReturnType<typeof createXhrSandbox>, since = 0) => parseNetworkRead(sandbox.run(buildReadNetworkScript(since)));
@@ -112,25 +112,25 @@ describe('parseNetworkRead', () => {
 });
 
 describe('NetworkReader', () => {
-  const device = deviceInfo({ serial: 'A' });
+  const phone = device({ id: 'A' });
   const readerFor = (evaluate: (script: string) => unknown) => new NetworkReader({ connectionFor: () => Promise.resolve({ backend: { evaluate: (script: string) => Promise.resolve(evaluate(script)) } }) } as never);
 
   it('installs the capture on first read and reads everything after a reload', async () => {
     const sandbox = createXhrSandbox();
     const reader = readerFor(sandbox.run);
-    expect(await reader.read(device, 40)).toEqual({ status: 'ok', revision: 0, entries: [] });
+    expect(await reader.read(phone, 40)).toEqual({ status: 'ok', revision: 0, entries: [] });
     sandbox.request('GET', 'https://a/x');
-    expect(await reader.read(device, 0)).toMatchObject({ status: 'ok', revision: 1, entries: [{ url: 'https://a/x' }] });
-    await reader.clear(device);
-    expect(await reader.read(device, 0)).toMatchObject({ entries: [] });
+    expect(await reader.read(phone, 0)).toMatchObject({ status: 'ok', revision: 1, entries: [{ url: 'https://a/x' }] });
+    await reader.clear(phone);
+    expect(await reader.read(phone, 0)).toMatchObject({ entries: [] });
   });
 
   it('reports when the capture cannot be installed', async () => {
-    expect(await readerFor(createXhrSandbox({ withoutXhr: true }).run).read(device, 0)).toEqual({ status: 'unavailable' });
+    expect(await readerFor(createXhrSandbox({ withoutXhr: true }).run).read(phone, 0)).toEqual({ status: 'unavailable' });
     const stubborn = readerFor((script) => (script === INSTALL_NETWORK_SCRIPT ? 'installed' : JSON.stringify({ status: 'not-installed' })));
-    expect(await stubborn.read(device, 0)).toEqual({ status: 'unavailable' });
+    expect(await stubborn.read(phone, 0)).toEqual({ status: 'unavailable' });
     const evaluate = vi.fn(() => '{');
-    expect(await readerFor(evaluate).read(device, 0)).toEqual({ status: 'error', message: 'Unexpected answer from the app' });
+    expect(await readerFor(evaluate).read(phone, 0)).toEqual({ status: 'error', message: 'Unexpected answer from the app' });
   });
 });
 

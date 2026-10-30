@@ -18,7 +18,7 @@ import type { LogRead } from '../../src/logs/types';
 import type { NetworkResult } from '../../src/network/types';
 import { renderToolsHtml } from '../../src/tools/toolsHtml';
 import { TOOLS_VIEW_ID, ToolsViewProvider } from '../../src/tools/ToolsViewProvider';
-import { deviceInfo } from '../fakes/devices';
+import { device } from '../fakes/devices';
 import { FakeActiveDeviceContext } from '../fakes/FakeActiveDeviceContext';
 import { FakeClipboard } from '../fakes/FakeClipboard';
 import { FakeToolsChannel } from '../fakes/FakeToolsChannel';
@@ -63,7 +63,7 @@ describe('DeviceTab', () => {
     const states = new Emitter<PollerState>();
     const poller = { onDidChangeState: states.event, setTarget: vi.fn(), setVisible: vi.fn(), refresh: vi.fn() };
     const context = new FakeActiveDeviceContext();
-    context.target = deviceInfo({ serial: 'A' });
+    context.target = device({ id: 'A' });
     const channel = new FakeToolsChannel();
     const tab = new DeviceTab(poller, context, () => ({ maskIpAddress: true }), channel);
     expect(poller.setTarget).toHaveBeenCalledWith('A');
@@ -120,7 +120,9 @@ const setupProvider = () => {
   const clipboard = new FakeClipboard();
   const notify = vi.fn();
   const setTabContext = vi.fn();
-  const provider = new ToolsViewProvider(Uri.file('/ext') as unknown as vscode.Uri, { app: { get isConnected() { return connected; }, onDidChange: app.event }, clipboard, notify, setTabContext }, () => ({ component, device, storage, network, logs, actions, performance }));
+  const context = new FakeActiveDeviceContext();
+  const tabsFor = vi.fn(() => ({ actions: [], tools: ['component', 'device'] as const }));
+  const provider = new ToolsViewProvider(Uri.file('/ext') as unknown as vscode.Uri, { app: { get isConnected() { return connected; }, onDidChange: app.event }, clipboard, notify, setTabContext, context, capabilities: tabsFor }, () => ({ component, device, storage, network, logs, actions, performance }));
   const view = new FakeWebviewView();
   provider.resolveWebviewView(view as unknown as vscode.WebviewView);
   const send = async (message: unknown) => {
@@ -131,7 +133,7 @@ const setupProvider = () => {
     connected = value;
     app.fire(value);
   };
-  return { provider, view, send, component, device, storage, network, logs, actions, performance, clipboard, notify, setTabContext, setConnected };
+  return { context, tabsFor, provider, view, send, component, device, storage, network, logs, actions, performance, clipboard, notify, setTabContext, setConnected };
 };
 
 describe('ToolsViewProvider', () => {
@@ -142,6 +144,25 @@ describe('ToolsViewProvider', () => {
     await send({ type: 'ready' });
     expect([component.sync, device.sync, storage.sync, network.sync].map((fn) => fn.mock.calls.length)).toEqual([1, 1, 1, 1]);
     expect(view.webview.posted[0]).toEqual({ type: 'app-available', available: false });
+  });
+
+  it('offers every tab while there is no device and the tabs of the target device otherwise', async () => {
+    const { view, send, context, tabsFor } = setupProvider();
+    await send({ type: 'ready' });
+    expect(view.webview.posted).toContainEqual({ type: 'tabs-available', tabs: ['component', 'network', 'logs', 'storage', 'device', 'performance', 'actions'] });
+    const phone = device({ id: 'A' });
+    context.setTarget(phone);
+    expect(tabsFor).toHaveBeenCalledWith(phone);
+    expect(view.webview.posted.at(-1)).toEqual({ type: 'tabs-available', tabs: ['component', 'device'] });
+    context.setTarget(undefined);
+    expect(view.webview.posted.at(-1)).toEqual({ type: 'tabs-available', tabs: ['component', 'network', 'logs', 'storage', 'device', 'performance', 'actions'] });
+  });
+
+  it('stops following the device after dispose', () => {
+    const { context, provider, tabsFor } = setupProvider();
+    provider.dispose();
+    context.setTarget(device());
+    expect(tabsFor).not.toHaveBeenCalled();
   });
 
   it('tells the page when the app connects and drives the network, logs and actions tabs', async () => {
@@ -255,7 +276,7 @@ describe('NetworkTab', () => {
       clear: vi.fn(() => Promise.resolve()),
     };
     const context = new FakeActiveDeviceContext();
-    context.mirroredDevice = deviceInfo({ serial: 'A' });
+    context.mirroredDevice = device({ id: 'A' });
     const channel = new FakeToolsChannel();
     const tab = new NetworkTab(reader, context, channel, 1000);
     return { reader, context, channel, tab, results };
@@ -364,7 +385,7 @@ describe('LogsTab', () => {
       }),
     };
     const context = new FakeActiveDeviceContext();
-    context.mirroredDevice = deviceInfo({ serial: 'A' });
+    context.mirroredDevice = device({ id: 'A' });
     const channel = new FakeToolsChannel();
     const tab = new LogsTab(reader, context, channel, 1000);
     return { reader, context, channel, tab, reads };
@@ -469,7 +490,7 @@ describe('ActionsTab', () => {
       }),
     };
     const context = new FakeActiveDeviceContext();
-    context.mirroredDevice = deviceInfo({ serial });
+    context.mirroredDevice = device({ id: serial });
     const channel = new FakeToolsChannel();
     const confirm = vi.fn((_message: string, _action: string) => Promise.resolve(true));
     let links: readonly string[] = [];
@@ -615,7 +636,7 @@ describe('PerformanceTab', () => {
       resetFrames: vi.fn((_serial: string, _app: string) => Promise.resolve()),
     };
     const context = new FakeActiveDeviceContext();
-    context.mirroredDevice = deviceInfo({ serial: 'A' });
+    context.mirroredDevice = device({ id: 'A' });
     const channel = new FakeToolsChannel();
     const tab = new PerformanceTab(reader, context, channel, 2000, () => (clock += 2000));
     const points = () => channel.posted.filter((message) => message.type === 'performance-points' && !message.reset).flatMap((message) => (message.type === 'performance-points' ? message.points : []));

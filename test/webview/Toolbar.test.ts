@@ -65,4 +65,14 @@ describe('Toolbar', () => {
     expect(document.querySelector('.toolbar__timer')?.textContent).toBe('● 0:00');
     toolbar.dispose();
   });
+
+  it('hides buttons the device does not support and collapses empty groups', () => {
+    const { root, toolbar } = setup();
+    const button = (label: string) => root.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!;
+    const groups = () => [...root.querySelectorAll<HTMLElement>('.toolbar__group')].map((group) => group.hidden);
+    toolbar.setAvailable(['home']);
+    expect([button('Back').hidden, button('Home').hidden, groups()]).toEqual([true, false, [false, true, true, true]]);
+    toolbar.setAvailable(ACTION_IDS);
+    expect([button('Back').hidden, groups()]).toEqual([false, [false, false, false, false]]);
+  });
 });
