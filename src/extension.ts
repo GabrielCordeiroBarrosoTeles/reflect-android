@@ -6,11 +6,14 @@ import * as vscode from 'vscode';
 import { AdbServerGateway, DEFAULT_ADB_ENDPOINT } from './adb/AdbServerGateway';
 import { DeviceSelectionService } from './adb/DeviceSelectionService';
 import { DeviceTracker } from './adb/DeviceTracker';
+import { SimctlRunner } from './ios/SimctlRunner';
+import { SimulatorDiscovery } from './ios/SimulatorDiscovery';
+import type { SimctlExecFile } from './ios/types';
 import { CompositeDeviceDiscovery } from './devices/CompositeDeviceDiscovery';
 import { PlatformScopedDeviceContext } from './device/PlatformScopedDeviceContext';
 import { AndroidPlatform } from './platform/android/AndroidPlatform';
 import { PlatformRegistry } from './platform/PlatformRegistry';
-import type { Device } from './devices/types';
+import type { Device, IDeviceDiscovery } from './devices/types';
 import { isReady } from './devices/types';
 import { ExecFileProcessRunner } from './adb/ExecFileProcessRunner';
 import { createAdbLocator } from './adb/locator/createAdbLocator';
@@ -78,6 +81,8 @@ import { StatusBarPresenter } from './ui/StatusBarPresenter';
 
 const ADB_START_TIMEOUT_MS = 15_000;
 const DEVICE_INFO_INTERVAL_MS = 5_000;
+const SIMCTL_TIMEOUT_MS = 15_000;
+const SIMULATOR_POLL_INTERVAL_MS = 2_000;
 const COPY_FEEDBACK_MS = 2_000;
 const METRO_TIMEOUT_MS = 3_000;
 const INSPECTOR_TIMING = { pollIntervalMs: 30, pollAttempts: 50, timeoutMs: 5_000 };
@@ -152,7 +157,11 @@ export function activate(context: vscode.ExtensionContext): void {
   const launcher = new AdbScrcpyLauncher();
   const pool = new DeviceLeasePool(gateway, logger);
   const tracker = new DeviceTracker(gateway);
-  const discovery = new CompositeDeviceDiscovery([tracker]);
+  const discoverySources: IDeviceDiscovery[] = [tracker];
+  if (process.platform === 'darwin') {
+    discoverySources.push(new SimulatorDiscovery(new SimctlRunner(execFile as SimctlExecFile, SIMCTL_TIMEOUT_MS), logger, SIMULATOR_POLL_INTERVAL_MS));
+  }
+  const discovery = new CompositeDeviceDiscovery(discoverySources);
   const activeDevice = new ActiveDeviceContext(discovery);
   const androidDevice = new PlatformScopedDeviceContext(activeDevice, 'android');
   const statusBar = new StatusBarPresenter(activeDevice, CommandIds.openDevice);

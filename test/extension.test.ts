@@ -420,6 +420,23 @@ describe('extension', () => {
     expect(window.outputChannels[0]?.lines).toContain('error Device tracking unavailable Error: adb server down');
   });
 
+  describe.each([
+    ['darwin', true],
+    ['linux', false],
+  ])('on %s', (platform, discoversSimulators) => {
+    it(`${discoversSimulators ? 'polls' : 'does not poll'} simctl for iOS Simulators`, async () => {
+      const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
+      Object.defineProperty(process, 'platform', { value: platform });
+      try {
+        await setup();
+      } finally {
+        Object.defineProperty(process, 'platform', original);
+      }
+      const simctlCalls = io.execFile.mock.calls.filter(([file]) => file === 'xcrun');
+      expect(simctlCalls.length > 0).toBe(discoversSimulators);
+    });
+  });
+
   it('starts the adb server with the configured adb when it is not running', async () => {
     const adb = await createFakeAdb(join(await createTempRoot(), 'bin'));
     workspace.configuration.set('reflect.adbPath', adb);
