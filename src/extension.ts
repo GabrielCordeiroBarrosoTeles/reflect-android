@@ -8,7 +8,7 @@ import { DeviceSelectionService } from './adb/DeviceSelectionService';
 import { DeviceTracker } from './adb/DeviceTracker';
 import { createHelperProcessFactory } from './ios/HelperProcess';
 import { IosPlatform } from './ios/IosPlatform';
-import { assertExecutable, spawnHelper } from './ios/nodeAdapters';
+import { assertExecutable, pathExists, spawnHelper } from './ios/nodeAdapters';
 import { SimctlRunner } from './ios/SimctlRunner';
 import { SimulatorAppWindow } from './ios/SimulatorAppWindow';
 import { SimulatorDiscovery } from './ios/SimulatorDiscovery';
@@ -95,7 +95,8 @@ const SIMULATOR_APP_TIMEOUT_MS = 10_000;
 const SIMULATOR_BOOT_TIMEOUT_MS = 60_000;
 const SIMCTL_BOOT_TIMEOUT_MS = 120_000;
 const IOS_HELPER_ASSET = ['assets', 'ios-helper', 'reflect-sim-helper'];
-const SIMULATOR_POLL_INTERVAL_MS = 2_000;
+const SIMULATOR_POLL_TIMING = { intervalMs: 2_000, failureBackoffMs: 30_000, maxFailureBackoffMs: 300_000 };
+const CORE_SIMULATOR_PATH = '/Library/Developer/PrivateFrameworks/CoreSimulator.framework';
 const COPY_FEEDBACK_MS = 2_000;
 const METRO_TIMEOUT_MS = 3_000;
 const INSPECTOR_TIMING = { pollIntervalMs: 30, pollAttempts: 50, timeoutMs: 5_000 };
@@ -183,7 +184,7 @@ export function activate(context: vscode.ExtensionContext): void {
     logger,
   );
   if (process.platform === 'darwin') {
-    const simulators = new SimulatorDiscovery(simctl, logger, SIMULATOR_POLL_INTERVAL_MS);
+    const simulators = new SimulatorDiscovery(simctl, logger, SIMULATOR_POLL_TIMING, () => pathExists(CORE_SIMULATOR_PATH));
     discoverySources.push(simulators);
     const spawnHelperProcess = createHelperProcessFactory({
       helperPath: vscode.Uri.joinPath(context.extensionUri, ...IOS_HELPER_ASSET).fsPath,

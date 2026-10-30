@@ -4,6 +4,12 @@ import type { Device, IDeviceDiscovery } from '../devices/types';
 import { parseSimctlDevices } from './parseSimctlDevices';
 import type { ISimctl } from './types';
 
+export interface SimulatorPollTiming {
+  readonly intervalMs: number;
+  readonly failureBackoffMs: number;
+  readonly maxFailureBackoffMs: number;
+}
+
 const signature = (devices: readonly Device[]): string => devices.map((device) => `${device.id}:${device.state}`).join('|');
 
 export class SimulatorDiscovery implements IDeviceDiscovery {
@@ -12,7 +18,7 @@ export class SimulatorDiscovery implements IDeviceDiscovery {
   private current: readonly Device[] = [];
   private timer: ReturnType<typeof setTimeout> | undefined;
   private started = false;
-  private failureLogged = false;
+  private failures = 0;
   private disposed = false;
 
   readonly onDidChangeDevices = this.changeEmitter.event;
@@ -21,7 +27,8 @@ export class SimulatorDiscovery implements IDeviceDiscovery {
   constructor(
     private readonly simctl: ISimctl,
     private readonly logger: ILogger,
-    private readonly intervalMs: number,
+    private readonly timing: SimulatorPollTiming,
+    private readonly simulatorsInstalled: () => Promise<boolean>,
   ) {}
 
   get devices(): readonly Device[] {
@@ -33,6 +40,14 @@ export class SimulatorDiscovery implements IDeviceDiscovery {
       return;
     }
     this.started = true;
+    const installed = await this.simulatorsInstalled();
+    if (this.disposed) {
+      return;
+    }
+    if (!installed) {
+      this.logger.info('iOS Simulator support is off: Xcode (CoreSimulator) is not installed');
+      return;
+    }
     await this.poll();
     this.scheduleNext();
   }
@@ -51,12 +66,20 @@ export class SimulatorDiscovery implements IDeviceDiscovery {
     }
     this.timer = setTimeout(() => {
       void this.poll().then(() => this.scheduleNext());
-    }, this.intervalMs);
+    }, this.nextDelayMs());
+  }
+
+  private nextDelayMs(): number {
+    if (this.failures === 0) {
+      return this.timing.intervalMs;
+    }
+    return Math.min(this.timing.failureBackoffMs * 2 ** (this.failures - 1), this.timing.maxFailureBackoffMs);
   }
 
   private async poll(): Promise<void> {
     try {
       this.update(parseSimctlDevices(await this.simctl.run(['list', 'devices', '-j'])));
+      this.failures = 0;
     } catch (error) {
       this.reportFailure(error);
       this.update([]);
@@ -72,8 +95,8 @@ export class SimulatorDiscovery implements IDeviceDiscovery {
   }
 
   private reportFailure(error: unknown): void {
-    if (!this.failureLogged) {
-      this.failureLogged = true;
+    this.failures += 1;
+    if (this.failures === 1) {
       this.logger.error('iOS Simulator discovery unavailable', error);
     }
   }

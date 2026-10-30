@@ -3,13 +3,16 @@ import { SimulatorDiscovery } from '../../src/ios/SimulatorDiscovery';
 import type { ISimctl } from '../../src/ios/types';
 import { simctlDevicesJson } from './fixtures';
 
-const setup = (run: ISimctl['run']) => {
+const TIMING = { intervalMs: 2000, failureBackoffMs: 30_000, maxFailureBackoffMs: 300_000 };
+
+const setup = (run: ISimctl['run'], installed: () => Promise<boolean> = () => Promise.resolve(true)) => {
   const simctl: ISimctl = { run: vi.fn(run) };
   const logger = { info: vi.fn(), error: vi.fn() };
-  const discovery = new SimulatorDiscovery(simctl, logger, 2000);
+  const simulatorsInstalled = vi.fn(installed);
+  const discovery = new SimulatorDiscovery(simctl, logger, TIMING, simulatorsInstalled);
   const changes = vi.fn();
   discovery.onDidChangeDevices(changes);
-  return { simctl, logger, discovery, changes };
+  return { simctl, logger, discovery, changes, simulatorsInstalled };
 };
 
 describe('SimulatorDiscovery', () => {
@@ -79,6 +82,8 @@ describe('SimulatorDiscovery', () => {
     let resolveRun: (value: string) => void = () => undefined;
     const { discovery, simctl, changes } = setup(() => new Promise((resolve) => (resolveRun = resolve)));
     const started = discovery.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(simctl.run).toHaveBeenCalledTimes(1);
     discovery.dispose();
     resolveRun(simctlDevicesJson());
     await started;
@@ -87,5 +92,64 @@ describe('SimulatorDiscovery', () => {
     expect(changes).not.toHaveBeenCalled();
     await discovery.start();
     expect(simctl.run).toHaveBeenCalledTimes(1);
+  });
+
+  it('never runs simctl when CoreSimulator is not installed', async () => {
+    const { discovery, simctl, logger, changes } = setup(() => Promise.resolve(simctlDevicesJson()), () => Promise.resolve(false));
+    await discovery.start();
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(simctl.run).not.toHaveBeenCalled();
+    expect(changes).not.toHaveBeenCalled();
+    expect(discovery.devices).toEqual([]);
+    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('not installed'));
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('does not poll when disposed while checking for CoreSimulator', async () => {
+    let answer: (installed: boolean) => void = () => undefined;
+    const { discovery, simctl } = setup(
+      () => Promise.resolve(simctlDevicesJson()),
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    const started = discovery.start();
+    discovery.dispose();
+    answer(true);
+    await started;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(simctl.run).not.toHaveBeenCalled();
+  });
+
+  it('backs off after failures, doubling from 30 s up to 5 min', async () => {
+    const { discovery, simctl } = setup(() => Promise.reject(new Error('no xcode')));
+    await discovery.start();
+    const callsAfter = async (ms: number) => {
+      await vi.advanceTimersByTimeAsync(ms);
+      return vi.mocked(simctl.run).mock.calls.length;
+    };
+    expect(await callsAfter(29_999)).toBe(1);
+    expect(await callsAfter(1)).toBe(2);
+    expect(await callsAfter(59_999)).toBe(2);
+    expect(await callsAfter(1)).toBe(3);
+    expect(await callsAfter(120_000)).toBe(4);
+    expect(await callsAfter(240_000)).toBe(5);
+    expect(await callsAfter(299_999)).toBe(5);
+    expect(await callsAfter(1)).toBe(6);
+    expect(await callsAfter(300_000)).toBe(7);
+    discovery.dispose();
+  });
+
+  it('returns to the normal interval once simctl recovers and logs a new outage again', async () => {
+    let fail = true;
+    const { discovery, simctl, logger } = setup(() => (fail ? Promise.reject(new Error('x')) : Promise.resolve(simctlDevicesJson())));
+    await discovery.start();
+    fail = false;
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(discovery.devices).toHaveLength(3);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(simctl.run).toHaveBeenCalledTimes(3);
+    fail = true;
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(logger.error).toHaveBeenCalledTimes(2);
+    discovery.dispose();
   });
 });

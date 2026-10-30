@@ -33,6 +33,7 @@ vi.mock('node:child_process', () => ({ execFile: io.execFile }));
 
 vi.mock('../src/ios/nodeAdapters', () => ({
   assertExecutable: () => Promise.resolve(),
+  pathExists: (path: string) => Promise.resolve(path === '/Library/Developer/PrivateFrameworks/CoreSimulator.framework'),
   spawnHelper: () => io.child,
 }));
 
