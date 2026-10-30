@@ -7,7 +7,7 @@ import type { DeviceAvailability } from '../mirror/AutoReconnect';
 import type { IDeviceControl, IMirrorSession } from '../platform/types';
 import { SessionStateMachine } from '../platform/SessionStateMachine';
 import type { SessionStateKind, VideoConfig, VideoPacket } from '../shared/protocol';
-import type { HelperCommand, HelperEvent, HelperFrame, HelperHello, HelperProcessFactory, IHelperProcess, ISimulatorPasteboard } from './types';
+import type { HelperCommand, HelperEvent, HelperFrame, HelperHello, HelperProcessFactory, IHelperProcess, ISimctl, ISimulatorPasteboard } from './types';
 
 const START_TIMEOUT_MS = 15_000;
 const CLIPBOARD_POLL_MS = 1000;
@@ -33,6 +33,7 @@ export interface HelperSessionDependencies {
   readonly createControl: ControlFactory;
   readonly logger: ILogger;
   readonly pasteboard: ISimulatorPasteboard;
+  readonly simctl: ISimctl;
   readonly availability: DeviceAvailability;
   readonly onStreaming: (send: (command: HelperCommand) => void) => void;
 }
@@ -109,6 +110,10 @@ export class HelperMirrorSession implements IMirrorSession {
       this.stateMachine.transitionTo('error', failure.message);
       throw failure;
     }
+  }
+
+  captureScreenshot(): Promise<Uint8Array | undefined> {
+    return this.dependencies.simctl.screenshot(this.device.id);
   }
 
   requestKeyframe(): Promise<void> {

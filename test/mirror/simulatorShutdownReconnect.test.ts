@@ -15,7 +15,7 @@ const POLL_MS = 2000;
 
 const setup = async () => {
   let state: 'Booted' | 'Shutdown' = 'Booted';
-  const simctl: ISimctl = { run: vi.fn((args: readonly string[]) => Promise.resolve(args[0] === 'list' ? simctlDevicesJson(state) : '')) };
+  const simctl: ISimctl = { run: vi.fn((args: readonly string[]) => Promise.resolve(args[0] === 'list' ? simctlDevicesJson(state) : '')), screenshot: vi.fn(() => Promise.resolve(new Uint8Array())) };
   const logger = new FakeLogger();
   const discovery = new SimulatorDiscovery(simctl, logger, { intervalMs: POLL_MS, failureBackoffMs: 30_000, maxFailureBackoffMs: 300_000 }, () =>
     Promise.resolve(true),

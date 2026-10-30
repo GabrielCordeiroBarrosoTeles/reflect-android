@@ -10,6 +10,7 @@ const setup = (pasteboardText = 'before') => {
   const order: string[] = [];
   let board = pasteboardText;
   const simctl: ISimctl = {
+    screenshot: vi.fn(() => Promise.resolve(new Uint8Array())),
     run: vi.fn((args: readonly string[], input?: string) => {
       order.push(`simctl ${args[0]}`);
       if (args[0] === 'pbcopy') {
@@ -198,7 +199,7 @@ describe('IosDeviceControl', () => {
   });
 
   it('restores the pasteboard even when the paste keystrokes fail', async () => {
-    const simctl: ISimctl = { run: vi.fn((args: readonly string[]) => Promise.resolve(args[0] === 'pbpaste' ? 'before' : '')) };
+    const simctl: ISimctl = { run: vi.fn((args: readonly string[]) => Promise.resolve(args[0] === 'pbpaste' ? 'before' : '')), screenshot: vi.fn(() => Promise.resolve(new Uint8Array())) };
     const control = new IosDeviceControl(
       (command) => {
         if (command.type === 'key') {

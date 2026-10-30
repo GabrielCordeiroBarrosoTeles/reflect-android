@@ -37,6 +37,11 @@ describe('MirrorSession', () => {
     expect(session.videoConfig).toEqual(configs[0]);
   });
 
+  it('cannot capture a native screenshot', async () => {
+    const { session } = setup();
+    await expect(session.captureScreenshot()).resolves.toBeUndefined();
+  });
+
   it('defaults unknown video dimensions to zero', async () => {
     const { session, client } = setup();
     client.metadata = { codec: 1 };

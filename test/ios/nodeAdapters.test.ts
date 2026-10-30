@@ -2,7 +2,7 @@ import { chmod, mkdtemp, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { assertExecutable, pathExists, spawnHelper } from '../../src/ios/nodeAdapters';
+import { assertExecutable, pathExists, simctlFiles, spawnHelper } from '../../src/ios/nodeAdapters';
 
 describe('nodeAdapters', () => {
   it('accepts an executable file and restores the exec bit of a file that lost it', async () => {
@@ -19,6 +19,17 @@ describe('nodeAdapters', () => {
   it('rejects a missing helper with the original access error', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'reflect-ios-'));
     await expect(assertExecutable(join(directory, 'missing'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('builds unique temp paths, reads bytes and removes files quietly', async () => {
+    const path = simctlFiles.tempPath('shot');
+    expect(path).toMatch(/shot-[0-9a-f-]{36}\.png$/);
+    expect(simctlFiles.tempPath('shot')).not.toBe(path);
+    await writeFile(path, new Uint8Array([1, 2]));
+    await expect(simctlFiles.readFile(path)).resolves.toEqual(new Uint8Array([1, 2]));
+    await simctlFiles.rm(path);
+    await expect(pathExists(path)).resolves.toBe(false);
+    await expect(simctlFiles.rm(path)).resolves.toBeUndefined();
   });
 
   it('tells whether a path exists', async () => {

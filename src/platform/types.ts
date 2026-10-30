@@ -38,6 +38,7 @@ export interface IMirrorSession extends IDisposable {
   readonly onVideoPacket: Event<VideoPacket>;
   start(): Promise<void>;
   requestKeyframe(): Promise<void>;
+  captureScreenshot(): Promise<Uint8Array | undefined>;
 }
 
 export interface PlatformCopy {

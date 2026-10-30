@@ -124,12 +124,19 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
   }
 
   async takeScreenshot(): Promise<void> {
-    const data = await this.screenshots.request();
+    const data = (await this.captureNative()) ?? (await this.screenshots.request());
     if (!data) {
       this.services.actions.notify('No frame to capture yet');
       return;
     }
     this.services.onCaptured('screenshot', await this.services.captures.save(data, 'png', deviceLabel(this.device)));
+  }
+
+  private captureNative(): Promise<Uint8Array | undefined> {
+    return this.session.captureScreenshot().catch((error: unknown) => {
+      this.services.logger.error('Native screenshot failed; using the mirrored frame instead', error);
+      return undefined;
+    });
   }
 
   toggleRecording(): Promise<void> {

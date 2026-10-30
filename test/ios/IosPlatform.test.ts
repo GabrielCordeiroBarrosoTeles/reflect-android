@@ -15,7 +15,7 @@ describe('IosPlatform', () => {
 
   const build = () => {
     const helper = new FakeHelperProcess();
-    const simctl = { run: vi.fn(() => Promise.resolve('')) };
+    const simctl = { run: vi.fn(() => Promise.resolve('')), screenshot: vi.fn(() => Promise.resolve(new Uint8Array())) };
     const window = { makeRoom: vi.fn((_send: (command: HelperCommand) => void) => Promise.resolve()) };
     const availabilityEmitter = new Emitter<void>();
     const availability = { ready: true, onDidChange: availabilityEmitter.event, isReady: () => availability.ready };

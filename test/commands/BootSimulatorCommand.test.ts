@@ -10,7 +10,7 @@ const sim = (overrides: Partial<Device> = {}): Device =>
 
 const setup = (devices: readonly Device[] = [sim()]) => {
   const discovery = new FakeDeviceTracker(devices);
-  const simctl = { run: vi.fn(() => Promise.resolve('')) };
+  const simctl = { run: vi.fn(() => Promise.resolve('')), screenshot: vi.fn(() => Promise.resolve(new Uint8Array())) };
   const open = vi.fn(() => Promise.resolve());
   const errors = { present: vi.fn(() => Promise.resolve()) };
   const pick = vi.fn((candidates: readonly Device[]) => Promise.resolve(candidates[0]));

@@ -34,6 +34,8 @@ export class FakeMirrorSession implements IMirrorSession {
   state: SessionStateKind = 'idle';
   videoConfig: VideoConfig | undefined;
   startFailure: unknown;
+  screenshot: Uint8Array | undefined;
+  screenshotFailure: Error | undefined;
   keyframeFailure: Error | undefined;
   started = 0;
   keyframes = 0;
@@ -47,6 +49,10 @@ export class FakeMirrorSession implements IMirrorSession {
   requestKeyframe(): Promise<void> {
     this.keyframes += 1;
     return this.keyframeFailure ? Promise.reject(this.keyframeFailure) : Promise.resolve();
+  }
+
+  captureScreenshot(): Promise<Uint8Array | undefined> {
+    return this.screenshotFailure ? Promise.reject(this.screenshotFailure) : Promise.resolve(this.screenshot);
   }
 
   dispose(): void {

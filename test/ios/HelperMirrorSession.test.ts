@@ -28,12 +28,12 @@ const setup = (pbpaste: () => Promise<string> = () => Promise.resolve('')) => {
   const control = new FakeDeviceControl();
   const createControl = vi.fn(() => control);
   const logger = new FakeLogger();
-  const simctl: ISimctl = { run: vi.fn(pbpaste) };
+  const simctl: ISimctl = { run: vi.fn(pbpaste), screenshot: vi.fn(() => Promise.resolve(new Uint8Array([137, 80]))) };
   const pasteboard = new SimulatorPasteboard(simctl, device.id);
   const onStreaming = vi.fn();
   const availabilityEmitter = new Emitter<void>();
   const availability = { ready: true, onDidChange: availabilityEmitter.event, isReady: vi.fn((_serial: string) => availability.ready) };
-  const session = new HelperMirrorSession(device, { spawn, createControl, logger, pasteboard, availability, onStreaming });
+  const session = new HelperMirrorSession(device, { spawn, createControl, logger, pasteboard, availability, onStreaming, simctl });
   const states: SessionStateChange[] = [];
   const configs: VideoConfig[] = [];
   const packets: VideoPacket[] = [];
@@ -57,6 +57,12 @@ const startStreaming = async (context: ReturnType<typeof setup>) => {
 describe('HelperMirrorSession', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
+
+  it('captures a native-resolution PNG through simctl', async () => {
+    const context = setup();
+    await expect(context.session.captureScreenshot()).resolves.toEqual(new Uint8Array([137, 80]));
+    expect(context.simctl.screenshot).toHaveBeenCalledWith('UDID-1');
+  });
 
   it('streams after hello, config and the first frame', async () => {
     const context = setup();

@@ -35,6 +35,7 @@ vi.mock('../src/ios/nodeAdapters', () => ({
   assertExecutable: () => Promise.resolve(),
   pathExists: (path: string) => Promise.resolve(path === '/Library/Developer/PrivateFrameworks/CoreSimulator.framework'),
   spawnHelper: () => io.child,
+  simctlFiles: { tempPath: () => '/tmp/x.png', readFile: () => Promise.resolve(new Uint8Array()), rm: () => Promise.resolve() },
 }));
 
 const cdp = vi.hoisted(() => ({

@@ -6,7 +6,7 @@ import { simctlDevicesJson } from './fixtures';
 const TIMING = { intervalMs: 2000, failureBackoffMs: 30_000, maxFailureBackoffMs: 300_000 };
 
 const setup = (run: ISimctl['run'], installed: () => Promise<boolean> = () => Promise.resolve(true)) => {
-  const simctl: ISimctl = { run: vi.fn(run) };
+  const simctl: ISimctl = { run: vi.fn(run), screenshot: vi.fn(() => Promise.resolve(new Uint8Array())) };
   const logger = { info: vi.fn(), error: vi.fn() };
   const simulatorsInstalled = vi.fn(installed);
   const discovery = new SimulatorDiscovery(simctl, logger, TIMING, simulatorsInstalled);

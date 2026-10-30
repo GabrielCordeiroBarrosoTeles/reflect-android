@@ -52,6 +52,10 @@ export class MirrorSession implements IMirrorSession {
     return this.currentVideoConfig;
   }
 
+  captureScreenshot(): Promise<Uint8Array | undefined> {
+    return Promise.resolve(undefined);
+  }
+
   async start(): Promise<void> {
     if (!this.stateMachine.transitionTo('connecting')) {
       return;

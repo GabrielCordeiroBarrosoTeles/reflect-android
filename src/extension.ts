@@ -8,7 +8,7 @@ import { DeviceSelectionService } from './adb/DeviceSelectionService';
 import { DeviceTracker } from './adb/DeviceTracker';
 import { createHelperProcessFactory } from './ios/HelperProcess';
 import { IosPlatform } from './ios/IosPlatform';
-import { assertExecutable, pathExists, spawnHelper } from './ios/nodeAdapters';
+import { assertExecutable, pathExists, simctlFiles, spawnHelper } from './ios/nodeAdapters';
 import { SimctlRunner } from './ios/SimctlRunner';
 import { SimulatorAppWindow } from './ios/SimulatorAppWindow';
 import { SimulatorDiscovery } from './ios/SimulatorDiscovery';
@@ -177,7 +177,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   const discoverySources: IDeviceDiscovery[] = [tracker];
   const platformList: IPlatform[] = [new AndroidPlatform(pool, launcher, serverBinary, MIRROR_OPTIONS, logger)];
-  const simctl = new SimctlRunner(execFile as SimctlExecFile, SIMCTL_TIMEOUT_MS);
+  const simctl = new SimctlRunner(execFile as SimctlExecFile, SIMCTL_TIMEOUT_MS, simctlFiles);
   const simulatorWindow = new SimulatorAppWindow(
     () => reflectSetting<string>('ios.simulatorWindow'),
     new ExecFileProcessRunner(promisify(execFile), SIMULATOR_APP_TIMEOUT_MS),
@@ -351,7 +351,7 @@ export function activate(context: vscode.ExtensionContext): void {
       Promise.resolve(vscode.commands.executeCommand(CommandIds.openDevice)),
     ),
     new BootSimulatorCommand(
-      new SimctlRunner(execFile as SimctlExecFile, SIMCTL_BOOT_TIMEOUT_MS),
+      new SimctlRunner(execFile as SimctlExecFile, SIMCTL_BOOT_TIMEOUT_MS, simctlFiles),
       discovery,
       picker,
       async (deviceId) => void (await vscode.commands.executeCommand(CommandIds.openDevice, deviceId)),

@@ -40,6 +40,7 @@ export class IosPlatform implements IPlatform {
       createControl: (send: (command: HelperCommand) => void, hello: HelperHello) => new IosDeviceControl(send, hello, pasteboard, { setTimeout }),
       logger: this.logger,
       pasteboard,
+      simctl: this.simctl,
       availability: this.availability,
       onStreaming: (send) => void this.window.makeRoom(send),
     });

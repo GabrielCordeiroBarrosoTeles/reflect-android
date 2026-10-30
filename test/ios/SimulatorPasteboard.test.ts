@@ -5,6 +5,7 @@ import type { ISimctl } from '../../src/ios/types';
 const setup = (initial = '') => {
   let board = initial;
   const simctl: ISimctl = {
+    screenshot: vi.fn(() => Promise.resolve(new Uint8Array())),
     run: vi.fn((args: readonly string[], input?: string) => {
       if (args[0] === 'pbcopy') {
         board = input ?? '';

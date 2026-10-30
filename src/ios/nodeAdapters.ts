@@ -1,6 +1,9 @@
 import { spawn } from 'node:child_process';
-import { access, chmod, constants } from 'node:fs/promises';
-import type { ChildProcessLike, SpawnFunction } from './types';
+import { randomUUID } from 'node:crypto';
+import { access, chmod, constants, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { ChildProcessLike, SimctlFiles, SpawnFunction } from './types';
 
 const EXECUTABLE_MODE = 0o755;
 
@@ -23,3 +26,9 @@ export const pathExists = (path: string): Promise<boolean> => access(path, const
 
 export const spawnHelper: SpawnFunction = (file, args): ChildProcessLike =>
   spawn(file, [...args], { stdio: ['pipe', 'pipe', 'pipe'] });
+
+export const simctlFiles: SimctlFiles = {
+  tempPath: (name) => join(tmpdir(), `${name}-${randomUUID()}.png`),
+  readFile: async (path) => new Uint8Array(await readFile(path)),
+  rm: (path) => rm(path, { force: true }),
+};

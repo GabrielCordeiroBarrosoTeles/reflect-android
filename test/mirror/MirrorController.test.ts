@@ -244,6 +244,26 @@ describe('MirrorController', () => {
     expect(onCaptured).toHaveBeenCalledWith('screenshot', '/captures/shot.png');
   });
 
+  it('saves the session screenshot without asking the webview', async () => {
+    const { controller, session, posted, captures, onCaptured } = setup();
+    session.screenshot = new Uint8Array([9, 9]);
+    await controller.takeScreenshot();
+    expect(posted.some((message) => message.type === 'capture-screenshot')).toBe(false);
+    expect(captures.save).toHaveBeenCalledWith(new Uint8Array([9, 9]), 'png', 'Pixel 8');
+    expect(onCaptured).toHaveBeenCalledWith('screenshot', '/captures/shot.png');
+  });
+
+  it('falls back to the webview frame and logs once when the session screenshot fails', async () => {
+    const { controller, session, send, logger, captures } = setup();
+    session.screenshotFailure = new Error('simctl died');
+    const capture = controller.takeScreenshot();
+    await flushPromises();
+    await send({ type: 'screenshot', requestId: 1, data: new Uint8Array([7]) });
+    await capture;
+    expect(captures.save).toHaveBeenCalledWith(new Uint8Array([7]), 'png', 'Pixel 8');
+    expect(logger.errors).toHaveLength(1);
+  });
+
   it('explains when there is no frame to capture', async () => {
     const { controller, send, actions, captures } = setup();
     const capture = controller.takeScreenshot();

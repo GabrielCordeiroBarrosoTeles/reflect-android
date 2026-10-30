@@ -2,6 +2,13 @@ import type { Event, IDisposable } from '../core/types';
 
 export interface ISimctl {
   run(args: readonly string[], input?: string): Promise<string>;
+  screenshot(udid: string): Promise<Uint8Array>;
+}
+
+export interface SimctlFiles {
+  tempPath(name: string): string;
+  readFile(path: string): Promise<Uint8Array>;
+  rm(path: string): Promise<void>;
 }
 
 export interface ISimulatorPasteboard extends IDisposable {
