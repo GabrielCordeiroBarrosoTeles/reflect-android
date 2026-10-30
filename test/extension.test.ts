@@ -146,7 +146,7 @@ describe('extension', () => {
     expect(commands.registered.has('reflect.openDevice')).toBe(true);
     expect(commands.registered.has('reflect.openDeviceInEditor')).toBe(true);
     expect(window.viewProviders.has('reflect.deviceView')).toBe(true);
-    expect(window.createOutputChannel).toHaveBeenCalledWith('Reflect for Android', { log: true });
+    expect(window.createOutputChannel).toHaveBeenCalledWith('Reflect', { log: true });
     expect(window.statusBarItems[0]?.text).toBe('$(device-mobile) SM F741B');
     expect(window.treeViews).toEqual([]);
     expect(window.viewProviders.has('reflect.tools')).toBe(true);

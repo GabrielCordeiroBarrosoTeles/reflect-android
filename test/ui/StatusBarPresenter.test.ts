@@ -14,7 +14,7 @@ describe('StatusBarPresenter', () => {
   it('creates a visible item bound to the open command', () => {
     const { item } = setup();
     expect(item).toMatchObject({ id: 'reflect.device', alignment: StatusBarAlignment.Left, command: 'reflect.openDevice', visible: true });
-    expect(item.name).toBe('Reflect for Android');
+    expect(item.name).toBe('Reflect');
   });
 
   it('shows when no device is connected', () => {

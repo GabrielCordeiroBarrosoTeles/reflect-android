@@ -157,7 +157,7 @@ const registerCommands = (context: vscode.ExtensionContext, commands: readonly I
 };
 
 export function activate(context: vscode.ExtensionContext): void {
-  const outputChannel = vscode.window.createOutputChannel('Reflect for Android', { log: true });
+  const outputChannel = vscode.window.createOutputChannel('Reflect', { log: true });
   const logger = createLogger(outputChannel);
   const locator = createAdbLocator(readAdbPathSetting);
   const gateway = new AdbServerGateway(

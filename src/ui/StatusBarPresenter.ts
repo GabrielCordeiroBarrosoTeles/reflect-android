@@ -13,7 +13,7 @@ export class StatusBarPresenter implements IDisposable {
     commandId: string,
   ) {
     this.item = vscode.window.createStatusBarItem('reflect.device', vscode.StatusBarAlignment.Left, 100);
-    this.item.name = 'Reflect for Android';
+    this.item.name = 'Reflect';
     this.item.command = commandId;
     this.subscriptions.add(this.context.onDidChange(() => this.render()));
     this.render();

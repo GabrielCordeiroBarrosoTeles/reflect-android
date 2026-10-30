@@ -171,7 +171,7 @@ When `reflect.adbPath` is empty, Reflect looks for `adb` in this order: `$ANDROI
 | "adb not found" | Install platform-tools or set `reflect.adbPath`. |
 | "device not authorized" | Unlock the phone and accept the USB debugging prompt. If it does not appear, revoke USB debugging authorizations in Developer options and reconnect. |
 | "device is offline" | Reconnect the cable, try another USB port or cable, or toggle USB debugging. |
-| Black screen | Open **View → Output → Reflect for Android** and check the `[webview]` lines. Include them when you open an issue. |
+| Black screen | Open **View → Output → Reflect** and check the `[webview]` lines. Include them when you open an issue. |
 | Input does nothing | Click the mirrored screen first so it receives focus. |
 | "Metro is not running" when inspecting | Start your app with `npx expo start` or `npx react-native start`, or set `reflect.metroPort`. |
 | "No debuggable React Native app" | Open the app in development mode. The inspector needs React Native 0.76 or newer. |
@@ -194,13 +194,13 @@ Reflect is free and open source. If it saves you time, you can support its devel
 - [GitHub Sponsors](https://github.com/sponsors/GabrielCordeiroBarrosoTeles)
 - 🇧🇷 **PIX**: scan the QR code below with your bank app
 
-<img src="assets/pix-card.png" width="260" alt="PIX QR code card to support Reflect for Android">
+<img src="assets/pix-card.png" width="260" alt="PIX QR code card to support Reflect">
 
 Starring the repository and sharing it with other developers helps a lot too.
 
 ## Credits and licenses
 
-- Reflect for Android is released under the [MIT License](LICENSE).
+- Reflect is released under the [MIT License](LICENSE).
 - It bundles the **scrcpy server** by Genymobile and Romain Vimont, licensed under the [Apache License 2.0](assets/scrcpy-server.LICENSE).
 - It uses the **Tango** (`@yume-chan/*`) libraries by Simon Chan, licensed under the MIT License.
 

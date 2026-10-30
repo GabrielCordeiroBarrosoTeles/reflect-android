@@ -1,6 +1,6 @@
 # Third-party notices
 
-Reflect for Android includes or depends on the following third-party software. Each component remains under its own license.
+Reflect includes or depends on the following third-party software. Each component remains under its own license.
 
 ## scrcpy server
 

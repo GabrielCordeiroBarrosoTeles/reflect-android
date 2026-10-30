@@ -1,4 +1,4 @@
-# Contributing to Reflect for Android
+# Contributing to Reflect
 
 Thanks for your interest in improving Reflect! This guide explains how to set up the project, the rules every change must follow, and how pull requests are reviewed.
 
@@ -115,7 +115,7 @@ npx expo start   # scan the QR code with the Expo Go app on your phone
 2. Press **F5** and run **Reflect: Open Device**.
 3. Check mirroring, touch, scroll, keyboard and clipboard, and anything your change touches.
 4. Close the tab and make sure nothing keeps running: `adb shell ps -A | grep scrcpy` must print nothing.
-5. Logs are in **View → Output → Reflect for Android**.
+5. Logs are in **View → Output → Reflect**.
 
 Mention in the pull request which device and Android version you used.
 

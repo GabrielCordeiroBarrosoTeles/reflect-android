@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the latest released version of Reflect for Android receives security fixes.
+Only the latest released version of Reflect receives security fixes.
 
 ## Reporting a vulnerability
 
