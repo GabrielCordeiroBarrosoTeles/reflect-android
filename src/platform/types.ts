@@ -40,9 +40,15 @@ export interface IMirrorSession extends IDisposable {
   requestKeyframe(): Promise<void>;
 }
 
+export interface PlatformCopy {
+  readonly reconnecting: string;
+  readonly gaveUp: string;
+}
+
 export interface PlatformCapabilities {
   readonly actions: readonly ActionId[];
   readonly tools: readonly ToolsTab[];
+  readonly copy: PlatformCopy;
 }
 
 export interface IPlatform {

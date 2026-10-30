@@ -11,6 +11,10 @@ import type { HelperCommand, HelperHello, HelperProcessFactory, ISimctl } from '
 const CAPABILITIES: PlatformCapabilities = {
   actions: ['home', 'recents', 'rotate', 'screenPower', 'screenshot', 'record', 'devMenu', 'reload'],
   tools: ['component', 'network', 'storage'],
+  copy: {
+    reconnecting: 'Simulator was shut down — it will reconnect when it boots again',
+    gaveUp: 'Simulator not found. Boot it from the Reflect side bar.',
+  },
 };
 
 export class IosPlatform implements IPlatform {

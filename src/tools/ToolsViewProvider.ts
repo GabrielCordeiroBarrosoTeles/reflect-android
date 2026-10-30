@@ -40,7 +40,7 @@ export interface ToolsDependencies {
   readonly notify: (message: string) => void;
   readonly setTabContext: (tab: ToolsTab) => void;
   readonly context: Pick<IActiveDeviceContext, 'target' | 'onDidChange'>;
-  readonly capabilities: (device: Device) => PlatformCapabilities;
+  readonly capabilities: (device: Device) => Pick<PlatformCapabilities, 'tools'>;
 }
 
 type Handlers = {

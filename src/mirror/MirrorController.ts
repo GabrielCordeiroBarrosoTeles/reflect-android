@@ -16,8 +16,6 @@ import type { IMirrorController, IMirrorSurface, MirrorCloseReason, MirrorServic
 
 export const HIDDEN_SHUTDOWN_MS = 30_000;
 export const SCREENSHOT_TIMEOUT_MS = 5_000;
-const RECONNECTING_DETAIL = 'Reconnecting… plug the cable back in';
-const GAVE_UP_DETAIL = 'Device not found. Check the cable and USB debugging.';
 
 type MessageHandlers = {
   [K in WebviewToHostMessage['type']]: (message: Extract<WebviewToHostMessage, { type: K }>) => Promise<void> | void;
@@ -83,7 +81,7 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
       reconnect: () => session.start(),
       onGiveUp: () => {
         this.gaveUp = true;
-        this.postState({ state: 'disconnected', detail: GAVE_UP_DETAIL });
+        this.postState({ state: 'disconnected', detail: this.services.capabilities(device).copy.gaveUp });
       },
     });
     this.store.add(this.reconnect);
@@ -111,7 +109,7 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
   private reconnectNow(): void {
     this.gaveUp = false;
     this.reconnect.start();
-    this.postState({ state: 'disconnected', detail: RECONNECTING_DETAIL });
+    this.postState({ state: 'disconnected', detail: this.services.capabilities(this.device).copy.reconnecting });
   }
 
   supports(id: ActionId): boolean {

@@ -54,7 +54,11 @@ const setup = () => {
   const onCaptured = vi.fn();
   const availabilityChanges = new Emitter<void>();
   const availability = { onDidChange: availabilityChanges.event, isReady: vi.fn(() => false) };
-  const capabilities = vi.fn(() => ({ actions: ['home', 'back'] as const, tools: ['device'] as const }));
+  const capabilities = vi.fn(() => ({
+    actions: ['home', 'back'] as const,
+    tools: ['device'] as const,
+    copy: { reconnecting: 'Reconnecting… plug the cable back in', gaveUp: 'Device not found. Check the cable and USB debugging.' },
+  }));
   const surface = new FakeSurface();
   const controller = new MirrorController(device({ name: 'Pixel 8', model: 'Pixel 8' }), surface, session, {
     logger,

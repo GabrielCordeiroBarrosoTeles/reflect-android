@@ -32,6 +32,13 @@ describe('IosPlatform', () => {
     expect(tools).not.toContain('logs');
   });
 
+  it('explains reconnects in simulator terms', () => {
+    expect(build().platform.capabilities().copy).toEqual({
+      reconnecting: 'Simulator was shut down — it will reconnect when it boots again',
+      gaveUp: 'Simulator not found. Boot it from the Reflect side bar.',
+    });
+  });
+
   it('creates a helper mirror session whose control drives the helper', async () => {
     const { platform, helper } = build();
     const session = platform.createMirrorSession(simulator);

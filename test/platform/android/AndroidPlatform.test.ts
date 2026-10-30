@@ -24,6 +24,13 @@ describe('AndroidPlatform', () => {
     expect(capabilities.tools).toHaveLength(7);
   });
 
+  it('keeps the cable-oriented reconnect copy', () => {
+    expect(build().capabilities().copy).toEqual({
+      reconnecting: 'Reconnecting… plug the cable back in',
+      gaveUp: 'Device not found. Check the cable and USB debugging.',
+    });
+  });
+
   it('creates a scrcpy mirror session', () => {
     expect(build().createMirrorSession(device())).toBeInstanceOf(MirrorSession);
   });
