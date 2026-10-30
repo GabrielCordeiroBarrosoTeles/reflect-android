@@ -69,7 +69,7 @@ The library is distributed unmodified. Its source code is available at the proje
 ## idb (Indigo HID structures)
 
 - Project: https://github.com/facebook/idb (commit 8509ca666b5983171a73338114b7d0325ae15bf1, via simbeam-control)
-- Used in: `native/ios-helper/Sources/CIndigo/include/Indigo.h` (Indigo HID wire-format struct layouts and defines) and `native/ios-helper/Sources/ReflectSimHelperCore/Input/KeyboardInjector.swift` (the hand-built Indigo keyboard message), compiled into `assets/ios-helper/reflect-sim-helper`
+- Used in: `native/ios-helper/Sources/CIndigo/include/Indigo.h` (Indigo HID wire-format struct layouts and defines) and `native/ios-helper/Sources/ReflectSimHelperCore/Input/KeyboardInjector.swift` (the hand-built Indigo keyboard message) and `native/ios-helper/Sources/ReflectSimHelperCore/Input/OrientationController.swift` (the GSEvent layout, from idb's `GSEvent.h`), compiled into `assets/ios-helper/reflect-sim-helper`
 - Copyright (c) Meta Platforms, Inc. and affiliates
 - License: MIT (same terms as the MIT license text above; the full notice is kept in the header)
 
