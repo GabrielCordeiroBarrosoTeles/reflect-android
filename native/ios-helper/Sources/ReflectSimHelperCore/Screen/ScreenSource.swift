@@ -63,6 +63,12 @@ public final class SimulatorScreenSource: ScreenSource, @unchecked Sendable {
     private var callbackID: NSUUID?
     private var surface: IOSurface?
     private var onFrame: ((IOSurface) -> Void)?
+    private var changes = SurfaceChangeTracker()
+    private var pollTimer: DispatchSourceTimer?
+
+    /// SimulatorKit's frame callback is sparse (and silent while Simulator.app is attached), so
+    /// the surface seed is also polled at this interval and every change is forwarded.
+    static let pollInterval = DispatchTimeInterval.milliseconds(16)
 
     public init(device: NSObject, log: @escaping (String) -> Void = { _ in }) {
         self.device = device
@@ -89,12 +95,19 @@ public final class SimulatorScreenSource: ScreenSource, @unchecked Sendable {
         }
         // Prime the pipeline with the current contents; a static screen sends no callbacks.
         queue.async { [weak self] in self?.frameArrived(surfacesChanged: false) }
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + Self.pollInterval, repeating: Self.pollInterval)
+        timer.setEventHandler { [weak self] in self?.frameArrived(surfacesChanged: false) }
+        queue.sync { pollTimer = timer }
+        timer.resume()
     }
 
     /// Unregisters and releases the descriptor. Must not be called from the callback queue.
     public func stop() {
         let (descriptor, id) = queue.sync { () -> (NSObject?, NSUUID?) in
             defer {
+                self.pollTimer?.cancel()
+                self.pollTimer = nil
                 self.descriptor = nil
                 self.callbackID = nil
                 self.surface = nil
@@ -119,7 +132,7 @@ public final class SimulatorScreenSource: ScreenSource, @unchecked Sendable {
         if surfacesChanged || surface == nil {
             surface = try? Self.surface(of: descriptor)
         }
-        if let surface { onFrame(surface) }
+        if let surface, changes.hasChanged(surface) { onFrame(surface) }
     }
 
     private func findDisplay() throws -> (NSObject, IOSurface) {
