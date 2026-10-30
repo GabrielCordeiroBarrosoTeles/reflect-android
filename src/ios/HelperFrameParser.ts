@@ -129,7 +129,7 @@ export class HelperFrameParser {
       return undefined;
     }
     const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
-    return { kind: 'video-config', width: view.getUint16(0), height: view.getUint16(2), data: payload.slice(CONFIG_HEADER_BYTES) };
+    return { kind: 'video-config', width: view.getUint16(0), height: view.getUint16(2), data: Uint8Array.from(payload.subarray(CONFIG_HEADER_BYTES)) };
   }
 
   private decodeVideoFrame(payload: Uint8Array): HelperFrame | undefined {
@@ -142,7 +142,7 @@ export class HelperFrameParser {
       kind: 'video-frame',
       keyframe: ((payload[0] as number) & KEYFRAME_FLAG) === KEYFRAME_FLAG,
       pts: Number(view.getBigUint64(1)),
-      data: payload.slice(FRAME_HEADER_BYTES),
+      data: Uint8Array.from(payload.subarray(FRAME_HEADER_BYTES)),
     };
   }
 

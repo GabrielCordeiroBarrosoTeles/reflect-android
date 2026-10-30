@@ -25,6 +25,19 @@ describe('HelperFrameParser', () => {
     expect(delta).toEqual({ kind: 'video-frame', keyframe: false, pts: 7, data: new Uint8Array([3]) });
   });
 
+  it('returns standalone Uint8Array payloads when stdout delivers pooled Node Buffers', () => {
+    const { parser } = newParser();
+    const pooled = (bytes: Uint8Array) => Buffer.concat([Buffer.alloc(3), Buffer.from(bytes)]).subarray(3);
+    const [config] = parser.push(pooled(videoConfigBytes(884, 1920, [0, 0, 0, 1, 0x67])));
+    const [frame] = parser.push(pooled(videoFrameBytes(true, 42, [9, 8, 7, 6])));
+    for (const data of [(config as { data: Uint8Array }).data, (frame as { data: Uint8Array }).data]) {
+      expect(Buffer.isBuffer(data)).toBe(false);
+      expect(data.byteOffset).toBe(0);
+      expect(data.buffer.byteLength).toBe(data.byteLength);
+    }
+    expect(JSON.stringify((frame as { data: Uint8Array }).data)).not.toContain('"type":"Buffer"');
+  });
+
   it('parses an event frame', () => {
     const [frame] = newParser().parser.push(eventBytes({ type: 'warning', message: 'x' }));
     expect(frame).toEqual({ kind: 'event', event: { type: 'warning', message: 'x' } });
