@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { ReflectError, ReflectErrorCode } from '../core/errors';
+import type { ReflectError, ReflectErrorCode, SimulatorNotBootedError, XcodeUnsupportedError } from '../core/errors';
 import { isReflectError } from '../core/errors';
 import type { ErrorAction } from './types';
 
@@ -46,6 +46,12 @@ export class ErrorPresenter {
       }),
     'react-native-app-not-found': () =>
       this.show('Reflect: no debuggable React Native app found on the device. Open your app in development mode (React Native 0.76+).'),
+    'ios-helper-unavailable': () => this.show("Reflect's iOS helper is missing. Reinstall the extension."),
+    'xcode-unsupported': (error) => {
+      const { xcodeVersion } = error as XcodeUnsupportedError;
+      return this.show(`Reflect: ${xcodeVersion === undefined ? 'This Xcode' : `Xcode ${xcodeVersion}`} is not supported yet by Reflect.`);
+    },
+    'simulator-not-booted': (error) => this.show(`Reflect: ${(error as SimulatorNotBootedError).simulatorName} is not booted.`),
   };
 
   constructor(

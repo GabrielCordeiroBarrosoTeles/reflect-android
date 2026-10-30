@@ -6,7 +6,10 @@ export type ReflectErrorCode =
   | 'device-offline'
   | 'mirror-failed'
   | 'metro-unavailable'
-  | 'react-native-app-not-found';
+  | 'react-native-app-not-found'
+  | 'ios-helper-unavailable'
+  | 'xcode-unsupported'
+  | 'simulator-not-booted';
 
 export abstract class ReflectError extends Error {
   abstract readonly code: ReflectErrorCode;
@@ -85,6 +88,36 @@ export class ReactNativeAppNotFoundError extends ReflectError {
 
   constructor(readonly deviceName: string) {
     super(`No debuggable React Native app found on ${deviceName}`);
+  }
+}
+
+export class IosHelperUnavailableError extends ReflectError {
+  readonly code = 'ios-helper-unavailable';
+
+  constructor(
+    readonly path: string,
+    cause?: unknown,
+  ) {
+    super(`The iOS helper is missing or not executable: ${path}`, { cause });
+  }
+}
+
+export class XcodeUnsupportedError extends ReflectError {
+  readonly code = 'xcode-unsupported';
+
+  constructor(
+    readonly xcodeVersion: string | undefined,
+    readonly missing: readonly string[],
+  ) {
+    super(`Xcode ${xcodeVersion ?? '(unknown version)'} is not supported`);
+  }
+}
+
+export class SimulatorNotBootedError extends ReflectError {
+  readonly code = 'simulator-not-booted';
+
+  constructor(readonly simulatorName: string) {
+    super(`${simulatorName} is not booted`);
   }
 }
 

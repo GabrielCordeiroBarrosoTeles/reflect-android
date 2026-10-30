@@ -5,9 +5,12 @@ import {
   DeviceOfflineError,
   DeviceUnauthorizedError,
   MetroUnavailableError,
+  IosHelperUnavailableError,
   MirrorStartError,
   NoDeviceError,
   ReactNativeAppNotFoundError,
+  SimulatorNotBootedError,
+  XcodeUnsupportedError,
 } from '../../src/core/errors';
 import { ErrorPresenter } from '../../src/ui/ErrorPresenter';
 import { commands, env, window } from '../mocks/vscode';
@@ -30,6 +33,10 @@ describe('ErrorPresenter', () => {
     [new AdbNotFoundError([]), 'adb not found', ['Set adb path', 'Download platform-tools']],
     [new MetroUnavailableError(8081), 'Metro is not running', ['Set Metro port']],
     [new ReactNativeAppNotFoundError('Pixel'), 'no debuggable React Native app', []],
+    [new IosHelperUnavailableError('/h'), "Reflect's iOS helper is missing. Reinstall the extension.", []],
+    [new XcodeUnsupportedError('25.1', []), 'Xcode 25.1 is not supported yet by Reflect.', []],
+    [new XcodeUnsupportedError(undefined, ['x']), 'This Xcode is not supported yet by Reflect.', []],
+    [new SimulatorNotBootedError('iPhone 15'), 'iPhone 15 is not booted.', []],
   ])('explains %s with actions', async (error, text, actions) => {
     const { presenter } = setup();
     await presenter.present(error);
