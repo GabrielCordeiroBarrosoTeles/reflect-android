@@ -1,5 +1,3 @@
-import type { Event } from '../core/types';
-
 export type EmulatorExecFile = (
   file: string,
   args: string[],
@@ -14,9 +12,4 @@ export interface IEmulatorConsole {
 export interface IAppVisibility {
   hide(pid: number): Promise<void>;
   unhide(pid: number): Promise<void>;
-}
-
-export interface EmulatorWindowState {
-  isHidden(serial: string): boolean;
-  readonly onDidChange: Event<void>;
 }

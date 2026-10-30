@@ -1,6 +1,6 @@
 import { Emitter } from '../core/Emitter';
 import type { IDisposable, ILogger } from '../core/types';
-import type { EmulatorWindowState, IAppVisibility, IEmulatorConsole } from './types';
+import type { IAppVisibility, IEmulatorConsole } from './types';
 
 type EmulatorWindowMode = 'hide' | 'leave';
 
@@ -8,7 +8,7 @@ const toMode = (value: unknown): EmulatorWindowMode => (value === 'leave' ? 'lea
 
 const PID_FILE = /pid_(\d+)\.ini/;
 
-export class EmulatorWindows implements EmulatorWindowState, IDisposable {
+export class EmulatorWindows implements IDisposable {
   private readonly changeEmitter = new Emitter<void>();
   private readonly hidden = new Set<string>();
 
