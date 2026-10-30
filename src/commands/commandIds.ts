@@ -1,6 +1,8 @@
 export const CommandIds = {
   openDevice: 'reflect.openDevice',
   openDeviceInEditor: 'reflect.openDeviceInEditor',
+  bootSimulator: 'reflect.bootSimulator',
+  showInSimulator: 'reflect.showInSimulator',
   moveToEditor: 'reflect.moveToEditor',
   moveToSidebar: 'reflect.moveToSidebar',
   refreshDeviceInfo: 'reflect.refreshDeviceInfo',

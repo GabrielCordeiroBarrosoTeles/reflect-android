@@ -27,7 +27,8 @@ const setup = (pbpaste: () => Promise<string> = () => Promise.resolve('')) => {
   const createControl = vi.fn(() => control);
   const logger = new FakeLogger();
   const simctl: ISimctl = { run: vi.fn(pbpaste) };
-  const session = new HelperMirrorSession(device, spawn, createControl, logger, simctl);
+  const onStreaming = vi.fn();
+  const session = new HelperMirrorSession(device, spawn, createControl, logger, simctl, onStreaming);
   const states: SessionStateChange[] = [];
   const configs: VideoConfig[] = [];
   const packets: VideoPacket[] = [];
@@ -36,7 +37,7 @@ const setup = (pbpaste: () => Promise<string> = () => Promise.resolve('')) => {
   session.onDidChangeVideoConfig((config) => configs.push(config));
   session.onVideoPacket((packet) => packets.push(packet));
   session.onDeviceClipboard((text) => clipboard.push(text));
-  return { session, helper, spawn, control, createControl, logger, simctl, states, configs, packets, clipboard };
+  return { session, helper, spawn, control, createControl, logger, simctl, onStreaming, states, configs, packets, clipboard };
 };
 
 const startStreaming = async (context: ReturnType<typeof setup>) => {
@@ -65,6 +66,17 @@ describe('HelperMirrorSession', () => {
       { kind: 'configuration', data: new Uint8Array([0, 0, 0, 1, 0x67]), keyframe: undefined, pts: undefined },
       { kind: 'data', data: new Uint8Array([0, 0, 0, 1, 0x65]), keyframe: true, pts: 10 },
     ]);
+    context.session.dispose();
+  });
+
+  it('hands a sender for the helper to the streaming hook, once', async () => {
+    const context = setup();
+    await startStreaming(context);
+    context.helper.frame(false, 11);
+    expect(context.onStreaming).toHaveBeenCalledOnce();
+    const [send] = context.onStreaming.mock.calls[0] as [(command: unknown) => void];
+    send({ type: 'simulatorApp', action: 'hide' });
+    expect(context.helper.sent).toContainEqual({ type: 'simulatorApp', action: 'hide' });
     context.session.dispose();
   });
 

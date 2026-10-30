@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { createFakeAdb, createTempRoot } from './adb/locator/fs';
 import { FakeScrcpyClient } from './fakes/FakeScrcpyClient';
 import { flushPromises } from './fakes/PushStream';
+import { FakeChildProcess, helloBytes, videoConfigBytes, videoFrameBytes } from './fakes/FakeHelperProcess';
 import { FakeDeviceObserver } from './fakes/FakeDeviceObserver';
 import { tangoDevice } from './fakes/devices';
 import { DEVICE_CONFIGURATION } from './fakes/h264';
@@ -14,8 +15,14 @@ const io = vi.hoisted(() => ({
   reachable: [] as boolean[],
   observer: undefined as unknown,
   trackFailure: undefined as Error | undefined,
-  execFile: vi.fn((file: string, _args: string[], _options: unknown, callback: (error: Error | null, stdout?: string) => void) => {
-    callback(null, file === 'xcrun' ? '{"devices":{}}' : undefined);
+  simctlJson: '{"devices":{}}',
+  bootedJson: undefined as string | undefined,
+  child: undefined as unknown,
+  execFile: vi.fn((file: string, args: string[], _options: unknown, callback: (error: Error | null, stdout?: string) => void) => {
+    if (file === 'xcrun' && args[1] === 'boot' && io.bootedJson) {
+      io.simctlJson = io.bootedJson;
+    }
+    callback(null, file === 'xcrun' ? io.simctlJson : undefined);
     return { stdin: null };
   }),
   scrcpyClient: undefined as unknown,
@@ -23,6 +30,11 @@ const io = vi.hoisted(() => ({
 }));
 
 vi.mock('node:child_process', () => ({ execFile: io.execFile }));
+
+vi.mock('../src/ios/nodeAdapters', () => ({
+  assertExecutable: () => Promise.resolve(),
+  spawnHelper: () => io.child,
+}));
 
 const cdp = vi.hoisted(() => ({
   handle: undefined as ((request: { id: number; method: string; params: { expression?: string } }, emit: (message: unknown) => void) => unknown) | undefined,
@@ -89,6 +101,8 @@ vi.mock('@yume-chan/adb-scrcpy', () => ({
 const { activate, deactivate } = await import('../src/extension');
 
 beforeEach(() => {
+  io.simctlJson = '{"devices":{}}';
+  io.bootedJson = undefined;
   vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('ECONNREFUSED'))));
 });
 
@@ -141,7 +155,9 @@ describe('extension', () => {
     }
     expect(commands.registered.has('reflect.action.screenshot')).toBe(true);
     expect(commands.registered.has('reflect.moveToEditor')).toBe(true);
-    expect(context.subscriptions).toHaveLength(49);
+    expect(commands.registered.has('reflect.bootSimulator')).toBe(true);
+    expect(commands.registered.has('reflect.showInSimulator')).toBe(true);
+    expect(context.subscriptions).toHaveLength(52);
   });
 
   it('mirrors in the secondary side bar by default', async () => {
@@ -449,6 +465,74 @@ describe('extension', () => {
         expect(clearTimer).toHaveBeenCalled();
       }
     });
+  });
+
+  describe('iOS Simulators on darwin', () => {
+    const simulatorsJson = (state: string) =>
+      JSON.stringify({
+        devices: { 'com.apple.CoreSimulator.SimRuntime.iOS-26-0': [{ udid: 'UDID-1', name: 'iPhone 15', state, isAvailable: true }] },
+      });
+
+    const setupDarwin = async () => {
+      const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+      try {
+        return await setup([]);
+      } finally {
+        Object.defineProperty(process, 'platform', original);
+      }
+    };
+
+    it('brings a booted simulator into Reflect and hides the Simulator app', async () => {
+      io.simctlJson = simulatorsJson('Booted');
+      const child = new FakeChildProcess();
+      io.child = child;
+      await setupDarwin();
+      const view = resolveSidebar();
+      view.webview.received.fire({ deviceId: undefined, message: { type: 'ready' } });
+      expect(view.webview.posted).toContainEqual({
+        deviceId: undefined,
+        message: {
+          type: 'device-list',
+          devices: [{ id: 'UDID-1', name: 'iPhone 15', detail: 'iOS 26.0', platform: 'ios', kind: 'simulator', state: 'ready' }],
+        },
+      });
+      await commands.registered.get('reflect.openDevice')?.('UDID-1');
+      await flushPromises();
+      child.stdout.emit(helloBytes());
+      child.stdout.emit(videoConfigBytes(884, 1920, [0, 0, 0, 1, 0x67]));
+      child.stdout.emit(videoFrameBytes(true, 0, [0, 0, 0, 1, 0x65]));
+      await flushPromises();
+      expect(child.written).toContain('{"type":"simulatorApp","action":"hide"}\n');
+      expect(view.webview.posted).toContainEqual({ deviceId: 'UDID-1', message: { type: 'session-state', state: 'streaming', deviceName: 'iPhone 15' } });
+      await commands.registered.get('reflect.showInSimulator')?.();
+      expect(io.execFile).toHaveBeenCalledWith('open', ['-a', 'Simulator'], expect.anything(), expect.any(Function));
+    });
+
+    it('quits the Simulator app when configured', async () => {
+      workspace.configuration.set('reflect.ios.simulatorWindow', 'quit');
+      io.simctlJson = simulatorsJson('Booted');
+      const child = new FakeChildProcess();
+      io.child = child;
+      await setupDarwin();
+      await commands.registered.get('reflect.openDevice')?.('UDID-1');
+      await flushPromises();
+      child.stdout.emit(helloBytes());
+      child.stdout.emit(videoConfigBytes(884, 1920, [0, 0, 0, 1, 0x67]));
+      child.stdout.emit(videoFrameBytes(true, 0, [0, 0, 0, 1, 0x65]));
+      await flushPromises();
+      expect(io.execFile).toHaveBeenCalledWith('osascript', ['-e', 'quit app "Simulator"'], expect.anything(), expect.any(Function));
+    });
+
+    it('boots a shut-down simulator headless and opens it when discovery reports it ready', async () => {
+      io.simctlJson = simulatorsJson('Shutdown');
+      io.bootedJson = simulatorsJson('Booted');
+      await setupDarwin();
+      commands.executeCommand.mockClear();
+      await commands.registered.get('reflect.bootSimulator')?.('UDID-1');
+      expect(io.execFile).toHaveBeenCalledWith('xcrun', ['simctl', 'boot', 'UDID-1'], expect.anything(), expect.any(Function));
+      expect(commands.executeCommand).toHaveBeenCalledWith('reflect.openDevice', 'UDID-1');
+    }, 10_000);
   });
 
   it('starts the adb server with the configured adb when it is not running', async () => {

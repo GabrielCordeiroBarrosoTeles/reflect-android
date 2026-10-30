@@ -64,6 +64,7 @@ export class HelperMirrorSession implements IMirrorSession {
     private readonly createControl: ControlFactory,
     private readonly logger: ILogger,
     private readonly simctl: ISimctl,
+    private readonly onStreaming: (send: (command: HelperCommand) => void) => void,
   ) {}
 
   get state(): SessionStateKind {
@@ -170,6 +171,7 @@ export class HelperMirrorSession implements IMirrorSession {
     if (this.stateMachine.transitionTo('streaming')) {
       this.settleStart((pending) => pending.resolve());
       this.pollClipboard();
+      this.onStreaming((command) => this.helper?.send(command));
     }
   }
 

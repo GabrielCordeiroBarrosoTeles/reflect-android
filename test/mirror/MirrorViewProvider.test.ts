@@ -2,18 +2,29 @@ import { describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import { MIRROR_VIEW_ID, MirrorViewProvider } from '../../src/mirror/MirrorViewProvider';
 import type { WebviewToHostMessage } from '../../src/shared/protocol';
+import { Emitter } from '../../src/core/Emitter';
 import { device } from '../fakes/devices';
+import { FakeDeviceTracker } from '../fakes/FakeDeviceTracker';
 import { FakeWebviewView, commands } from '../mocks/vscode';
 
 const phone = device({ id: 'A' });
 const from = (message: WebviewToHostMessage) => ({ deviceId: undefined, message });
 const idle = { deviceId: undefined, message: { type: 'idle' } };
+const list = (devices: unknown[] = []) => ({ deviceId: undefined, message: { type: 'device-list', devices } });
+const hidden = (value = false) => ({ deviceId: undefined, message: { type: 'simulator-hidden', hidden: value } });
+const idleScreen = [idle, list(), hidden()];
+
+const simulator = device({ id: 'UDID-1', platform: 'ios', kind: 'simulator', name: 'iPhone 15', model: undefined, detail: 'iOS 26.0' });
+const item = { id: 'UDID-1', name: 'iPhone 15', detail: 'iOS 26.0', platform: 'ios', kind: 'simulator', state: 'ready' };
 
 const setup = () => {
-  const provider = new MirrorViewProvider(vscode.Uri.file('/ext'));
+  const discovery = new FakeDeviceTracker();
+  const hiddenEmitter = new Emitter<boolean>();
+  const simulatorWindow = { hidden: false, onDidChangeHidden: hiddenEmitter.event };
+  const provider = new MirrorViewProvider(vscode.Uri.file('/ext'), discovery, simulatorWindow);
   const view = new FakeWebviewView();
   const resolve = (target = view) => provider.resolveWebviewView(target as unknown as vscode.WebviewView);
-  return { provider, view, resolve };
+  return { provider, view, resolve, discovery, simulatorWindow, hiddenEmitter };
 };
 
 describe('MirrorViewProvider', () => {
@@ -34,7 +45,7 @@ describe('MirrorViewProvider', () => {
     const { view, resolve } = setup();
     resolve();
     view.webview.received.fire(from({ type: 'ready' }));
-    expect(view.webview.posted).toEqual([idle]);
+    expect(view.webview.posted).toEqual(idleScreen);
   });
 
   it('lets the claimed device own the webview', () => {
@@ -56,7 +67,7 @@ describe('MirrorViewProvider', () => {
     surface.dispose();
     expect(view.webview.posted).toEqual([
       { deviceId: 'A', message: { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } } },
-      idle,
+      ...idleScreen,
     ]);
   });
 
@@ -65,6 +76,54 @@ describe('MirrorViewProvider', () => {
     resolve();
     view.webview.received.fire(from({ type: 'open-device' }));
     expect(commands.executeCommand).toHaveBeenCalledWith('reflect.openDevice');
+  });
+
+  it('runs the open device command with the row id', () => {
+    const { view, resolve } = setup();
+    resolve();
+    view.webview.received.fire(from({ type: 'open-device', deviceId: 'UDID-1' }));
+    expect(commands.executeCommand).toHaveBeenCalledWith('reflect.openDevice', 'UDID-1');
+  });
+
+  it('boots a simulator and shows the Simulator app on request', () => {
+    const { view, resolve } = setup();
+    resolve();
+    view.webview.received.fire(from({ type: 'boot-device', deviceId: 'UDID-1' }));
+    view.webview.received.fire(from({ type: 'show-in-simulator' }));
+    expect(commands.executeCommand).toHaveBeenCalledWith('reflect.bootSimulator', 'UDID-1');
+    expect(commands.executeCommand).toHaveBeenCalledWith('reflect.showInSimulator');
+  });
+
+  it('posts the device list to the idle screen whenever discovery changes', () => {
+    const { view, resolve, discovery } = setup();
+    resolve();
+    discovery.setDevices([simulator]);
+    expect(view.webview.posted).toEqual([list([item])]);
+  });
+
+  it('posts the Simulator window state to the idle screen', () => {
+    const { view, resolve, hiddenEmitter, simulatorWindow } = setup();
+    resolve();
+    simulatorWindow.hidden = true;
+    hiddenEmitter.fire(true);
+    expect(view.webview.posted).toEqual([hidden(true)]);
+  });
+
+  it('leaves the webview alone while a device owns it', () => {
+    const { view, resolve, discovery, hiddenEmitter, provider } = setup();
+    resolve();
+    provider.claim(phone);
+    discovery.setDevices([simulator]);
+    hiddenEmitter.fire(true);
+    expect(view.webview.posted).toEqual([]);
+  });
+
+  it('stops listening to discovery after dispose', () => {
+    const { view, resolve, discovery, provider } = setup();
+    resolve();
+    provider.dispose();
+    discovery.setDevices([simulator]);
+    expect(view.webview.posted).toEqual([]);
   });
 
   it('reveals the view through its focus command', () => {
@@ -112,7 +171,7 @@ describe('MirrorViewProvider', () => {
     resolve();
     provider.claim(phone).dispose();
     view.webview.received.fire(from({ type: 'ready' }));
-    expect(view.webview.posted).toEqual([idle, idle]);
+    expect(view.webview.posted).toEqual([...idleScreen, ...idleScreen]);
   });
 
   it('releases the owner and the view on dispose', () => {

@@ -19,7 +19,20 @@ describe('QuickPickDevicePicker', () => {
       expect.objectContaining({ label: '$(device-mobile) Pixel', description: 'A', detail: 'b6qxeea' }),
       expect.objectContaining({ label: '$(device-mobile) B', description: 'B' }),
     ]);
-    expect(options).toMatchObject({ title: 'Reflect: Select a device' });
+    expect(options).toMatchObject({ title: 'Reflect: Select a device', placeHolder: 'Choose the device to mirror' });
+  });
+
+  it('labels emulators and iOS Simulators by kind', async () => {
+    const devices = [
+      device({ id: 'emulator-5554', name: 'Pixel_7', kind: 'emulator', detail: undefined }),
+      device({ id: 'UDID-1', name: 'iPhone 15', platform: 'ios', kind: 'simulator', detail: 'iOS 26.0' }),
+    ];
+    await new QuickPickDevicePicker().pick(devices);
+    const [items] = window.showQuickPick.mock.calls[0]!;
+    expect(items).toEqual([
+      expect.objectContaining({ label: '$(vm) Pixel_7', description: 'emulator-5554' }),
+      expect.objectContaining({ label: '$(device-mobile) iPhone 15', description: 'iOS Simulator', detail: 'iOS 26.0' }),
+    ]);
   });
 
   it('returns undefined when the user cancels', async () => {

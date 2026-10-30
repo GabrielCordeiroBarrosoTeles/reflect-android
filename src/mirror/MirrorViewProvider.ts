@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
-import type { Device } from '../devices/types';
+import type { Device, IDeviceDiscovery } from '../devices/types';
 import { CommandIds } from '../commands/commandIds';
 import { Emitter } from '../core/Emitter';
-import type { IDisposable } from '../core/types';
-import type { WebviewToHostMessage } from '../shared/protocol';
+import type { Event, IDisposable } from '../core/types';
+import type { DeviceListItem, WebviewToHostMessage } from '../shared/protocol';
 import { applyMirrorWebview, mirrorWebviewOptions } from './mirrorWebview';
 import { SidebarSurface } from './SidebarSurface';
 import { SwitchableWebviewChannel } from './SwitchableWebviewChannel';
@@ -11,9 +11,16 @@ import type { IMirrorSurface } from './types';
 
 export const MIRROR_VIEW_ID = 'reflect.deviceView';
 
+export interface SimulatorWindowState {
+  readonly hidden: boolean;
+  readonly onDidChangeHidden: Event<boolean>;
+}
+
+const toListItem = ({ id, name, detail, platform, kind, state }: Device): DeviceListItem => ({ id, name, detail, platform, kind, state });
+
 export class MirrorViewProvider implements vscode.WebviewViewProvider, IDisposable {
   private readonly visibilityEmitter = new Emitter<boolean>();
-  private readonly messageSubscription: IDisposable;
+  private readonly subscriptions: IDisposable[];
   private view: vscode.WebviewView | undefined;
   private viewSubscriptions: vscode.Disposable[] = [];
   private owner: SidebarSurface | undefined;
@@ -21,8 +28,16 @@ export class MirrorViewProvider implements vscode.WebviewViewProvider, IDisposab
   readonly channel = new SwitchableWebviewChannel();
   readonly onDidChangeVisibility = this.visibilityEmitter.event;
 
-  constructor(private readonly extensionUri: vscode.Uri) {
-    this.messageSubscription = this.channel.onMessage((message) => this.handleMessage(message));
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly discovery: Pick<IDeviceDiscovery, 'devices' | 'onDidChangeDevices'>,
+    private readonly simulatorWindow: SimulatorWindowState,
+  ) {
+    this.subscriptions = [
+      this.channel.onMessage((message) => this.handleMessage(message)),
+      discovery.onDidChangeDevices(() => this.postDeviceList()),
+      simulatorWindow.onDidChangeHidden(() => this.postSimulatorHidden()),
+    ];
   }
 
   get visible(): boolean {
@@ -60,7 +75,7 @@ export class MirrorViewProvider implements vscode.WebviewViewProvider, IDisposab
   dispose(): void {
     this.owner?.dispose();
     this.releaseView();
-    this.messageSubscription.dispose();
+    this.subscriptions.forEach((subscription) => subscription.dispose());
     this.channel.dispose();
     this.visibilityEmitter.dispose();
   }
@@ -71,7 +86,25 @@ export class MirrorViewProvider implements vscode.WebviewViewProvider, IDisposab
     }
     this.owner = undefined;
     this.channel.setDeviceId(undefined);
+    this.postIdleScreen();
+  }
+
+  private postIdleScreen(): void {
     this.channel.post({ type: 'idle' });
+    this.postDeviceList();
+    this.postSimulatorHidden();
+  }
+
+  private postDeviceList(): void {
+    if (!this.owner) {
+      this.channel.post({ type: 'device-list', devices: this.discovery.devices.map(toListItem) });
+    }
+  }
+
+  private postSimulatorHidden(): void {
+    if (!this.owner) {
+      this.channel.post({ type: 'simulator-hidden', hidden: this.simulatorWindow.hidden });
+    }
   }
 
   private releaseView(): void {
@@ -85,11 +118,19 @@ export class MirrorViewProvider implements vscode.WebviewViewProvider, IDisposab
 
   private handleMessage(message: WebviewToHostMessage): void {
     if (message.type === 'open-device') {
-      void vscode.commands.executeCommand(CommandIds.openDevice);
+      void vscode.commands.executeCommand(CommandIds.openDevice, ...(message.deviceId === undefined ? [] : [message.deviceId]));
+      return;
+    }
+    if (message.type === 'boot-device') {
+      void vscode.commands.executeCommand(CommandIds.bootSimulator, message.deviceId);
+      return;
+    }
+    if (message.type === 'show-in-simulator') {
+      void vscode.commands.executeCommand(CommandIds.showInSimulator);
       return;
     }
     if (message.type === 'ready' && !this.owner) {
-      this.channel.post({ type: 'idle' });
+      this.postIdleScreen();
     }
   }
 }

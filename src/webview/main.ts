@@ -10,7 +10,7 @@ import { WheelInput } from './input/WheelInput';
 import { WheelPinch } from './input/WheelPinch';
 import { InspectHighlightView } from './InspectHighlightView';
 import { InspectModeView } from './InspectModeView';
-import { StatusOverlay } from './StatusOverlay';
+import { StatusOverlay, type OverlayAction } from './StatusOverlay';
 import { Toolbar } from './Toolbar';
 import './types';
 import { VideoRenderer } from './VideoRenderer';
@@ -39,9 +39,14 @@ const queryElement = <T extends Element>(selector: string): T => {
   return element;
 };
 
+const overlayMessage = (action: OverlayAction, deviceId: string | undefined): WebviewToHostMessage =>
+  ({ type: action, ...(deviceId === undefined ? {} : { deviceId }) }) as WebviewToHostMessage;
+
 const bootstrap = async (): Promise<void> => {
   const canvas = queryElement<HTMLCanvasElement>('.screen');
-  const overlay = new StatusOverlay(queryElement<HTMLElement>('.status'), (action) => vscode.postMessage({ type: action }));
+  const overlay = new StatusOverlay(queryElement<HTMLElement>('.status'), (action, deviceId) =>
+    vscode.postMessage(overlayMessage(action, deviceId)),
+  );
 
   if (!VideoRenderer.isSupported) {
     log('error', 'WebCodecs VideoDecoder is not available in this webview');
@@ -92,6 +97,8 @@ const bootstrap = async (): Promise<void> => {
         .then((data) => vscode.postMessage({ type: 'screenshot', requestId, data }));
     },
     capabilities: ({ actions }) => toolbar.setAvailable(actions),
+    'device-list': ({ devices }) => overlay.setDevices(devices),
+    'simulator-hidden': ({ hidden }) => overlay.setSimulatorHidden(hidden),
     idle: () => {
       overlay.showIdle();
       canvas.hidden = true;

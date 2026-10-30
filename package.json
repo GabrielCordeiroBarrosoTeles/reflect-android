@@ -1,7 +1,7 @@
 {
   "name": "reflect-android",
-  "displayName": "Reflect for Android",
-  "description": "Mirror and control a physical Android device inside a VS Code tab. Built for React Native developers, powered by scrcpy. No emulator required.",
+  "displayName": "Reflect — Android & iOS Simulator",
+  "description": "Mirror and control Android devices and iOS Simulators inside VS Code. Built for React Native developers.",
   "version": "0.2.0",
   "publisher": "GabrielCordeiro",
   "license": "MIT",
@@ -60,7 +60,11 @@
     "android debugging",
     "asyncstorage",
     "hot reload",
-    "metro"
+    "metro",
+    "ios",
+    "ios simulator",
+    "xcode",
+    "simulator"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [],
@@ -201,6 +205,18 @@
         "title": "Delete All AsyncStorage Keys",
         "category": "Reflect",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "reflect.bootSimulator",
+        "title": "Boot iOS Simulator",
+        "category": "Reflect",
+        "icon": "$(play)"
+      },
+      {
+        "command": "reflect.showInSimulator",
+        "title": "Show in Simulator",
+        "category": "Reflect",
+        "icon": "$(link-external)"
       }
     ],
     "configuration": {
@@ -250,6 +266,21 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Copy screenshots (as images) and recordings (as files) to the system clipboard so you can paste them anywhere."
+        },
+        "reflect.ios.simulatorWindow": {
+          "type": "string",
+          "enum": [
+            "hide",
+            "quit",
+            "leave"
+          ],
+          "enumDescriptions": [
+            "Hide the Simulator app (all its windows) while a simulator is mirrored in Reflect.",
+            "Quit the Simulator app. Booted simulators stay booted.",
+            "Leave the Simulator app as it is."
+          ],
+          "default": "hide",
+          "markdownDescription": "What to do with the Simulator app window when a simulator is brought into Reflect."
         }
       }
     },
@@ -352,6 +383,14 @@
         {
           "command": "reflect.clearStorage",
           "when": "reflect.appConnected"
+        },
+        {
+          "command": "reflect.bootSimulator",
+          "when": "isMac"
+        },
+        {
+          "command": "reflect.showInSimulator",
+          "when": "isMac"
         }
       ],
       "editor/title": [

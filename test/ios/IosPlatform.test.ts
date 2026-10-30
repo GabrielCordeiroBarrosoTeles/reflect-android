@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HelperMirrorSession } from '../../src/ios/HelperMirrorSession';
 import { IosPlatform } from '../../src/ios/IosPlatform';
+import type { HelperCommand } from '../../src/ios/types';
 import { device } from '../fakes/devices';
 import { FakeHelperProcess } from '../fakes/FakeHelperProcess';
 import { FakeLogger } from '../fakes/FakeLogger';
@@ -14,8 +15,9 @@ describe('IosPlatform', () => {
   const build = () => {
     const helper = new FakeHelperProcess();
     const simctl = { run: vi.fn(() => Promise.resolve('')) };
-    const platform = new IosPlatform(() => Promise.resolve(helper), simctl, new FakeLogger());
-    return { platform, helper, simctl };
+    const window = { makeRoom: vi.fn((_send: (command: HelperCommand) => void) => Promise.resolve()) };
+    const platform = new IosPlatform(() => Promise.resolve(helper), simctl, new FakeLogger(), window);
+    return { platform, helper, simctl, window };
   };
 
   it('has no back, reverse Metro or logs', () => {
@@ -44,6 +46,22 @@ describe('IosPlatform', () => {
       { type: 'touch', phase: 'down', x: 196.5, y: 426, id: 1 },
       { type: 'scroll', x: 196.5, y: 426, dx: -0, dy: 40 },
     ]);
+    session.dispose();
+  });
+
+  it('moves the Simulator window out of the way once the mirror streams, through its own helper', async () => {
+    const { platform, helper, window } = build();
+    window.makeRoom.mockImplementation((send) => Promise.resolve(send({ type: 'simulatorApp', action: 'hide' })));
+    const session = platform.createMirrorSession(simulator);
+    const started = session.start();
+    await vi.advanceTimersByTimeAsync(0);
+    helper.hello();
+    helper.config(884, 1920);
+    expect(window.makeRoom).not.toHaveBeenCalled();
+    helper.frame();
+    await started;
+    expect(window.makeRoom).toHaveBeenCalledOnce();
+    expect(helper.sent).toContainEqual({ type: 'simulatorApp', action: 'hide' });
     session.dispose();
   });
 

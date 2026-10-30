@@ -27,7 +27,9 @@ describe('renderMirrorHtml', () => {
     expect(html).toContain('<canvas class="screen" tabindex="0"');
     expect(html).toContain('class="status__title"');
     expect(html).toContain('class="status__detail"');
+    expect(html).toContain('<div class="status__devices"></div>');
     expect(html).toContain('<button class="status__action" type="button" hidden>Open Device</button>');
+    expect(html).toContain('<button class="status__link" type="button" hidden>Show in Simulator</button>');
     expect(html).toContain('class="inspect-banner" role="status" hidden');
   });
 });

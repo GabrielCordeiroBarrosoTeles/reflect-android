@@ -54,7 +54,7 @@ vi.mock('../../src/webview/decoderSupport', () => ({
 }));
 
 const MARKUP =
-  '<nav class="toolbar"></nav><div class="inspect-banner" hidden></div><main class="stage"><canvas class="screen" hidden></canvas><div class="inspect-highlight" hidden><span class="inspect-highlight__label"></span></div><div class="status"><span class="status__title"></span><span class="status__detail"></span><button class="status__action" hidden></button></div></main>';
+  '<nav class="toolbar"></nav><div class="inspect-banner" hidden></div><main class="stage"><canvas class="screen" hidden></canvas><div class="inspect-highlight" hidden><span class="inspect-highlight__label"></span></div><div class="status"><span class="status__title"></span><span class="status__detail"></span><div class="status__devices"></div><button class="status__action" hidden></button><button class="status__link" hidden></button></div></main>';
 
 const boot = async (markup = MARKUP) => {
   document.body.innerHTML = markup;
@@ -160,6 +160,26 @@ describe('webview main', () => {
     expect(fakes.renderers[0]?.disposed).toBe(1);
     document.querySelector<HTMLButtonElement>('.status__action')?.click();
     expect(posted.at(-1)).toEqual({ type: 'open-device' });
+  });
+
+  it('renders the device list, posts row actions and shows Show in Simulator', async () => {
+    const { posted } = await boot();
+    deliver({ type: 'idle' });
+    deliver({
+      type: 'device-list',
+      devices: [
+        { id: 'S1', name: 'iPhone 15', detail: 'iOS 26.0', platform: 'ios', kind: 'simulator', state: 'ready' },
+        { id: 'S2', name: 'iPhone SE', detail: 'iOS 26.0', platform: 'ios', kind: 'simulator', state: 'shutdown' },
+      ],
+    });
+    deliver({ type: 'simulator-hidden', hidden: true });
+    const click = (selector: string) => document.querySelector<HTMLButtonElement>(selector)?.click();
+    click('.status__row button[data-device-id="S1"]');
+    expect(posted.at(-1)).toEqual({ type: 'open-device', deviceId: 'S1' });
+    click('.status__row button[data-device-id="S2"]');
+    expect(posted.at(-1)).toEqual({ type: 'boot-device', deviceId: 'S2' });
+    click('.status__link');
+    expect(posted.at(-1)).toEqual({ type: 'show-in-simulator' });
   });
 
   it('toggles inspect mode from the host and reports inspect clicks', async () => {

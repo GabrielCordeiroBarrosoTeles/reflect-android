@@ -40,7 +40,7 @@ export class NoDeviceError extends ReflectError {
   readonly code = 'no-device';
 
   constructor() {
-    super('No Android device connected');
+    super('No device connected or simulator booted');
   }
 }
 

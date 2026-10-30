@@ -185,9 +185,11 @@ describe('MirrorController', () => {
     expect(session.control.calls[4]).toEqual({ method: 'paste', arg: 'from mac' });
   });
 
-  it('leaves open-device requests to the sidebar host', async () => {
+  it('leaves device-list requests to the sidebar host', async () => {
     const { session, logger, send } = setup();
     await send({ type: 'open-device' });
+    await send({ type: 'boot-device', deviceId: 'UDID-1' });
+    await send({ type: 'show-in-simulator' });
     expect(session.control.calls).toEqual([]);
     expect(logger.errors).toEqual([]);
   });

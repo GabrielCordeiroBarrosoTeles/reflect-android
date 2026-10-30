@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="assets/icon.png" width="96" alt="Reflect for Android logo">
+  <img src="assets/icon.png" width="96" alt="Reflect logo">
 </p>
 
-<h1 align="center">Reflect for Android</h1>
+<h1 align="center">Reflect — Android &amp; iOS Simulator</h1>
 
 <p align="center">
-  Mirror and control a physical Android device inside a VS Code tab — no emulator, no external window.
+  Mirror and control Android devices and iOS Simulators inside a VS Code tab — no external window.
 </p>
 
 <p align="center">
@@ -68,6 +68,26 @@ Below the mirror, a single **Tools** panel groups everything about the device an
 - **Nothing left running**: closing the mirror stops the scrcpy server, closes the sockets, finishes any recording and releases the decoder. If the side bar stays hidden for 30 seconds the session is paused, and it resumes when you show it again.
 - **No telemetry.**
 
+### iOS Simulator
+
+On a Mac, Reflect also mirrors the iOS Simulators you already have in Xcode, in the same side bar and with the same tools. Booted simulators show up under **iOS Simulators** in the empty Device view (and in the device picker); press **Bring to Reflect** to mirror one. Shut-down simulators have a **Boot** button that boots them headless — no Simulator window appears — and opens them as soon as they are ready.
+
+**Requirements**
+
+- macOS and **Xcode 26** or newer (older versions are reported as not supported).
+- Nothing else to install: the small native helper that talks to the Simulator is bundled with the extension. Reflect clears the macOS quarantine flag on it the first time it runs.
+
+**What works in this release**
+
+- Live mirroring, touch, drag, scroll, keyboard and clipboard sync (paste into the simulator and copy back).
+- Toolbar: Home, Recent Apps, Rotate, screen on/off, screenshot, recording, Dev Menu and Reload.
+- Tools: Component inspector, Network and Storage for React Native apps in development mode.
+- Closing and booting a simulator from the terminal is picked up within a couple of seconds: the mirror shows **Disconnected** and returns by itself when the simulator boots again.
+
+**The Simulator app window.** While a simulator is mirrored in Reflect, the Simulator app is hidden so it does not cover your editor. Hiding applies to the whole app, so **all** Simulator windows are hidden, not just the mirrored one. Change this with `reflect.ios.simulatorWindow`: `hide` (default), `quit` (quits Simulator; booted simulators stay booted) or `leave`. After you close the mirror, the empty Device view offers **Show in Simulator** (also **Reflect: Show in Simulator**) to bring the app back.
+
+Android devices and iOS Simulators can be connected at the same time. When you have several, the device picker lists both.
+
 ### Roadmap
 
 Annotated screenshots and GIF export, Wi-Fi connections, dev tools (deep links, app actions, APK install, dark mode/font scale/locale, show touches, layout bounds, network toggles) and a filtered logcat panel.
@@ -77,10 +97,11 @@ Annotated screenshots and GIF export, Wi-Fi connections, dev tools (deep links, 
 - **VS Code 1.106** or newer (Cursor, Windsurf and VSCodium support through Open VSX is coming soon).
 - **Android platform-tools** (`adb`). Install them with Android Studio or download them from [developer.android.com](https://developer.android.com/tools/releases/platform-tools).
 - An Android device with **USB debugging enabled** ([how to enable](https://developer.android.com/studio/debug/dev-options#enable)) and Android 5.0 or newer.
+- For iOS Simulators: a Mac with **Xcode 26** or newer. See [iOS Simulator](#ios-simulator).
 
 ## Installation
 
-- **VS Code Marketplace**: search for "Reflect for Android" in the Extensions view, or run `code --install-extension GabrielCordeiro.reflect-android`.
+- **VS Code Marketplace**: search for "Reflect — Android & iOS Simulator" in the Extensions view, or run `code --install-extension GabrielCordeiro.reflect-android`.
 - **Open VSX** (Cursor, Windsurf, VSCodium): coming soon.
 
 ## Usage
@@ -139,6 +160,7 @@ Every toolbar action is also a command (**Reflect: Back**, **Reflect: Take Scree
 | `reflect.privacy.maskIpAddress` | `false` | Hide the last part of the IP address in the Device tab (handy for screenshots). |
 | `reflect.capturesDirectory` | `reflect-captures` | Folder for screenshots and recordings. Relative paths use the first workspace folder; without a workspace they go to `~/Pictures/Reflect`. |
 | `reflect.copyCapturesToClipboard` | `true` | Copy screenshots (as images) and recordings (as files) to the clipboard. |
+| `reflect.ios.simulatorWindow` | `hide` | What to do with the Simulator app when a simulator is brought into Reflect: `hide`, `quit` or `leave`. |
 
 When `reflect.adbPath` is empty, Reflect looks for `adb` in this order: `$ANDROID_HOME/platform-tools` (or `$ANDROID_SDK_ROOT`), the default SDK location for your OS, then your `PATH`.
 

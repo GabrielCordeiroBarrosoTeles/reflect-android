@@ -10,6 +10,7 @@ import { createHelperProcessFactory } from './ios/HelperProcess';
 import { IosPlatform } from './ios/IosPlatform';
 import { assertExecutable, spawnHelper } from './ios/nodeAdapters';
 import { SimctlRunner } from './ios/SimctlRunner';
+import { SimulatorAppWindow } from './ios/SimulatorAppWindow';
 import { SimulatorDiscovery } from './ios/SimulatorDiscovery';
 import type { SimctlExecFile } from './ios/types';
 import { CompositeDeviceDiscovery } from './devices/CompositeDeviceDiscovery';
@@ -25,6 +26,8 @@ import { CommandIds } from './commands/commandIds';
 import { CopyValueCommand } from './commands/CopyValueCommand';
 import { InspectCommand, OpenComponentSourceCommand, StopInspectingCommand } from './commands/InspectCommands';
 import { MoveMirrorCommand } from './commands/MoveMirrorCommand';
+import { BootSimulatorCommand } from './commands/BootSimulatorCommand';
+import { ShowInSimulatorCommand } from './commands/ShowInSimulatorCommand';
 import { OpenDeviceCommand } from './commands/OpenDeviceCommand';
 import { RefreshDeviceInfoCommand } from './commands/RefreshDeviceInfoCommand';
 import { RunActionCommand } from './commands/RunActionCommand';
@@ -87,6 +90,8 @@ const ADB_START_TIMEOUT_MS = 15_000;
 const DEVICE_INFO_INTERVAL_MS = 5_000;
 const SIMCTL_TIMEOUT_MS = 15_000;
 const XATTR_TIMEOUT_MS = 5_000;
+const SIMULATOR_APP_TIMEOUT_MS = 10_000;
+const SIMULATOR_BOOT_TIMEOUT_MS = 60_000;
 const IOS_HELPER_ASSET = ['assets', 'ios-helper', 'reflect-sim-helper'];
 const SIMULATOR_POLL_INTERVAL_MS = 2_000;
 const COPY_FEEDBACK_MS = 2_000;
@@ -169,8 +174,13 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   const discoverySources: IDeviceDiscovery[] = [tracker];
   const platformList: IPlatform[] = [new AndroidPlatform(pool, launcher, serverBinary, MIRROR_OPTIONS, logger)];
+  const simctl = new SimctlRunner(execFile as SimctlExecFile, SIMCTL_TIMEOUT_MS);
+  const simulatorWindow = new SimulatorAppWindow(
+    () => reflectSetting<string>('ios.simulatorWindow'),
+    new ExecFileProcessRunner(promisify(execFile), SIMULATOR_APP_TIMEOUT_MS),
+    logger,
+  );
   if (process.platform === 'darwin') {
-    const simctl = new SimctlRunner(execFile as SimctlExecFile, SIMCTL_TIMEOUT_MS);
     discoverySources.push(new SimulatorDiscovery(simctl, logger, SIMULATOR_POLL_INTERVAL_MS));
     const spawnHelperProcess = createHelperProcessFactory({
       helperPath: vscode.Uri.joinPath(context.extensionUri, ...IOS_HELPER_ASSET).fsPath,
@@ -179,7 +189,7 @@ export function activate(context: vscode.ExtensionContext): void {
       spawn: spawnHelper,
       logger,
     });
-    platformList.push(new IosPlatform(spawnHelperProcess, simctl, logger));
+    platformList.push(new IosPlatform(spawnHelperProcess, simctl, logger, simulatorWindow));
   }
   const discovery = new CompositeDeviceDiscovery(discoverySources);
   const activeDevice = new ActiveDeviceContext(discovery);
@@ -279,7 +289,7 @@ export function activate(context: vscode.ExtensionContext): void {
     reconnectTiming: RECONNECT_TIMING,
     capabilities: (device) => platforms.capabilities(device),
   };
-  const sidebar = new MirrorViewProvider(context.extensionUri);
+  const sidebar = new MirrorViewProvider(context.extensionUri, discovery, simulatorWindow);
   const createSurface = (device: Device, location: MirrorLocation): IMirrorSurface =>
     location === 'editor' ? new MirrorPanel(device, context.extensionUri) : sidebar.claim(device);
   const mirrors = new MirrorManager(
@@ -291,7 +301,8 @@ export function activate(context: vscode.ExtensionContext): void {
         mirrorServices,
       ),
   );
-  const selection = new DeviceSelectionService(discovery, new QuickPickDevicePicker());
+  const picker = new QuickPickDevicePicker();
+  const selection = new DeviceSelectionService(discovery, picker);
 
   context.subscriptions.push(
     outputChannel,
@@ -305,6 +316,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.window.registerWebviewViewProvider(TOOLS_VIEW_ID, tools),
     appConnection,
     discovery,
+    simulatorWindow,
     selection,
     activeDevice,
     statusBar,
@@ -334,6 +346,15 @@ export function activate(context: vscode.ExtensionContext): void {
     new MoveMirrorCommand(CommandIds.moveToSidebar, 'secondarySidebar', mirrors, () =>
       Promise.resolve(vscode.commands.executeCommand(CommandIds.openDevice)),
     ),
+    new BootSimulatorCommand(
+      simctl,
+      discovery,
+      picker,
+      async (deviceId) => void (await vscode.commands.executeCommand(CommandIds.openDevice, deviceId)),
+      errors,
+      SIMULATOR_BOOT_TIMEOUT_MS,
+    ),
+    new ShowInSimulatorCommand(simulatorWindow, errors),
     new RefreshDeviceInfoCommand(deviceTab),
     new InspectCommand(inspectController, () => mirrors.hasOpenMirror, () => Promise.resolve(vscode.commands.executeCommand(CommandIds.openDevice))),
     new StopInspectingCommand(inspectController),

@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **iOS Simulator** support on macOS with Xcode 26 or newer: booted simulators are listed under **iOS Simulators** in the empty Device view and in the device picker, with a **Bring to Reflect** button; shut-down simulators have a **Boot** button that boots them headless and opens them. Mirroring, touch, scroll, keyboard, clipboard sync and the toolbar actions work through a bundled native helper.
+- `reflect.ios.simulatorWindow` setting (`hide`, `quit` or `leave`) to choose what happens to the Simulator app when a simulator is brought into Reflect, and **Show in Simulator** to bring it back. Hiding applies to all Simulator windows.
+- Commands **Reflect: Boot iOS Simulator** and **Reflect: Show in Simulator** (macOS only).
+
+### Changed
+
+- The extension is now called **Reflect — Android & iOS Simulator** (same extension ID, settings and commands, so updates keep working). The empty Device view lists Android devices, Android Emulators and iOS Simulators in groups.
+- The "no device" message now reads "No device connected or simulator booted".
+
 ## [0.2.0] - 2026-10-21
 
 ### Changed
