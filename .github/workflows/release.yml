@@ -76,6 +76,9 @@ jobs:
       - name: Check that the VSIX contains the iOS helper
         run: unzip -l "reflect-android-${GITHUB_REF_NAME}.vsix" | grep -q 'extension/assets/ios-helper/reflect-sim-helper'
 
+      - name: Check that the iOS helper is executable in the VSIX
+        run: zipinfo "reflect-android-${GITHUB_REF_NAME}.vsix" extension/assets/ios-helper/reflect-sim-helper | grep -q '^-rwx'
+
       - uses: softprops/action-gh-release@v3.0.3
         with:
           files: reflect-android-${{ github.ref_name }}.vsix

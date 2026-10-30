@@ -78,6 +78,10 @@ jobs:
         if: runner.os != 'Windows'
         run: unzip -l reflect-android.vsix | grep -q 'extension/assets/ios-helper/reflect-sim-helper'
 
+      - name: Check that the iOS helper is executable in the VSIX
+        if: runner.os != 'Windows'
+        run: zipinfo reflect-android.vsix extension/assets/ios-helper/reflect-sim-helper | grep -q '^-rwx'
+
       - name: Check that the VSIX contains the iOS helper (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
