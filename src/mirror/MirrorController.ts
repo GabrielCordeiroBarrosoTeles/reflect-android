@@ -22,6 +22,8 @@ type MessageHandlers = {
   [K in WebviewToHostMessage['type']]: (message: Extract<WebviewToHostMessage, { type: K }>) => Promise<void> | void;
 };
 
+const tooLargeMessage = (name: string): string => `${name} is too large to drop (over 256 MB) — use Add Files to Simulator… instead`;
+
 export class MirrorController implements IMirrorController, MirrorCapabilities {
   private readonly store = new DisposableStore();
   private readonly disposeEmitter = new Emitter<MirrorCloseReason>();
@@ -68,7 +70,7 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
     'inspect-cancel': () => this.services.inspector.cancel(),
     action: ({ id }) => this.runAction(id),
     screenshot: ({ requestId, data }) => this.screenshots.resolve(requestId, data),
-    'drop-files': ({ uris, files }) => this.addDropped(uris.map((uri) => this.services.drops.uriToPath(uri)), files).catch((error: unknown) => this.services.onError(error)),
+    'drop-files': ({ uris, files, oversized }) => this.addDropped(uris.map((uri) => this.services.drops.uriToPath(uri)), files, oversized).catch((error: unknown) => this.services.onError(error)),
   };
 
   constructor(
@@ -193,12 +195,14 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
     }
   }
 
-  private async addDropped(paths: readonly string[], contents: readonly DroppedContent[]): Promise<void> {
+  private async addDropped(paths: readonly string[], contents: readonly DroppedContent[], oversized: readonly string[] = []): Promise<void> {
     const staged = await this.services.drops.stage(contents);
     try {
-      const result = await this.session.addFiles([...paths.map((path) => ({ name: basename(path), path })), ...staged.files]);
-      if (result.message) {
-        this.services.actions.notify(result.message);
+      const files = [...paths.map((path) => ({ name: basename(path), path })), ...staged.files];
+      const result = files.length > 0 ? await this.session.addFiles(files) : undefined;
+      const message = [result?.message, ...oversized.map(tooLargeMessage)].filter(Boolean).join('. ');
+      if (message) {
+        this.services.actions.notify(message);
       }
     } finally {
       await staged.release();

@@ -118,23 +118,37 @@ describe('MirrorController', () => {
   it('stages dropped contents, adds them after the dropped paths, notifies and cleans up', async () => {
     const { session, drops, release, actions, send } = setup();
     session.addFilesResult = { added: [], unsupported: [], message: 'Installed 1 app' };
-    await send({ type: 'drop-files', uris: ['file:///a/Demo.app'], files: [{ name: 'shot.png', data: new Uint8Array([1]) }] });
+    await send({ type: 'drop-files', uris: ['file:///a/Demo.app'], files: [{ name: 'shot.png', data: new Uint8Array([1]) }], oversized: [] });
     expect(drops.uriToPath).toHaveBeenCalledWith('file:///a/Demo.app');
     expect(session.addedFiles).toEqual([[{ name: 'Demo.app', path: '/a/Demo.app' }, { name: 'shot.png', path: '/staged/shot.png' }]]);
     expect(actions.notify).toHaveBeenCalledWith('Installed 1 app');
     expect(release).toHaveBeenCalledTimes(1);
   });
 
+  it('folds oversized files into the same single notification', async () => {
+    const { session, actions, send } = setup();
+    session.addFilesResult = { added: [], unsupported: [], message: 'Added 1 photo/video' };
+    await send({ type: 'drop-files', uris: ['file:///a/a.png'], files: [], oversized: ['big.mov'] });
+    expect(actions.notify).toHaveBeenCalledExactlyOnceWith('Added 1 photo/video. big.mov is too large to drop (over 256 MB) — use Add Files to Simulator… instead');
+  });
+
+  it('only reports oversized files when nothing else was dropped', async () => {
+    const { session, actions, send } = setup();
+    await send({ type: 'drop-files', uris: [], files: [], oversized: ['big.ipa'] });
+    expect(session.addedFiles).toEqual([]);
+    expect(actions.notify).toHaveBeenCalledExactlyOnceWith('big.ipa is too large to drop (over 256 MB) — use Add Files to Simulator… instead');
+  });
+
   it('stays quiet when the session has nothing to say', async () => {
     const { actions, send } = setup();
-    await send({ type: 'drop-files', uris: ['file:///a/a.png'], files: [] });
+    await send({ type: 'drop-files', uris: ['file:///a/a.png'], files: [], oversized: [] });
     expect(actions.notify).not.toHaveBeenCalled();
   });
 
   it('reports a failed add through the error handler and still cleans up', async () => {
     const { session, release, onError, send } = setup();
     session.addFilesFailure = new Error('install failed');
-    await send({ type: 'drop-files', uris: [], files: [{ name: 'a.png', data: new Uint8Array([1]) }] });
+    await send({ type: 'drop-files', uris: [], files: [{ name: 'a.png', data: new Uint8Array([1]) }], oversized: [] });
     expect(onError).toHaveBeenCalledWith(session.addFilesFailure);
     expect(release).toHaveBeenCalledTimes(1);
   });

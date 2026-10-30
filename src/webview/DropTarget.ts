@@ -1,5 +1,7 @@
 import type { DroppedContent } from '../shared/protocol';
 
+export const MAX_DROPPED_FILE_BYTES = 256 * 1024 * 1024;
+
 const URI_LIST_TYPES = ['text/uri-list', 'application/vnd.code.uri-list'];
 
 const parseUriList = (text: string): string[] =>
@@ -25,7 +27,7 @@ export class DropTarget {
 
   constructor(
     private readonly stage: HTMLElement,
-    private readonly onDrop: (uris: readonly string[], files: readonly DroppedContent[]) => void,
+    private readonly onDrop: (uris: readonly string[], files: readonly DroppedContent[], oversized: readonly string[]) => void,
     private readonly onError: (message: string) => void,
   ) {
     const options = { signal: this.controller.signal };
@@ -81,9 +83,11 @@ export class DropTarget {
     this.stage.classList.remove('stage--drop');
     const uris = [...new Set(URI_LIST_TYPES.flatMap((type) => parseUriList(transfer.getData(type))))];
     const known = new Set(uris.map(lastSegment));
-    const files = await this.readFiles(Array.from(transfer.files).filter((file) => !known.has(file.name)));
-    if (uris.length > 0 || files.length > 0) {
-      this.onDrop(uris, files);
+    const pending = Array.from(transfer.files).filter((file) => !known.has(file.name));
+    const oversized = pending.filter((file) => file.size > MAX_DROPPED_FILE_BYTES).map((file) => file.name);
+    const files = await this.readFiles(pending.filter((file) => file.size <= MAX_DROPPED_FILE_BYTES));
+    if (uris.length > 0 || files.length > 0 || oversized.length > 0) {
+      this.onDrop(uris, files, oversized);
     }
   }
 

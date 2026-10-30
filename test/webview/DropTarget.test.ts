@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DropTarget } from '../../src/webview/DropTarget';
+import { DropTarget, MAX_DROPPED_FILE_BYTES } from '../../src/webview/DropTarget';
 
 interface FakeTransfer {
   types: string[];
@@ -117,6 +117,7 @@ describe('DropTarget', () => {
         { name: 'a.png', data: new Uint8Array([1, 2]) },
         { name: 'b.mov', data: new Uint8Array([3]) },
       ],
+      [],
     );
     expect(stage.classList.contains('stage--drop')).toBe(false);
   });
@@ -134,21 +135,21 @@ describe('DropTarget', () => {
       }),
     );
     await flush();
-    expect(onDrop).toHaveBeenCalledExactlyOnceWith(['file:///a/Demo.app', 'file:///a/pic.png'], []);
+    expect(onDrop).toHaveBeenCalledExactlyOnceWith(['file:///a/Demo.app', 'file:///a/pic.png'], [], []);
   });
 
   it('does not send a file twice when it also arrives as a uri', async () => {
     const { stage, onDrop } = setup();
     fire(stage, 'drop', transfer({ data: { 'text/uri-list': 'file:///a/My%20Pic.png/' }, files: [fileOf('My Pic.png'), fileOf('other.png')] }));
     await flush();
-    expect(onDrop).toHaveBeenCalledExactlyOnceWith(['file:///a/My%20Pic.png/'], [{ name: 'other.png', data: new Uint8Array([1, 2]) }]);
+    expect(onDrop).toHaveBeenCalledExactlyOnceWith(['file:///a/My%20Pic.png/'], [{ name: 'other.png', data: new Uint8Array([1, 2]) }], []);
   });
 
   it('compares malformed uris by their raw last segment', async () => {
     const { stage, onDrop } = setup();
     fire(stage, 'drop', transfer({ data: { 'text/uri-list': 'file:///a/%E0%A4%A.png' }, files: [fileOf('%E0%A4%A.png')] }));
     await flush();
-    expect(onDrop).toHaveBeenCalledExactlyOnceWith(['file:///a/%E0%A4%A.png'], []);
+    expect(onDrop).toHaveBeenCalledExactlyOnceWith(['file:///a/%E0%A4%A.png'], [], []);
   });
 
   it('reports files that cannot be read (such as folders) and still sends the rest', async () => {
@@ -158,7 +159,7 @@ describe('DropTarget', () => {
     fire(stage, 'drop', transfer({ files: [folder, fileOf('a.png')] }));
     await flush();
     expect(onError).toHaveBeenCalledWith('Could not read Demo.app: NotFoundError');
-    expect(onDrop).toHaveBeenCalledExactlyOnceWith([], [{ name: 'a.png', data: new Uint8Array([1, 2]) }]);
+    expect(onDrop).toHaveBeenCalledExactlyOnceWith([], [{ name: 'a.png', data: new Uint8Array([1, 2]) }], []);
   });
 
   it('describes a non-error read failure', async () => {
@@ -168,6 +169,29 @@ describe('DropTarget', () => {
     fire(stage, 'drop', transfer({ files: [odd] }));
     await flush();
     expect(onError).toHaveBeenCalledWith('Could not read x.png: nope');
+  });
+
+  it('skips files over the size cap without reading them and reports their names', async () => {
+    const { stage, onDrop } = setup();
+    const big = fileOf('big.mov');
+    Object.defineProperty(big, 'size', { value: MAX_DROPPED_FILE_BYTES + 1 });
+    const read = vi.spyOn(big, 'arrayBuffer');
+    const edge = fileOf('edge.png');
+    Object.defineProperty(edge, 'size', { value: MAX_DROPPED_FILE_BYTES });
+    vi.spyOn(edge, 'arrayBuffer').mockResolvedValue(new Uint8Array([9]).buffer);
+    fire(stage, 'drop', transfer({ files: [big, edge] }));
+    await flush();
+    expect(read).not.toHaveBeenCalled();
+    expect(onDrop).toHaveBeenCalledExactlyOnceWith([], [{ name: 'edge.png', data: new Uint8Array([9]) }], ['big.mov']);
+  });
+
+  it('prefers the uri over an oversized file that also arrived as a uri', async () => {
+    const { stage, onDrop } = setup();
+    const big = fileOf('big.mov');
+    Object.defineProperty(big, 'size', { value: MAX_DROPPED_FILE_BYTES + 1 });
+    fire(stage, 'drop', transfer({ data: { 'text/uri-list': 'file:///a/big.mov' }, files: [big] }));
+    await flush();
+    expect(onDrop).toHaveBeenCalledExactlyOnceWith(['file:///a/big.mov'], [], []);
   });
 
   it('posts nothing when the drop carries nothing usable', async () => {

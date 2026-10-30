@@ -19,17 +19,28 @@ describe('DropStaging', () => {
       { name: 'b.mov', data: new Uint8Array([2]) },
     ]);
     expect(fs.mkdir).toHaveBeenCalledWith('/tmp/reflect-drops/uuid-1');
-    expect(fs.writeFile).toHaveBeenCalledWith('/tmp/reflect-drops/uuid-1/a.png', new Uint8Array([1]));
+    expect(fs.writeFile).toHaveBeenCalledWith('/tmp/reflect-drops/uuid-1/0/a.png', new Uint8Array([1]));
     expect(staged.files).toEqual([
-      { name: 'a.png', path: '/tmp/reflect-drops/uuid-1/a.png' },
-      { name: 'b.mov', path: '/tmp/reflect-drops/uuid-1/b.mov' },
+      { name: 'a.png', path: '/tmp/reflect-drops/uuid-1/0/a.png' },
+      { name: 'b.mov', path: '/tmp/reflect-drops/uuid-1/1/b.mov' },
     ]);
+  });
+
+  it('keeps same-named files apart in their own folders', async () => {
+    const { fs, staging } = setup();
+    const staged = await staging.stage([
+      { name: 'a.png', data: new Uint8Array([1]) },
+      { name: 'a.png', data: new Uint8Array([2]) },
+    ]);
+    expect(fs.mkdir).toHaveBeenCalledWith('/tmp/reflect-drops/uuid-1/0');
+    expect(fs.mkdir).toHaveBeenCalledWith('/tmp/reflect-drops/uuid-1/1');
+    expect(staged.files.map(({ path }) => path)).toEqual(['/tmp/reflect-drops/uuid-1/0/a.png', '/tmp/reflect-drops/uuid-1/1/a.png']);
   });
 
   it('strips directories from dropped names so nothing escapes the drop folder', async () => {
     const { fs, staging } = setup();
     const staged = await staging.stage([{ name: '../../evil.png', data: new Uint8Array([1]) }]);
-    expect(fs.writeFile).toHaveBeenCalledWith('/tmp/reflect-drops/uuid-1/evil.png', expect.anything());
+    expect(fs.writeFile).toHaveBeenCalledWith('/tmp/reflect-drops/uuid-1/0/evil.png', expect.anything());
     expect(staged.files[0]?.name).toBe('evil.png');
   });
 

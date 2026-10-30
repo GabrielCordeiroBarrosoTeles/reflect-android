@@ -20,9 +20,11 @@ export class DropStaging {
     try {
       await this.fs.mkdir(directory);
       const files = [];
-      for (const { name, data } of contents) {
+      for (const [index, { name, data }] of contents.entries()) {
         const safeName = basename(name);
-        const path = join(directory, safeName);
+        const folder = join(directory, String(index));
+        const path = join(folder, safeName);
+        await this.fs.mkdir(folder);
         await this.fs.writeFile(path, data);
         files.push({ name: safeName, path });
       }

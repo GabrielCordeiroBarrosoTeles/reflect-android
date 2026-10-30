@@ -142,6 +142,6 @@ export type WebviewToHostMessage =
   | { readonly type: 'inspect-hover'; readonly x: number; readonly y: number }
   | { readonly type: 'inspect-cancel' }
   | { readonly type: 'action'; readonly id: ActionId }
-  | { readonly type: 'drop-files'; readonly uris: readonly string[]; readonly files: readonly DroppedContent[] }
+  | { readonly type: 'drop-files'; readonly uris: readonly string[]; readonly files: readonly DroppedContent[]; readonly oversized: readonly string[] }
   | { readonly type: 'screenshot'; readonly requestId: number; readonly data: Uint8Array | undefined }
   | { readonly type: 'log'; readonly level: LogLevel; readonly message: string };

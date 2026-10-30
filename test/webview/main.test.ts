@@ -283,7 +283,7 @@ describe('webview main', () => {
     deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'software', acceptsDrops: true });
     drop();
     await flushPromises();
-    expect(posted).toContainEqual({ type: 'drop-files', uris: ['file:///a/Demo.app'], files: [] });
+    expect(posted).toContainEqual({ type: 'drop-files', uris: ['file:///a/Demo.app'], files: [], oversized: [] });
   });
 
   it('logs files it cannot read from a drop', async () => {

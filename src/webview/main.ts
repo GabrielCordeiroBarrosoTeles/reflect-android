@@ -78,7 +78,7 @@ const bootstrap = async (): Promise<void> => {
   const viewOptions = new ViewOptions(toolbarRoot, queryElement<HTMLElement>('.stage'), canvas, vscode);
   const dropTarget = new DropTarget(
     queryElement<HTMLElement>('.stage'),
-    (uris, files) => vscode.postMessage({ type: 'drop-files', uris, files }),
+    (uris, files, oversized) => vscode.postMessage({ type: 'drop-files', uris, files, oversized }),
     (message) => log('error', message),
   );
   const inspectMode = new InspectModeView(queryElement<HTMLElement>('.inspect-banner'), canvas);
