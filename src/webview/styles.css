@@ -359,6 +359,7 @@ body {
 
 .status__row-label {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
 }
@@ -390,7 +391,24 @@ body {
   background: var(--vscode-button-hoverBackground);
 }
 
+.status__row-show {
+  flex: none;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 2px;
+  font: inherit;
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.status__row-show:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
 .status__row-button:focus-visible,
+.status__row-show:focus-visible,
 .status__link:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 2px;

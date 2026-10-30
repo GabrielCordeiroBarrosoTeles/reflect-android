@@ -16,15 +16,20 @@ const idleScreen = [idle, list(), hidden()];
 
 const simulator = device({ id: 'UDID-1', platform: 'ios', kind: 'simulator', name: 'iPhone 15', model: undefined, detail: 'iOS 26.0' });
 const item = { id: 'UDID-1', name: 'iPhone 15', detail: 'iOS 26.0', platform: 'ios', kind: 'simulator', state: 'ready' };
+const emulator = device({ id: 'emulator-5554', kind: 'emulator', name: 'sdk gphone64 arm64', model: 'sdk gphone64 arm64', detail: 'sdk_gphone64_arm64' });
+const emulatorItem = { id: 'emulator-5554', name: 'sdk gphone64 arm64', detail: 'sdk_gphone64_arm64', platform: 'android', kind: 'emulator', state: 'ready' };
 
 const setup = () => {
   const discovery = new FakeDeviceTracker();
   const hiddenEmitter = new Emitter<boolean>();
   const simulatorWindow = { hidden: false, onDidChangeHidden: hiddenEmitter.event };
-  const provider = new MirrorViewProvider(vscode.Uri.file('/ext'), discovery, simulatorWindow);
+  const windowsEmitter = new Emitter<void>();
+  const hiddenWindows = new Set<string>();
+  const deviceWindows = { isHidden: (id: string) => hiddenWindows.has(id), onDidChange: windowsEmitter.event };
+  const provider = new MirrorViewProvider(vscode.Uri.file('/ext'), discovery, simulatorWindow, deviceWindows);
   const view = new FakeWebviewView();
   const resolve = (target = view) => provider.resolveWebviewView(target as unknown as vscode.WebviewView);
-  return { provider, view, resolve, discovery, simulatorWindow, hiddenEmitter };
+  return { provider, view, resolve, discovery, simulatorWindow, hiddenEmitter, hiddenWindows, windowsEmitter };
 };
 
 describe('MirrorViewProvider', () => {
@@ -101,6 +106,22 @@ describe('MirrorViewProvider', () => {
     expect(view.webview.posted).toEqual([list([item])]);
   });
 
+  it('marks rows whose window Reflect hid and posts the list again when that changes', () => {
+    const { view, resolve, discovery, hiddenWindows, windowsEmitter } = setup();
+    resolve();
+    discovery.setDevices([emulator, simulator]);
+    hiddenWindows.add('emulator-5554');
+    windowsEmitter.fire();
+    expect(view.webview.posted).toEqual([list([emulatorItem, item]), list([{ ...emulatorItem, windowHidden: true }, item])]);
+  });
+
+  it('shows a device window again on request', () => {
+    const { view, resolve } = setup();
+    resolve();
+    view.webview.received.fire(from({ type: 'show-device-window', deviceId: 'emulator-5554' }));
+    expect(commands.executeCommand).toHaveBeenCalledWith('reflect.showDeviceWindow', 'emulator-5554');
+  });
+
   it('posts the Simulator window state to the idle screen', () => {
     const { view, resolve, hiddenEmitter, simulatorWindow } = setup();
     resolve();
@@ -110,19 +131,21 @@ describe('MirrorViewProvider', () => {
   });
 
   it('leaves the webview alone while a device owns it', () => {
-    const { view, resolve, discovery, hiddenEmitter, provider } = setup();
+    const { view, resolve, discovery, hiddenEmitter, windowsEmitter, provider } = setup();
     resolve();
     provider.claim(phone);
     discovery.setDevices([simulator]);
     hiddenEmitter.fire(true);
+    windowsEmitter.fire();
     expect(view.webview.posted).toEqual([]);
   });
 
   it('stops listening to discovery after dispose', () => {
-    const { view, resolve, discovery, provider } = setup();
+    const { view, resolve, discovery, windowsEmitter, provider } = setup();
     resolve();
     provider.dispose();
     discovery.setDevices([simulator]);
+    windowsEmitter.fire();
     expect(view.webview.posted).toEqual([]);
   });
 

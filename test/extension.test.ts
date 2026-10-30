@@ -22,9 +22,10 @@ const io = vi.hoisted(() => ({
     if (file === 'xcrun' && args[1] === 'boot' && io.bootedJson) {
       io.simctlJson = io.bootedJson;
     }
-    callback(null, file === 'xcrun' ? io.simctlJson : undefined);
+    callback(null, file === 'xcrun' ? io.simctlJson : args.includes('emu') ? io.emulatorConsole(args) : undefined);
     return { stdin: null };
   }),
+  emulatorConsole: (args: string[]): string => (args.includes('windowtype') ? 'windowtype=qtwindow\r\nOK\r\n' : '/avd/running/pid_47899.ini\r\nOK\r\n'),
   scrcpyClient: undefined as unknown,
   startFailure: undefined as Error | undefined,
 }));
@@ -159,7 +160,8 @@ describe('extension', () => {
     expect(commands.registered.has('reflect.moveToEditor')).toBe(true);
     expect(commands.registered.has('reflect.bootSimulator')).toBe(true);
     expect(commands.registered.has('reflect.showInSimulator')).toBe(true);
-    expect(context.subscriptions).toHaveLength(53);
+    expect(commands.registered.has('reflect.showDeviceWindow')).toBe(true);
+    expect(context.subscriptions).toHaveLength(56);
   });
 
   it('mirrors in the secondary side bar by default', async () => {
@@ -475,6 +477,51 @@ describe('extension', () => {
       if (discoversSimulators) {
         expect(clearTimer).toHaveBeenCalled();
       }
+    });
+  });
+
+  describe('Android Emulators', () => {
+    const emulator = () => tangoDevice({ serial: 'emulator-5554', model: 'sdk_gphone64_arm64', product: 'sdk_gphone64_arm64' });
+
+    const setupOn = async (platform: string) => {
+      workspace.configuration.set('reflect.adbPath', await createFakeAdb(join(await createTempRoot(), 'bin')));
+      const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
+      Object.defineProperty(process, 'platform', { value: platform });
+      try {
+        return await setup([emulator()]);
+      } finally {
+        Object.defineProperty(process, 'platform', original);
+      }
+    };
+
+    const osascriptCalls = () => io.execFile.mock.calls.filter(([file]) => file === 'osascript').map(([, args]) => args.slice(-2));
+
+    it('hides the emulator window on macOS once mirrored and shows it again from the side bar', async () => {
+      await setupOn('darwin');
+      const view = resolveSidebar();
+      await commands.registered.get('reflect.openDevice')?.('emulator-5554');
+      await flushPromises();
+      expect(view.webview.posted).toContainEqual({ deviceId: 'emulator-5554', message: { type: 'session-state', state: 'streaming', deviceName: 'sdk gphone64 arm64' } });
+      await vi.waitFor(() => expect(osascriptCalls()).toEqual([['hide', '47899']]));
+      expect(io.execFile).toHaveBeenCalledWith(expect.stringContaining('adb'), ['-s', 'emulator-5554', 'emu', 'avd', 'windowtype'], expect.anything(), expect.any(Function));
+      await commands.registered.get('reflect.showDeviceWindow')?.('emulator-5554');
+      expect(osascriptCalls()).toEqual([['hide', '47899'], ['unhide', '47899']]);
+    });
+
+    it('leaves the emulator window alone when configured to', async () => {
+      workspace.configuration.set('reflect.android.emulatorWindow', 'leave');
+      await setupOn('darwin');
+      await commands.registered.get('reflect.openDevice')?.('emulator-5554');
+      await vi.waitFor(() => expect(window.outputChannels[0]?.lines).toContain('info Emulator window of emulator-5554: leave'));
+      expect(osascriptCalls()).toEqual([]);
+    });
+
+    it('never hides emulator windows outside macOS', async () => {
+      await setupOn('linux');
+      await commands.registered.get('reflect.openDevice')?.('emulator-5554');
+      await vi.waitFor(() => expect(window.outputChannels[0]?.lines).toContain('info Emulator window of emulator-5554: leave'));
+      expect(io.execFile.mock.calls.some(([, args]) => args.includes('emu'))).toBe(false);
+      expect(osascriptCalls()).toEqual([]);
     });
   });
 

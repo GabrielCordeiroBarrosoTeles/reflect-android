@@ -229,6 +229,12 @@
         "title": "Show in Simulator",
         "category": "Reflect",
         "icon": "$(link-external)"
+      },
+      {
+        "command": "reflect.showDeviceWindow",
+        "title": "Show Device Window",
+        "category": "Reflect",
+        "icon": "$(link-external)"
       }
     ],
     "configuration": {
@@ -293,6 +299,19 @@
           ],
           "default": "quit",
           "markdownDescription": "What to do with the Simulator app window when a simulator is brought into Reflect."
+        },
+        "reflect.android.emulatorWindow": {
+          "type": "string",
+          "enum": [
+            "hide",
+            "leave"
+          ],
+          "enumDescriptions": [
+            "Hide the emulator window while the emulator is mirrored in Reflect (macOS only). The emulator keeps running and the side bar offers Show Window when the mirror closes.",
+            "Leave the emulator window as it is."
+          ],
+          "default": "hide",
+          "markdownDescription": "What to do with the Android Emulator window when an emulator is brought into Reflect. Hiding only happens on macOS."
         }
       }
     },
@@ -403,6 +422,10 @@
         {
           "command": "reflect.showInSimulator",
           "when": "isMac"
+        },
+        {
+          "command": "reflect.showDeviceWindow",
+          "when": "false"
         }
       ],
       "editor/title": [

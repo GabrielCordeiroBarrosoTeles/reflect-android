@@ -60,6 +60,7 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
     'open-device': () => undefined,
     'boot-device': () => undefined,
     'show-in-simulator': () => undefined,
+    'show-device-window': () => undefined,
     reconnect: () => this.reconnectNow(),
     'inspect-at': ({ x, y }) => this.services.inspector.inspectAt(this.device, { x, y }),
     'inspect-hover': ({ x, y }) =>

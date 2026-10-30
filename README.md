@@ -68,6 +68,14 @@ Below the mirror, a single **Tools** panel groups everything about the device an
 - **Nothing left running**: closing the mirror stops the scrcpy server, closes the sockets, finishes any recording and releases the decoder. If the side bar stays hidden for 30 seconds the session is paused, and it resumes when you show it again.
 - **No telemetry.**
 
+### Android Emulator
+
+Emulators from Android Studio (or started with the `emulator` command) are regular `adb` devices, so everything above works on them: mirroring, control, screenshots and recordings, and every Tools tab. Running emulators show up under **Android Emulators** in the empty Device view and in the device picker; press **Bring to Reflect** to mirror one.
+
+**The emulator window.** On macOS, bringing an emulator into Reflect hides its window, so the device lives only in your editor. The emulator keeps running (it is hidden like any app with <kbd>Cmd</kbd>+<kbd>H</kbd>, and its Dock icon stays). When the mirror closes, the emulator's row in the empty Device view has a **Show Window** button that brings the window back; clicking the emulator in the Dock works too. Each emulator is hidden on its own, and no Accessibility or Automation permission is needed. Set `reflect.android.emulatorWindow` to `leave` to keep the window. On Windows and Linux the window is left alone. Emulators started without a window (`-no-window`) are not touched.
+
+Tested with an Android Studio emulator (API 37, arm64) on macOS.
+
 ### iOS Simulator
 
 On a Mac, Reflect also mirrors the iOS Simulators you already have in Xcode, in the same side bar and with the same tools. Booted simulators show up under **iOS Simulators** in the empty Device view (and in the device picker); press **Bring to Reflect** to mirror one. Shut-down simulators have a **Boot** button that boots them headless — no Simulator window appears — and opens them as soon as they are ready.
@@ -96,7 +104,7 @@ Annotated screenshots and GIF export, Wi-Fi connections, dev tools (deep links, 
 
 - **VS Code 1.106** or newer (Cursor, Windsurf and VSCodium support through Open VSX is coming soon).
 - **Android platform-tools** (`adb`). Install them with Android Studio or download them from [developer.android.com](https://developer.android.com/tools/releases/platform-tools).
-- An Android device with **USB debugging enabled** ([how to enable](https://developer.android.com/studio/debug/dev-options#enable)) and Android 5.0 or newer.
+- An Android device with **USB debugging enabled** ([how to enable](https://developer.android.com/studio/debug/dev-options#enable)) and Android 5.0 or newer, or a running Android Emulator. See [Android Emulator](#android-emulator).
 - For iOS Simulators: a Mac with **Xcode 26** or newer. See [iOS Simulator](#ios-simulator).
 
 ## Installation
@@ -160,6 +168,7 @@ Every toolbar action is also a command (**Reflect: Back**, **Reflect: Take Scree
 | `reflect.privacy.maskIpAddress` | `false` | Hide the last part of the IP address in the Device tab (handy for screenshots). |
 | `reflect.capturesDirectory` | `reflect-captures` | Folder for screenshots and recordings. Relative paths use the first workspace folder; without a workspace they go to `~/Pictures/Reflect`. |
 | `reflect.copyCapturesToClipboard` | `true` | Copy screenshots (as images) and recordings (as files) to the clipboard. |
+| `reflect.android.emulatorWindow` | `hide` | What to do with the Android Emulator window when an emulator is brought into Reflect: `hide` (macOS only) or `leave`. |
 | `reflect.ios.simulatorWindow` | `quit` | What to do with the Simulator app when a simulator is brought into Reflect: `quit` (the simulator keeps running), `hide` or `leave`. |
 
 When `reflect.adbPath` is empty, Reflect looks for `adb` in this order: `$ANDROID_HOME/platform-tools` (or `$ANDROID_SDK_ROOT`), the default SDK location for your OS, then your `PATH`.
@@ -178,6 +187,7 @@ When `reflect.adbPath` is empty, Reflect looks for `adb` in this order: `$ANDROI
 | The app on the phone cannot reach Metro | Click **Reverse Metro Port** in the toolbar, or run `adb reverse tcp:8081 tcp:8081`. |
 | Reload does nothing | Reload uses Metro; without it Reflect falls back to pressing <kbd>R</kbd> twice, which needs the app in development mode. |
 | The mirror says "Device not found" | Check the cable and that USB debugging is still on, then click **Reconnect**. |
+| The emulator window stays hidden | Click **Show Window** on the emulator in the empty Device view, or click the emulator in the Dock. |
 | "Nothing was recorded" | The recording was stopped before the first video frame arrived. Record for at least a second. |
 | No highlight while inspecting | Make sure Metro is running and the app is in development mode. Only components rendered by React Native's new architecture (Fabric) are supported. |
 

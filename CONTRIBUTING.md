@@ -54,6 +54,7 @@ src/
   devices/       Platform-neutral device model, composite discovery and discovery-backed availability.
   platform/      Platform contract (mirror session, device control, capabilities), registry, session state machine and the Android adapter.
   ios/           iOS Simulator adapter: simctl discovery, helper process and mirror session, HID control, shared simulator pasteboard.
+  emulator/      Android Emulator window: emulator console through `adb emu`, hiding and showing the emulator app (macOS).
   scrcpy/        Android mirror session (Facade), control channel, scrcpy launcher.
   mirror/        Webview surfaces, typed bridge (Mediator), controller, manager, auto reconnection (Strategy) and screenshot requests.
   actions/       Toolbar actions as a registry of Commands shared by the webview, commands and shortcuts.

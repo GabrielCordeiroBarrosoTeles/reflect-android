@@ -257,6 +257,7 @@ describe('MirrorController', () => {
     await send({ type: 'open-device' });
     await send({ type: 'boot-device', deviceId: 'UDID-1' });
     await send({ type: 'show-in-simulator' });
+    await send({ type: 'show-device-window', deviceId: 'emulator-5554' });
     expect(session.control.calls).toEqual([]);
     expect(logger.errors).toEqual([]);
   });

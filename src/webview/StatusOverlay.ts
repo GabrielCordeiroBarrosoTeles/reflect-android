@@ -9,7 +9,7 @@ const STATE_TITLES: Readonly<Record<SessionStateKind, string>> = {
   closed: 'Closed',
 };
 
-export type OverlayAction = 'open-device' | 'reconnect' | 'boot-device' | 'show-in-simulator';
+export type OverlayAction = 'open-device' | 'reconnect' | 'boot-device' | 'show-in-simulator' | 'show-device-window';
 
 const ACTION_LABELS: Readonly<Record<'open-device' | 'reconnect', string>> = {
   'open-device': 'Open Device',
@@ -125,7 +125,19 @@ export class StatusOverlay {
       button.addEventListener('click', () => this.onAction(bootable ? 'boot-device' : 'open-device', device.id));
       row.append(button);
     }
+    if (device.windowHidden === true) {
+      row.append(this.renderShowWindow(device.id));
+    }
     return row;
+  }
+
+  private renderShowWindow(deviceId: string): HTMLElement {
+    const button = element('button', 'status__row-show', 'Show Window');
+    button.type = 'button';
+    button.title = 'Show the window Reflect hid while mirroring';
+    button.dataset['deviceId'] = deviceId;
+    button.addEventListener('click', () => this.onAction('show-device-window', deviceId));
+    return button;
   }
 
   private showAction(kind: 'open-device' | 'reconnect'): void {
