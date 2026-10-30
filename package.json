@@ -420,7 +420,7 @@
     "@yume-chan/adb-server-node-tcp": "2.5.2",
     "@yume-chan/scrcpy": "2.3.0",
     "@yume-chan/scrcpy-decoder-webcodecs": "2.5.3",
-    "mediabunny": "1.61.5",
+    "mediabunny": "1.62.1",
     "ws": "8.22.0"
   },
   "devDependencies": {
