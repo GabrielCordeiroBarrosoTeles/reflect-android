@@ -25,7 +25,7 @@ export class ErrorPresenter {
       this.show('Reflect: could not start the adb server. Run "adb start-server" in a terminal and try again.', this.retryAction),
     'no-device': () =>
       this.show(
-        'Reflect: no Android device found. Connect it via USB and enable USB debugging.',
+        'Reflect: no device found. Connect an Android device via USB with USB debugging on, or boot an iOS Simulator.',
         { title: 'How to enable', run: () => this.openUrl(USB_DEBUGGING_URL) },
         this.retryAction,
       ),

@@ -26,7 +26,7 @@ const lastMessage = () => window.showErrorMessage.mock.calls.at(-1)!;
 describe('ErrorPresenter', () => {
   it.each([
     [new AdbServerUnavailableError(), 'could not start the adb server', ['Retry']],
-    [new NoDeviceError(), 'no Android device found', ['How to enable', 'Retry']],
+    [new NoDeviceError(), 'no device found. Connect an Android device via USB with USB debugging on, or boot an iOS Simulator.', ['How to enable', 'Retry']],
     [new DeviceUnauthorizedError('S'), 'device not authorized', ['Retry']],
     [new DeviceOfflineError('S'), 'device is offline', ['Retry']],
     [new MirrorStartError('S', []), 'could not start mirroring', ['Show logs', 'Retry']],

@@ -34,6 +34,18 @@ describe('BootSimulatorCommand', () => {
     expect(open).toHaveBeenCalledWith('UDID-1');
   });
 
+  it('does not miss a ready report that arrives while simctl boot is still running', async () => {
+    const { command, discovery, simctl, open } = setup();
+    let finishBoot = (): void => undefined;
+    simctl.run.mockImplementation(() => new Promise<string>((resolve) => (finishBoot = () => resolve(''))));
+    const done = command.execute('UDID-1');
+    await vi.advanceTimersByTimeAsync(0);
+    discovery.setDevices([sim({ state: 'ready' })]);
+    finishBoot();
+    await done;
+    expect(open).toHaveBeenCalledWith('UDID-1');
+  });
+
   it('ignores discovery changes for other devices', async () => {
     const { command, discovery, open } = setup();
     const done = command.execute('UDID-1');

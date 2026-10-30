@@ -51,16 +51,23 @@ export class BootSimulatorCommand implements ICommand {
     if (this.isBooted(this.discovery.devices, deviceId)) {
       return;
     }
-    await this.simctl.run(['boot', deviceId]);
-    await this.waitUntilReady(deviceId);
+    const ready = this.waitUntilReady(deviceId);
+    try {
+      await this.simctl.run(['boot', deviceId]);
+    } catch (error) {
+      ready.cancel();
+      throw error;
+    }
+    await ready.promise;
   }
 
   private isBooted(devices: readonly Device[], deviceId: string): boolean {
     return devices.some((device) => device.id === deviceId && isReady(device));
   }
 
-  private waitUntilReady(deviceId: string): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
+  private waitUntilReady(deviceId: string): { readonly promise: Promise<void>; readonly cancel: () => void } {
+    let cancel!: () => void;
+    const promise = new Promise<void>((resolve, reject) => {
       const finish = (settle: () => void): void => {
         clearTimeout(timer);
         subscription.dispose();
@@ -72,6 +79,8 @@ export class BootSimulatorCommand implements ICommand {
         }
       });
       const timer = setTimeout(() => finish(() => reject(new Error('The simulator did not finish booting'))), this.timeoutMs);
+      cancel = () => finish(resolve);
     });
+    return { promise, cancel };
   }
 }

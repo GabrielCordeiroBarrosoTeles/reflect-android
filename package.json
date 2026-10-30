@@ -220,7 +220,7 @@
       }
     ],
     "configuration": {
-      "title": "Reflect for Android",
+      "title": "Reflect — Android & iOS Simulator",
       "properties": {
         "reflect.adbPath": {
           "type": "string",
