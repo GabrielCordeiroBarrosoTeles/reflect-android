@@ -113,6 +113,13 @@ describe('StatusOverlay', () => {
     expect(root.querySelector<HTMLButtonElement>('.status__action')?.hidden).toBe(true);
   });
 
+  it('renders a booting or shutting-down simulator with its detail and no button', () => {
+    const overlay = new StatusOverlay(root, () => undefined);
+    overlay.setDevices([item({ id: 'SIM-BUSY', name: 'iPhone 16', detail: 'iOS 26.0 · booting', platform: 'ios', kind: 'simulator', state: 'offline' })]);
+    overlay.showIdle();
+    expect(rows(0)).toEqual([{ name: 'iPhone 16', detail: 'iOS 26.0 · booting', button: null }]);
+  });
+
   it('posts open-device with the row id and boot-device for shut-down simulators', () => {
     const onAction = vi.fn();
     const overlay = new StatusOverlay(root, onAction);

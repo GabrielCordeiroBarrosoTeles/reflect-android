@@ -8,6 +8,23 @@ const isRecord = (value: unknown): value is Entry => typeof value === 'object' &
 
 const runtimeLabel = (runtime: string): string => `iOS ${runtime.slice(IOS_RUNTIME_PREFIX.length).replaceAll('-', '.')}`;
 
+const TRANSITIONAL_STATES: Readonly<Record<string, string | undefined>> = {
+  Booting: 'booting',
+  'Shutting Down': 'shutting down',
+};
+
+const toState = (state: unknown): Device['state'] => {
+  if (state === 'Booted') {
+    return 'ready';
+  }
+  return typeof state === 'string' && TRANSITIONAL_STATES[state] !== undefined ? 'offline' : 'shutdown';
+};
+
+const toDetail = (runtime: string, state: unknown): string => {
+  const transition = typeof state === 'string' ? TRANSITIONAL_STATES[state] : undefined;
+  return transition === undefined ? runtime : `${runtime} · ${transition}`;
+};
+
 const isAvailable = (entry: Entry): boolean => entry['isAvailable'] === true || entry['availability'] === '(available)';
 
 const toDevice = (entry: unknown, detail: string): Device | undefined => {
@@ -20,8 +37,8 @@ const toDevice = (entry: unknown, detail: string): Device | undefined => {
     kind: 'simulator',
     name: entry['name'],
     model: entry['name'],
-    detail,
-    state: entry['state'] === 'Booted' ? 'ready' : 'shutdown',
+    detail: toDetail(detail, entry['state']),
+    state: toState(entry['state']),
   };
 };
 

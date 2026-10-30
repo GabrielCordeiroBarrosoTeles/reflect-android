@@ -27,7 +27,7 @@ const GROUPS: readonly { readonly kind: DeviceListItem['kind']; readonly title: 
 const rank = (device: DeviceListItem): number => (device.state === 'ready' ? 0 : 1);
 
 const rowDetail = (device: DeviceListItem): string =>
-  device.state === 'unauthorized' || device.state === 'offline' ? device.state : (device.detail ?? '');
+  device.kind !== 'simulator' && (device.state === 'unauthorized' || device.state === 'offline') ? device.state : (device.detail ?? '');
 
 const element = <K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] => {
   const created = document.createElement(tag);

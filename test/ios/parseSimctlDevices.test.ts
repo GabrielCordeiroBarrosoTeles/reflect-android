@@ -39,6 +39,21 @@ describe('parseSimctlDevices', () => {
   });
 });
 
+describe('parseSimctlDevices transitional states', () => {
+  const runtime = 'com.apple.CoreSimulator.SimRuntime.iOS-26-5';
+  const json = (state: unknown): string => JSON.stringify({ devices: { [runtime]: [{ udid: 'u', name: 'iPhone', isAvailable: true, state }] } });
+
+  it('maps Booting and Shutting Down to offline with the transition in the detail', () => {
+    expect(parseSimctlDevices(json('Booting'))[0]).toMatchObject({ state: 'offline', detail: 'iOS 26.5 · booting' });
+    expect(parseSimctlDevices(json('Shutting Down'))[0]).toMatchObject({ state: 'offline', detail: 'iOS 26.5 · shutting down' });
+  });
+
+  it('maps unknown or missing states to shutdown with the plain runtime detail', () => {
+    expect(parseSimctlDevices(json('Creating'))[0]).toMatchObject({ state: 'shutdown', detail: 'iOS 26.5' });
+    expect(parseSimctlDevices(json(undefined))[0]).toMatchObject({ state: 'shutdown', detail: 'iOS 26.5' });
+  });
+});
+
 describe('parseSimctlDevices tolerance', () => {
   const ios = 'com.apple.CoreSimulator.SimRuntime.iOS-18-0';
 
