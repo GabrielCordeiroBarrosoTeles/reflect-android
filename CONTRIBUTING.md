@@ -51,7 +51,10 @@ src/
   adb/           adb discovery (Chain of Responsibility), adb server gateway, device tracking and selection.
   device/        Device leases, shell access, active device context and `adb reverse`.
   deviceInfo/    Device Info view: collectors and tree provider.
-  scrcpy/        Mirror session (Facade), state machine, control channel, scrcpy launcher.
+  devices/       Platform-neutral device model, composite discovery and discovery-backed availability.
+  platform/      Platform contract (mirror session, device control, capabilities), registry, session state machine and the Android adapter.
+  ios/           iOS Simulator adapter: simctl discovery, helper process and mirror session, HID control, shared simulator pasteboard.
+  scrcpy/        Android mirror session (Facade), control channel, scrcpy launcher.
   mirror/        Webview surfaces, typed bridge (Mediator), controller, manager, auto reconnection (Strategy) and screenshot requests.
   actions/       Toolbar actions as a registry of Commands shared by the webview, commands and shortcuts.
   capture/       Capture storage and the per-platform system clipboard (Strategy).
