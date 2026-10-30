@@ -209,7 +209,7 @@ describe('webview main', () => {
   it('renders the toolbar, sends actions and reflects its state', async () => {
     const { posted } = await boot();
     document.querySelector<HTMLButtonElement>('[aria-label="Home"]')?.click();
-    deliver({ type: 'toolbar-state', state: { recordingSince: undefined, screenOff: true } });
+    deliver({ type: 'toolbar-state', state: { recordingSince: undefined, screenOff: true, cleanStatusBar: false } });
     expect(posted.at(-1)).toEqual({ type: 'action', id: 'home' });
     expect(document.querySelector('[aria-label="Turn Device Screen On/Off"]')?.getAttribute('aria-pressed')).toBe('true');
   });

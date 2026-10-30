@@ -1,23 +1,48 @@
-import type { ILogger } from '../../core/types';
-import type { IDeviceLeasePool } from '../../device/types';
-import type { Device } from '../../devices/types';
-import { MirrorSession } from '../../scrcpy/MirrorSession';
-import type { IScrcpyLauncher, IServerBinary, MirrorOptions } from '../../scrcpy/types';
-import { GENERIC_FRAME } from '../../shared/deviceFrame';
-import { ACTION_IDS } from '../../shared/actions';
-import type { DeviceFrame } from '../../shared/protocol';
-import type { ToolsTab } from '../../shared/toolsProtocol';
-import type { IMirrorSession, IPlatform, PlatformCapabilities } from '../types';
+import type { ILogger } from "../../core/types";
+import type { IDeviceLeasePool } from "../../device/types";
+import type { Device } from "../../devices/types";
+import { MirrorSession } from "../../scrcpy/MirrorSession";
+import type {
+  IScrcpyLauncher,
+  IServerBinary,
+  MirrorOptions,
+} from "../../scrcpy/types";
+import { GENERIC_FRAME } from "../../shared/deviceFrame";
+import type { ActionId } from "../../shared/actions";
+import type { DeviceFrame } from "../../shared/protocol";
+import type { ToolsTab } from "../../shared/toolsProtocol";
+import type { IMirrorSession, IPlatform, PlatformCapabilities } from "../types";
 
-const ALL_TABS: readonly ToolsTab[] = ['component', 'network', 'logs', 'storage', 'device', 'performance', 'actions'];
+const ANDROID_ACTIONS: readonly ActionId[] = [
+  "back",
+  "home",
+  "recents",
+  "rotate",
+  "screenPower",
+  "screenshot",
+  "record",
+  "devMenu",
+  "reload",
+  "reverseMetro",
+];
+
+const ALL_TABS: readonly ToolsTab[] = [
+  "component",
+  "network",
+  "logs",
+  "storage",
+  "device",
+  "performance",
+  "actions",
+];
 
 const COPY = {
-  reconnecting: 'Reconnecting… plug the cable back in',
-  gaveUp: 'Device not found. Check the cable and USB debugging.',
+  reconnecting: "Reconnecting… plug the cable back in",
+  gaveUp: "Device not found. Check the cable and USB debugging.",
 };
 
 export class AndroidPlatform implements IPlatform {
-  readonly id = 'android';
+  readonly id = "android";
 
   constructor(
     private readonly pool: IDeviceLeasePool,
@@ -28,7 +53,12 @@ export class AndroidPlatform implements IPlatform {
   ) {}
 
   capabilities(): PlatformCapabilities {
-    return { actions: ACTION_IDS, tools: ALL_TABS, copy: COPY, videoDecoder: 'hardware' };
+    return {
+      actions: ANDROID_ACTIONS,
+      tools: ALL_TABS,
+      copy: COPY,
+      videoDecoder: "hardware",
+    };
   }
 
   frame(): DeviceFrame {
@@ -36,6 +66,13 @@ export class AndroidPlatform implements IPlatform {
   }
 
   createMirrorSession(device: Device): IMirrorSession {
-    return new MirrorSession(device, this.pool, this.launcher, this.serverBinary, this.options, this.logger);
+    return new MirrorSession(
+      device,
+      this.pool,
+      this.launcher,
+      this.serverBinary,
+      this.options,
+      this.logger,
+    );
   }
 }

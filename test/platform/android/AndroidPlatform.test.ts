@@ -25,6 +25,12 @@ describe('AndroidPlatform', () => {
     expect(capabilities.tools).toHaveLength(7);
   });
 
+  it('keeps exactly the original Android actions and never offers the iOS-only clean status bar', () => {
+    const { actions } = build().capabilities();
+    expect(actions).toEqual(['back', 'home', 'recents', 'rotate', 'screenPower', 'screenshot', 'record', 'devMenu', 'reload', 'reverseMetro']);
+    expect(actions).not.toContain('cleanStatusBar');
+  });
+
   it('keeps the cable-oriented reconnect copy', () => {
     expect(build().capabilities().copy).toEqual({
       reconnecting: 'Reconnecting… plug the cable back in',

@@ -6,7 +6,7 @@ import { FakeDeviceControl } from '../fakes/FakeMirrorSession';
 
 const setup = (reloaded = true) => {
   const control = new FakeDeviceControl();
-  const mirror = { takeScreenshot: vi.fn(() => Promise.resolve()), toggleRecording: vi.fn(() => Promise.resolve()), toggleScreenPower: vi.fn(() => Promise.resolve()) };
+  const mirror = { takeScreenshot: vi.fn(() => Promise.resolve()), toggleRecording: vi.fn(() => Promise.resolve()), toggleScreenPower: vi.fn(() => Promise.resolve()), toggleCleanStatusBar: vi.fn(() => Promise.resolve()) };
   const services = { reloadApp: vi.fn(() => Promise.resolve(reloaded)), reverseMetro: vi.fn(() => Promise.resolve(8081)), notify: vi.fn() };
   const context: ActionContext = { device: device(), control, mirror, services };
   return { control, mirror, services, context };
@@ -39,6 +39,7 @@ describe('DEVICE_ACTIONS', () => {
     ['screenshot', 'takeScreenshot'],
     ['record', 'toggleRecording'],
     ['screenPower', 'toggleScreenPower'],
+    ['cleanStatusBar', 'toggleCleanStatusBar'],
   ] as const)('%s delegates to the mirror', async (id, method) => {
     const { mirror, context } = setup();
     await DEVICE_ACTIONS[id](context);

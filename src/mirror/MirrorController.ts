@@ -32,6 +32,7 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
   private recorder: IRecorder | undefined;
   private recordingSince: number | undefined;
   private screenOff = false;
+  private cleanStatusBar = false;
   private recordingQueue: Promise<void> = Promise.resolve();
   private readonly reconnect: AutoReconnect;
   private gaveUp = false;
@@ -176,6 +177,12 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
     await this.session.control.setScreenPower(!this.screenOff);
   }
 
+  async toggleCleanStatusBar(): Promise<void> {
+    this.cleanStatusBar = !this.cleanStatusBar;
+    this.postToolbarState();
+    await this.session.setCleanStatusBar(this.cleanStatusBar);
+  }
+
   setInspectMode(active: boolean): void {
     this.inspecting = active;
     this.surface.channel.post({ type: 'inspect-mode', active });
@@ -191,10 +198,19 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
     }
     this.disposed = true;
     void this.stopRecording();
+    this.clearCleanStatusBar();
     this.store.dispose();
     this.surface.dispose();
     this.disposeEmitter.fire(reason);
     this.disposeEmitter.dispose();
+  }
+
+  private clearCleanStatusBar(): void {
+    if (!this.cleanStatusBar) {
+      return;
+    }
+    this.cleanStatusBar = false;
+    this.session.setCleanStatusBar(false).catch((error: unknown) => this.services.logger.error('Failed to clear the clean status bar', error));
   }
 
   private dispatch(message: WebviewToHostMessage): void {
@@ -225,7 +241,7 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
   }
 
   private postToolbarState(): void {
-    this.surface.channel.post({ type: 'toolbar-state', state: { recordingSince: this.recordingSince, screenOff: this.screenOff } });
+    this.surface.channel.post({ type: 'toolbar-state', state: { recordingSince: this.recordingSince, screenOff: this.screenOff, cleanStatusBar: this.cleanStatusBar } });
   }
 
   private forwardPacket(packet: VideoPacket): void {

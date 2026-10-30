@@ -46,6 +46,7 @@ export class Toolbar {
 
   update(state: ToolbarState): void {
     this.setActive('screenPower', state.screenOff);
+    this.setActive('cleanStatusBar', state.cleanStatusBar);
     this.setActive('record', state.recordingSince !== undefined);
     clearInterval(this.ticker);
     this.ticker = undefined;

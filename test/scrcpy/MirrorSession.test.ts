@@ -42,6 +42,11 @@ describe('MirrorSession', () => {
     await expect(session.captureScreenshot()).resolves.toBeUndefined();
   });
 
+  it('ignores the clean status bar request', async () => {
+    const { session } = setup();
+    await expect(session.setCleanStatusBar()).resolves.toBeUndefined();
+  });
+
   it('defaults unknown video dimensions to zero', async () => {
     const { session, client } = setup();
     client.metadata = { codec: 1 };

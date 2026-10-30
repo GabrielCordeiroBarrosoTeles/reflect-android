@@ -139,7 +139,7 @@ describe('MirrorController', () => {
       { type: 'device-frame', frame: { screenCornerRadius: 0.14, bezel: 0.04, chin: 0 } },
       { type: 'session-state', state: 'streaming', deviceName: 'Pixel 8' },
       { type: 'inspect-mode', active: false },
-      { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } },
+      { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false, cleanStatusBar: false } },
       { type: 'video-config', config },
       { type: 'video-packet', packet: configurationPacket },
     ]);
@@ -221,7 +221,7 @@ describe('MirrorController', () => {
       { type: 'device-frame', frame: { screenCornerRadius: 0.14, bezel: 0.04, chin: 0 } },
       { type: 'session-state', state: 'idle', deviceName: 'Pixel 8' },
       { type: 'inspect-mode', active: true },
-      { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } },
+      { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false, cleanStatusBar: false } },
     ]);
   });
 
@@ -297,12 +297,12 @@ describe('MirrorController', () => {
     expect(recorders[0]?.pushed).toEqual([configurationPacket, dataPacket]);
     expect(posted.filter((message) => message.type === 'toolbar-state').at(-1)).toEqual({
       type: 'toolbar-state',
-      state: { recordingSince: expect.any(Number), screenOff: false },
+      state: { recordingSince: expect.any(Number), screenOff: false, cleanStatusBar: false },
     });
     await controller.toggleRecording();
     expect(recorders[0]?.stopped).toBe(1);
     expect(onCaptured).toHaveBeenCalledWith('recording', '/captures/clip.mp4');
-    expect(posted.at(-1)).toEqual({ type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } });
+    expect(posted.at(-1)).toEqual({ type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false, cleanStatusBar: false } });
   });
 
   it('tells the user when nothing was recorded or saving failed', async () => {
@@ -365,9 +365,51 @@ describe('MirrorController', () => {
       { method: 'setScreenPower', arg: true },
     ]);
     expect(posted.filter((message) => message.type === 'toolbar-state')).toEqual([
-      { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: true } },
-      { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } },
+      { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: true, cleanStatusBar: false } },
+      { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false, cleanStatusBar: false } },
     ]);
+  });
+
+  it('toggles the clean status bar and reports it to the toolbar', async () => {
+    const { controller, session, posted } = setup();
+    await controller.toggleCleanStatusBar();
+    await controller.toggleCleanStatusBar();
+    expect(session.cleanStatusBarCalls).toEqual([true, false]);
+    expect(posted.filter((message) => message.type === 'toolbar-state')).toEqual([
+      { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false, cleanStatusBar: true } },
+      { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false, cleanStatusBar: false } },
+    ]);
+  });
+
+  it.each(['closed', 'hidden'] as const)('clears the clean status bar before disposing the session when closing (%s)', async (reason) => {
+    vi.useFakeTimers();
+    const { controller, session, surface } = setup();
+    await controller.toggleCleanStatusBar();
+    session.cleanStatusBarCalls.length = 0;
+    if (reason === 'closed') {
+      controller.dispose();
+    } else {
+      surface.visibility.fire(false);
+      vi.advanceTimersByTime(HIDDEN_SHUTDOWN_MS);
+    }
+    expect(session.cleanStatusBarCalls).toEqual([false]);
+    expect(session.disposed).toBe(1);
+    expect(session.events).toEqual(['clean:true', 'clean:false', 'dispose']);
+  });
+
+  it('does not touch the status bar on close when it was never turned on', () => {
+    const { controller, session } = setup();
+    controller.dispose();
+    expect(session.cleanStatusBarCalls).toEqual([]);
+  });
+
+  it('only logs a failure to clear the status bar on close', async () => {
+    const { controller, session, logger } = setup();
+    await controller.toggleCleanStatusBar();
+    session.cleanStatusBarFailure = new Error('simctl gone');
+    controller.dispose();
+    await flushPromises();
+    expect(logger.errors.length).toBeGreaterThan(0);
   });
 
   it('shows a reconnecting state and restarts the session when the device comes back', async () => {

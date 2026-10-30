@@ -171,6 +171,12 @@
         "icon": "$(plug)"
       },
       {
+        "command": "reflect.action.cleanStatusBar",
+        "title": "Clean Status Bar for Screenshots (9:41)",
+        "category": "Reflect",
+        "icon": "$(clock)"
+      },
+      {
         "command": "reflect.moveToEditor",
         "title": "Move to Editor Tab",
         "category": "Reflect",

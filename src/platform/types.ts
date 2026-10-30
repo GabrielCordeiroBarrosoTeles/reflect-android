@@ -39,6 +39,7 @@ export interface IMirrorSession extends IDisposable {
   start(): Promise<void>;
   requestKeyframe(): Promise<void>;
   captureScreenshot(): Promise<Uint8Array | undefined>;
+  setCleanStatusBar(on: boolean): Promise<void>;
 }
 
 export interface PlatformCopy {

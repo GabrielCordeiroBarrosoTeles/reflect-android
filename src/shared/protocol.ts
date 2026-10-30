@@ -26,6 +26,7 @@ export interface VideoPacket {
 export interface ToolbarState {
   readonly recordingSince: number | undefined;
   readonly screenOff: boolean;
+  readonly cleanStatusBar: boolean;
 }
 
 export interface BoxEdges {

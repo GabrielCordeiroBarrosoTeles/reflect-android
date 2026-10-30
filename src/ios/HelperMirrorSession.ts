@@ -1,16 +1,55 @@
-import { ScrcpyVideoCodecId } from '@yume-chan/scrcpy';
-import { Emitter } from '../core/Emitter';
-import { MirrorStartError, SimulatorNotBootedError, XcodeUnsupportedError, isReflectError } from '../core/errors';
-import type { IDisposable, ILogger } from '../core/types';
-import type { Device } from '../devices/types';
-import type { DeviceAvailability } from '../mirror/AutoReconnect';
-import type { IDeviceControl, IMirrorSession } from '../platform/types';
-import { SessionStateMachine } from '../platform/SessionStateMachine';
-import type { SessionStateKind, VideoConfig, VideoPacket } from '../shared/protocol';
-import type { HelperCommand, HelperEvent, HelperFrame, HelperHello, HelperProcessFactory, IHelperProcess, ISimctl, ISimulatorPasteboard } from './types';
+import { ScrcpyVideoCodecId } from "@yume-chan/scrcpy";
+import { Emitter } from "../core/Emitter";
+import {
+  MirrorStartError,
+  SimulatorNotBootedError,
+  XcodeUnsupportedError,
+  isReflectError,
+} from "../core/errors";
+import type { IDisposable, ILogger } from "../core/types";
+import type { Device } from "../devices/types";
+import type { DeviceAvailability } from "../mirror/AutoReconnect";
+import type { IDeviceControl, IMirrorSession } from "../platform/types";
+import { SessionStateMachine } from "../platform/SessionStateMachine";
+import type {
+  SessionStateKind,
+  VideoConfig,
+  VideoPacket,
+} from "../shared/protocol";
+import type {
+  HelperCommand,
+  HelperEvent,
+  HelperFrame,
+  HelperHello,
+  HelperProcessFactory,
+  IHelperProcess,
+  ISimctl,
+  ISimulatorPasteboard,
+} from "./types";
 
 const START_TIMEOUT_MS = 15_000;
 const CLIPBOARD_POLL_MS = 1000;
+
+const CLEAN_STATUS_BAR_OVERRIDE = [
+  "--time",
+  "9:41",
+  "--dataNetwork",
+  "wifi",
+  "--wifiMode",
+  "active",
+  "--wifiBars",
+  "3",
+  "--cellularMode",
+  "active",
+  "--cellularBars",
+  "4",
+  "--operatorName",
+  "",
+  "--batteryState",
+  "charged",
+  "--batteryLevel",
+  "100",
+];
 
 const resolved = (): Promise<void> => Promise.resolve();
 
@@ -26,7 +65,10 @@ const NO_CONTROL: IDeviceControl = {
   setScreenPower: resolved,
 };
 
-type ControlFactory = (send: (command: HelperCommand) => void, hello: HelperHello) => IDeviceControl;
+type ControlFactory = (
+  send: (command: HelperCommand) => void,
+  hello: HelperHello,
+) => IDeviceControl;
 
 export interface HelperSessionDependencies {
   readonly spawn: HelperProcessFactory;
@@ -66,7 +108,8 @@ export class HelperMirrorSession implements IMirrorSession {
   readonly control = new Proxy({} as IDeviceControl, {
     get: (_target, method: keyof IDeviceControl) => {
       const control = this.realControl ?? NO_CONTROL;
-      return (...args: [never]) => (control[method] as (...input: [never]) => Promise<void>)(...args);
+      return (...args: [never]) =>
+        (control[method] as (...input: [never]) => Promise<void>)(...args);
     },
   });
 
@@ -78,7 +121,9 @@ export class HelperMirrorSession implements IMirrorSession {
   ) {
     this.logger = dependencies.logger;
     this.subscriptions = [
-      dependencies.pasteboard.onDidChange((text) => this.forwardClipboard(text)),
+      dependencies.pasteboard.onDidChange((text) =>
+        this.forwardClipboard(text),
+      ),
       dependencies.availability.onDidChange(() => this.checkAvailability()),
     ];
   }
@@ -92,7 +137,7 @@ export class HelperMirrorSession implements IMirrorSession {
   }
 
   async start(): Promise<void> {
-    if (!this.stateMachine.transitionTo('connecting')) {
+    if (!this.stateMachine.transitionTo("connecting")) {
       return;
     }
     try {
@@ -102,12 +147,15 @@ export class HelperMirrorSession implements IMirrorSession {
         return;
       }
       this.helper = helper;
-      this.helperSubscriptions = [helper.onFrame((frame) => this.handleFrame(frame)), helper.onExit(({ code }) => this.handleExit(code))];
+      this.helperSubscriptions = [
+        helper.onFrame((frame) => this.handleFrame(frame)),
+        helper.onExit(({ code }) => this.handleExit(code)),
+      ];
       await this.waitForFirstFrame();
     } catch (error) {
       this.teardown();
       const failure = this.toStartError(error);
-      this.stateMachine.transitionTo('error', failure.message);
+      this.stateMachine.transitionTo("error", failure.message);
       throw failure;
     }
   }
@@ -116,8 +164,17 @@ export class HelperMirrorSession implements IMirrorSession {
     return this.dependencies.simctl.screenshot(this.device.id);
   }
 
+  async setCleanStatusBar(on: boolean): Promise<void> {
+    const udid = this.device.id;
+    await this.dependencies.simctl.run(
+      on
+        ? ["status_bar", udid, "override", ...CLEAN_STATUS_BAR_OVERRIDE]
+        : ["status_bar", udid, "clear"],
+    );
+  }
+
   requestKeyframe(): Promise<void> {
-    this.helper?.send({ type: 'keyframe' });
+    this.helper?.send({ type: "keyframe" });
     return Promise.resolve();
   }
 
@@ -126,7 +183,7 @@ export class HelperMirrorSession implements IMirrorSession {
       return;
     }
     this.disposed = true;
-    this.stateMachine.transitionTo('closed');
+    this.stateMachine.transitionTo("closed");
     this.settleStart((pending) => pending.resolve());
     this.teardown();
     this.subscriptions.forEach((subscription) => subscription.dispose());
@@ -141,7 +198,12 @@ export class HelperMirrorSession implements IMirrorSession {
     return new Promise<void>((resolve, reject) => {
       this.pendingStart = { resolve, reject };
       this.startTimer = setTimeout(
-        () => this.failStart(new MirrorStartError(this.device.id, ['The iOS helper did not produce video in time'])),
+        () =>
+          this.failStart(
+            new MirrorStartError(this.device.id, [
+              "The iOS helper did not produce video in time",
+            ]),
+          ),
         START_TIMEOUT_MS,
       );
     });
@@ -163,34 +225,54 @@ export class HelperMirrorSession implements IMirrorSession {
 
   private handleFrame(frame: HelperFrame): void {
     switch (frame.kind) {
-      case 'hello':
+      case "hello":
         this.xcodeVersion = frame.hello.xcodeVersion;
-        this.realControl = this.dependencies.createControl((command) => this.helper?.send(command), frame.hello);
+        this.realControl = this.dependencies.createControl(
+          (command) => this.helper?.send(command),
+          frame.hello,
+        );
         break;
-      case 'video-config':
+      case "video-config":
         this.handleVideoConfig(frame.width, frame.height, frame.data);
         break;
-      case 'video-frame':
+      case "video-frame":
         this.handleVideoFrame(frame.keyframe, frame.pts, frame.data);
         break;
-      case 'event':
+      case "event":
         this.handleEvent(frame.event);
         break;
     }
   }
 
-  private handleVideoConfig(width: number, height: number, data: Uint8Array): void {
+  private handleVideoConfig(
+    width: number,
+    height: number,
+    data: Uint8Array,
+  ): void {
     const current = this.currentVideoConfig;
     if (current?.width !== width || current.height !== height) {
-      this.currentVideoConfig = { codec: ScrcpyVideoCodecId.H264, width, height };
+      this.currentVideoConfig = {
+        codec: ScrcpyVideoCodecId.H264,
+        width,
+        height,
+      };
       this.videoConfigEmitter.fire(this.currentVideoConfig);
     }
-    this.packetEmitter.fire({ kind: 'configuration', data, keyframe: undefined, pts: undefined });
+    this.packetEmitter.fire({
+      kind: "configuration",
+      data,
+      keyframe: undefined,
+      pts: undefined,
+    });
   }
 
-  private handleVideoFrame(keyframe: boolean, pts: number, data: Uint8Array): void {
-    this.packetEmitter.fire({ kind: 'data', data, keyframe, pts });
-    if (this.stateMachine.transitionTo('streaming')) {
+  private handleVideoFrame(
+    keyframe: boolean,
+    pts: number,
+    data: Uint8Array,
+  ): void {
+    this.packetEmitter.fire({ kind: "data", data, keyframe, pts });
+    if (this.stateMachine.transitionTo("streaming")) {
       this.settleStart((pending) => pending.resolve());
       this.pollClipboard();
       this.dependencies.onStreaming((command) => this.helper?.send(command));
@@ -198,11 +280,11 @@ export class HelperMirrorSession implements IMirrorSession {
   }
 
   private handleEvent(event: HelperEvent): void {
-    if (event.type === 'warning') {
-      this.logger.info(`[ios-helper] warning: ${event.message ?? ''}`);
+    if (event.type === "warning") {
+      this.logger.info(`[ios-helper] warning: ${event.message ?? ""}`);
       return;
     }
-    if (event.type !== 'error') {
+    if (event.type !== "error") {
       return;
     }
     const failure = this.toHelperError(event);
@@ -210,26 +292,40 @@ export class HelperMirrorSession implements IMirrorSession {
       this.failStart(failure);
       return;
     }
-    this.logger.error(`[ios-helper] error ${event.code ?? ''}: ${event.message ?? ''}`, failure);
+    this.logger.error(
+      `[ios-helper] error ${event.code ?? ""}: ${event.message ?? ""}`,
+      failure,
+    );
   }
 
   private handleExit(code: number | null): void {
-    this.logger.info(`iOS helper for ${this.device.id} exited with code ${code ?? 'null'}`);
+    this.logger.info(
+      `iOS helper for ${this.device.id} exited with code ${code ?? "null"}`,
+    );
     if (this.pendingStart) {
-      this.failStart(new MirrorStartError(this.device.id, [`The iOS helper exited with code ${code ?? 'null'}`]));
+      this.failStart(
+        new MirrorStartError(this.device.id, [
+          `The iOS helper exited with code ${code ?? "null"}`,
+        ]),
+      );
       return;
     }
     this.teardown();
-    this.stateMachine.transitionTo('disconnected');
+    this.stateMachine.transitionTo("disconnected");
   }
 
   private checkAvailability(): void {
-    if (this.stateMachine.state !== 'streaming' || this.dependencies.availability.isReady(this.device.id)) {
+    if (
+      this.stateMachine.state !== "streaming" ||
+      this.dependencies.availability.isReady(this.device.id)
+    ) {
       return;
     }
-    this.logger.info(`Simulator ${this.device.id} is no longer booted; stopping its mirror`);
+    this.logger.info(
+      `Simulator ${this.device.id} is no longer booted; stopping its mirror`,
+    );
     this.teardown();
-    this.stateMachine.transitionTo('disconnected');
+    this.stateMachine.transitionTo("disconnected");
   }
 
   private pollClipboard(): void {
@@ -238,7 +334,7 @@ export class HelperMirrorSession implements IMirrorSession {
         .poll()
         .catch(() => undefined)
         .then(() => {
-          if (this.stateMachine.state === 'streaming') {
+          if (this.stateMachine.state === "streaming") {
             this.pollClipboard();
           }
         });
@@ -246,7 +342,7 @@ export class HelperMirrorSession implements IMirrorSession {
   }
 
   private forwardClipboard(text: string): void {
-    if (this.stateMachine.state === 'streaming') {
+    if (this.stateMachine.state === "streaming") {
       this.clipboardEmitter.fire(text);
     }
   }
@@ -263,13 +359,16 @@ export class HelperMirrorSession implements IMirrorSession {
   }
 
   private toHelperError(event: HelperEvent): Error {
-    const message = event.message ?? '';
+    const message = event.message ?? "";
     switch (event.code) {
-      case 'xcode-unsupported':
-      case 'framework-unavailable':
-        return new XcodeUnsupportedError(this.xcodeVersion, message ? [message] : []);
-      case 'device-not-booted':
-      case 'device-not-found':
+      case "xcode-unsupported":
+      case "framework-unavailable":
+        return new XcodeUnsupportedError(
+          this.xcodeVersion,
+          message ? [message] : [],
+        );
+      case "device-not-booted":
+      case "device-not-found":
         return new SimulatorNotBootedError(this.device.name);
       default:
         return new MirrorStartError(this.device.id, [message]);

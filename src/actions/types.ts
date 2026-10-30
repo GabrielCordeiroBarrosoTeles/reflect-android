@@ -5,6 +5,7 @@ export interface MirrorCapabilities {
   takeScreenshot(): Promise<void>;
   toggleRecording(): Promise<void>;
   toggleScreenPower(): Promise<void>;
+  toggleCleanStatusBar(): Promise<void>;
 }
 
 export interface ActionServices {

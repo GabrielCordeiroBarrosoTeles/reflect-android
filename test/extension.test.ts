@@ -159,7 +159,7 @@ describe('extension', () => {
     expect(commands.registered.has('reflect.moveToEditor')).toBe(true);
     expect(commands.registered.has('reflect.bootSimulator')).toBe(true);
     expect(commands.registered.has('reflect.showInSimulator')).toBe(true);
-    expect(context.subscriptions).toHaveLength(52);
+    expect(context.subscriptions).toHaveLength(53);
   });
 
   it('mirrors in the secondary side bar by default', async () => {

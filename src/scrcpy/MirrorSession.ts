@@ -56,6 +56,10 @@ export class MirrorSession implements IMirrorSession {
     return Promise.resolve(undefined);
   }
 
+  setCleanStatusBar(): Promise<void> {
+    return Promise.resolve();
+  }
+
   async start(): Promise<void> {
     if (!this.stateMachine.transitionTo('connecting')) {
       return;

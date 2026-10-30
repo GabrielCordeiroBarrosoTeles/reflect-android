@@ -11,7 +11,7 @@ import { SimulatorPasteboard } from './SimulatorPasteboard';
 import type { HelperCommand, HelperHello, HelperProcessFactory, ISimctl } from './types';
 
 const CAPABILITIES: PlatformCapabilities = {
-  actions: ['home', 'recents', 'rotate', 'screenPower', 'screenshot', 'record', 'devMenu', 'reload'],
+  actions: ['home', 'recents', 'rotate', 'screenPower', 'screenshot', 'record', 'devMenu', 'reload', 'cleanStatusBar'],
   tools: ['component', 'network', 'storage'],
   copy: {
     reconnecting: 'Simulator was shut down — it will reconnect when it boots again',

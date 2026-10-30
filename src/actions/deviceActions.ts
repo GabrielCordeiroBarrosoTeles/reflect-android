@@ -24,4 +24,5 @@ export const DEVICE_ACTIONS: Readonly<Record<ActionId, DeviceAction>> = {
   devMenu: ({ control }) => control.pressButton('menu'),
   reload,
   reverseMetro,
+  cleanStatusBar: ({ mirror }) => mirror.toggleCleanStatusBar(),
 };

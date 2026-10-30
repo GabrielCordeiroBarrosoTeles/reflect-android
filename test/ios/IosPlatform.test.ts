@@ -31,7 +31,7 @@ describe('IosPlatform', () => {
 
   it('has no back, reverse Metro or logs', () => {
     const { actions, tools } = build().platform.capabilities();
-    expect(actions).toEqual(['home', 'recents', 'rotate', 'screenPower', 'screenshot', 'record', 'devMenu', 'reload']);
+    expect(actions).toEqual(['home', 'recents', 'rotate', 'screenPower', 'screenshot', 'record', 'devMenu', 'reload', 'cleanStatusBar']);
     expect(actions).not.toContain('back');
     expect(actions).not.toContain('reverseMetro');
     expect(tools).toEqual(['component', 'network', 'storage']);

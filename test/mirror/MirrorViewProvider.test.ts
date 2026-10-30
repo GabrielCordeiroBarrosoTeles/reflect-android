@@ -63,10 +63,10 @@ describe('MirrorViewProvider', () => {
     const { view, resolve, provider } = setup();
     resolve();
     const surface = provider.claim(phone);
-    surface.channel.post({ type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } });
+    surface.channel.post({ type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false, cleanStatusBar: false } });
     surface.dispose();
     expect(view.webview.posted).toEqual([
-      { deviceId: 'A', message: { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } } },
+      { deviceId: 'A', message: { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false, cleanStatusBar: false } } },
       ...idleScreen,
     ]);
   });

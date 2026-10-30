@@ -37,6 +37,9 @@ export class FakeMirrorSession implements IMirrorSession {
   screenshot: Uint8Array | undefined;
   screenshotFailure: Error | undefined;
   keyframeFailure: Error | undefined;
+  cleanStatusBarCalls: boolean[] = [];
+  cleanStatusBarFailure: Error | undefined;
+  events: string[] = [];
   started = 0;
   keyframes = 0;
   disposed = 0;
@@ -55,7 +58,14 @@ export class FakeMirrorSession implements IMirrorSession {
     return this.screenshotFailure ? Promise.reject(this.screenshotFailure) : Promise.resolve(this.screenshot);
   }
 
+  setCleanStatusBar(on: boolean): Promise<void> {
+    this.cleanStatusBarCalls.push(on);
+    this.events.push(`clean:${on}`);
+    return this.cleanStatusBarFailure ? Promise.reject(this.cleanStatusBarFailure) : Promise.resolve();
+  }
+
   dispose(): void {
+    this.events.push('dispose');
     this.disposed += 1;
   }
 }
