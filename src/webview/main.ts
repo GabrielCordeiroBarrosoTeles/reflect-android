@@ -100,6 +100,7 @@ const bootstrap = async (): Promise<void> => {
       toolbar.setAvailable(actions);
       renderer.useAcceleration(videoDecoder === 'software' ? 'prefer-software' : preferredAcceleration(support));
     },
+    'device-frame': ({ frame }) => viewOptions.setFrame(frame),
     'device-list': ({ devices }) => overlay.setDevices(devices),
     'simulator-hidden': ({ hidden }) => overlay.setSimulatorHidden(hidden),
     idle: () => {

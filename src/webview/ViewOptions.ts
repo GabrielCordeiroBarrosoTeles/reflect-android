@@ -1,3 +1,5 @@
+import { isGenericFrame } from '../shared/deviceFrame';
+import type { DeviceFrame } from '../shared/protocol';
 import type { Disposable } from './input/types';
 
 export type ZoomMode = 'fit' | 'actual';
@@ -17,6 +19,10 @@ interface ToggleButton {
   readonly isActive: (state: ViewState) => boolean;
 }
 
+const FRAME_PROPERTIES = ['--reflect-frame-radius', '--reflect-frame-bezel-width', '--reflect-frame-chin'];
+
+const pixels = (value: number): string => `${Math.round(value * 100) / 100}px`;
+
 const DEFAULT_STATE: ViewState = { frame: false, zoom: 'fit' };
 
 const readState = (raw: unknown): ViewState => {
@@ -32,6 +38,8 @@ export class ViewOptions implements Disposable {
   private readonly buttons: ToggleButton[] = [];
   private readonly observer: MutationObserver;
   private readonly abort = new AbortController();
+  private deviceFrame: DeviceFrame | undefined;
+  private homeButton: HTMLElement | undefined;
 
   constructor(
     toolbar: HTMLElement,
@@ -55,6 +63,11 @@ export class ViewOptions implements Disposable {
 
   get current(): ViewState {
     return this.state;
+  }
+
+  setFrame(frame: DeviceFrame): void {
+    this.deviceFrame = frame;
+    this.applyFrame();
   }
 
   dispose(): void {
@@ -93,5 +106,39 @@ export class ViewOptions implements Disposable {
     const ratio = window.devicePixelRatio || 1;
     this.canvas.style.width = actual ? `${this.canvas.width / ratio}px` : '';
     this.canvas.style.height = actual ? `${this.canvas.height / ratio}px` : '';
+    this.applyFrame();
+  }
+
+  private applyFrame(): void {
+    const frame = this.deviceFrame;
+    if (!frame || isGenericFrame(frame)) {
+      this.clearFrame();
+      return;
+    }
+    const width = this.canvas.offsetWidth;
+    this.stage.style.setProperty('--reflect-frame-radius', pixels(frame.screenCornerRadius * width));
+    this.stage.style.setProperty('--reflect-frame-bezel-width', pixels(frame.bezel * width));
+    this.stage.style.setProperty('--reflect-frame-chin', pixels(frame.chin * width));
+    this.placeHomeButton(frame.chin > 0 && this.state.frame, frame.chin * width);
+  }
+
+  private clearFrame(): void {
+    for (const name of FRAME_PROPERTIES) {
+      this.stage.style.removeProperty(name);
+    }
+    this.placeHomeButton(false, 0);
+  }
+
+  private placeHomeButton(visible: boolean, chin: number): void {
+    if (!visible) {
+      this.homeButton?.remove();
+      this.homeButton = undefined;
+      return;
+    }
+    const button = this.homeButton ?? this.stage.appendChild(document.createElement('div'));
+    button.className = 'home-button';
+    button.style.left = `${this.canvas.offsetLeft + this.canvas.offsetWidth / 2}px`;
+    button.style.top = `${this.canvas.offsetTop + this.canvas.offsetHeight + chin / 2}px`;
+    this.homeButton = button;
   }
 }

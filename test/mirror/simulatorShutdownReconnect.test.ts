@@ -43,6 +43,7 @@ const setup = async () => {
     availability,
     reconnectTiming: { baseDelayMs: 500, maxDelayMs: 8000, giveUpAfterMs: 120_000 },
     capabilities: () => platform.capabilities(),
+    frame: () => platform.frame(simulator),
   };
   const controller = new MirrorController(simulator, surface, platform.createMirrorSession(simulator), services);
   const stream = async (helper: FakeHelperProcess | undefined) => {

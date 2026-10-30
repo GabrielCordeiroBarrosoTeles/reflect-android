@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { GENERIC_FRAME } from '../../../src/shared/deviceFrame';
 import { AndroidPlatform } from '../../../src/platform/android/AndroidPlatform';
 import { MirrorSession } from '../../../src/scrcpy/MirrorSession';
 import type { IServerBinary } from '../../../src/scrcpy/types';
@@ -33,6 +34,11 @@ describe('AndroidPlatform', () => {
 
   it('decodes the scrcpy stream with the hardware decoder', () => {
     expect(build().capabilities().videoDecoder).toBe('hardware');
+  });
+
+  it('frames every device with the generic look the webview used before frames existed', () => {
+    expect(build().frame()).toEqual({ screenCornerRadius: 0.075, bezel: 0.027, chin: 0 });
+    expect(build().frame()).toBe(GENERIC_FRAME);
   });
 
   it('creates a scrcpy mirror session', () => {

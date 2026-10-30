@@ -292,6 +292,7 @@ export function activate(context: vscode.ExtensionContext): void {
     },
     reconnectTiming: RECONNECT_TIMING,
     capabilities: (device) => platforms.capabilities(device),
+    frame: (device) => platforms.frame(device),
   };
   const sidebar = new MirrorViewProvider(context.extensionUri, discovery, simulatorWindow);
   const createSurface = (device: Device, location: MirrorLocation): IMirrorSurface =>

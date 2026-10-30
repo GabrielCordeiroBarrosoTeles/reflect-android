@@ -1,4 +1,5 @@
 import type { Device } from '../devices/types';
+import type { DeviceFrame } from '../shared/protocol';
 import type { IPlatform, PlatformCapabilities } from './types';
 
 export class PlatformRegistry {
@@ -14,5 +15,9 @@ export class PlatformRegistry {
 
   capabilities(device: Device): PlatformCapabilities {
     return this.get(device).capabilities(device);
+  }
+
+  frame(device: Device): DeviceFrame {
+    return this.get(device).frame(device);
   }
 }

@@ -266,6 +266,12 @@ describe('webview main', () => {
     expect(renderer.accelerations).toEqual(['prefer-software', 'prefer-hardware']);
   });
 
+  it('applies the device frame the host sends', async () => {
+    await boot();
+    deliver({ type: 'device-frame', frame: { screenCornerRadius: 0.14, bezel: 0.04, chin: 0 } });
+    expect(document.querySelector<HTMLElement>('.stage')?.style.getPropertyValue('--reflect-frame-radius')).toBe('0px');
+  });
+
   it('hides toolbar buttons the host did not list as available', async () => {
     await boot();
     deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'hardware' });

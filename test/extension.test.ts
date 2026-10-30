@@ -171,6 +171,15 @@ describe('extension', () => {
     expect(view.webview.posted).toContainEqual({ deviceId: 'R5CX123', message: { type: 'session-state', state: 'streaming', deviceName: 'SM F741B' } });
   });
 
+  it('sends the platform device frame when the mirror webview is ready', async () => {
+    await setup();
+    const view = resolveSidebar();
+    await openDevice();
+    view.webview.received.fire({ deviceId: 'R5CX123', message: { type: 'ready' } });
+    await flushPromises();
+    expect(view.webview.posted).toContainEqual({ deviceId: 'R5CX123', message: { type: 'device-frame', frame: { screenCornerRadius: 0.075, bezel: 0.027, chin: 0 } } });
+  });
+
   it('mirrors in an editor tab when configured', async () => {
     workspace.configuration.set('reflect.location', 'editor');
     await setup();

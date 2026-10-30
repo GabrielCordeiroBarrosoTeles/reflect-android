@@ -101,12 +101,32 @@ body {
   padding: 28px;
 }
 
+.stage--framed {
+  --reflect-bezel-fill:
+    0 0 0 var(--reflect-frame-bezel-width, 10px) var(--reflect-frame-bezel),
+    0 var(--reflect-frame-chin, 0px) 0 var(--reflect-frame-bezel-width, 10px) var(--reflect-frame-bezel);
+}
+
 .stage--framed .screen {
-  border-radius: 28px;
+  height: calc(100% - var(--reflect-frame-chin, 0px));
+  margin-bottom: var(--reflect-frame-chin, 0px);
+  border-radius: var(--reflect-frame-radius, 28px);
   box-shadow:
-    0 0 0 10px var(--reflect-frame-bezel),
-    0 0 0 11px var(--reflect-frame-edge),
+    var(--reflect-bezel-fill),
+    0 0 0 calc(var(--reflect-frame-bezel-width, 10px) + 1px) var(--reflect-frame-edge),
     0 14px 36px rgb(0 0 0 / 45%);
+}
+
+.home-button {
+  position: absolute;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  border: 2px solid var(--reflect-frame-edge);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 .stage--actual {
@@ -212,8 +232,8 @@ body {
 
 .stage--framed .screen--inspecting {
   box-shadow:
-    0 0 0 10px var(--reflect-frame-bezel),
-    0 0 0 12px var(--reflect-highlight-border),
+    var(--reflect-bezel-fill),
+    0 0 0 calc(var(--reflect-frame-bezel-width, 10px) + 2px) var(--reflect-highlight-border),
     0 14px 36px rgb(0 0 0 / 45%);
 }
 
@@ -223,8 +243,8 @@ body {
 
 .stage--framed .screen:focus-visible {
   box-shadow:
-    0 0 0 10px var(--reflect-frame-bezel),
-    0 0 0 11px var(--vscode-focusBorder, var(--reflect-frame-edge)),
+    var(--reflect-bezel-fill),
+    0 0 0 calc(var(--reflect-frame-bezel-width, 10px) + 1px) var(--vscode-focusBorder, var(--reflect-frame-edge)),
     0 14px 36px rgb(0 0 0 / 45%);
 }
 

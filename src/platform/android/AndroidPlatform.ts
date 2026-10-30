@@ -3,7 +3,9 @@ import type { IDeviceLeasePool } from '../../device/types';
 import type { Device } from '../../devices/types';
 import { MirrorSession } from '../../scrcpy/MirrorSession';
 import type { IScrcpyLauncher, IServerBinary, MirrorOptions } from '../../scrcpy/types';
+import { GENERIC_FRAME } from '../../shared/deviceFrame';
 import { ACTION_IDS } from '../../shared/actions';
+import type { DeviceFrame } from '../../shared/protocol';
 import type { ToolsTab } from '../../shared/toolsProtocol';
 import type { IMirrorSession, IPlatform, PlatformCapabilities } from '../types';
 
@@ -27,6 +29,10 @@ export class AndroidPlatform implements IPlatform {
 
   capabilities(): PlatformCapabilities {
     return { actions: ACTION_IDS, tools: ALL_TABS, copy: COPY, videoDecoder: 'hardware' };
+  }
+
+  frame(): DeviceFrame {
+    return GENERIC_FRAME;
   }
 
   createMirrorSession(device: Device): IMirrorSession {

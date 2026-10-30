@@ -43,6 +43,7 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
     ready: () => {
       const { actions, videoDecoder } = this.services.capabilities(this.device);
       this.surface.channel.post({ type: 'capabilities', actions, videoDecoder });
+      this.surface.channel.post({ type: 'device-frame', frame: this.services.frame(this.device) });
       this.postState({ state: this.session.state });
       this.surface.channel.post({ type: 'inspect-mode', active: this.inspecting });
       this.postToolbarState();

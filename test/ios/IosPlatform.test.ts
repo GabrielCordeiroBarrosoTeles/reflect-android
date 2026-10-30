@@ -23,6 +23,12 @@ describe('IosPlatform', () => {
     return { platform, helper, simctl, window, availability, availabilityEmitter };
   };
 
+  it('frames the simulator by its model name', () => {
+    const { platform } = build();
+    expect(platform.frame(simulator)).toEqual({ screenCornerRadius: 0.1399, bezel: 0.04, chin: 0 });
+    expect(platform.frame({ ...simulator, name: 'iPhone SE (3rd generation)' }).chin).toBe(0.3);
+  });
+
   it('has no back, reverse Metro or logs', () => {
     const { actions, tools } = build().platform.capabilities();
     expect(actions).toEqual(['home', 'recents', 'rotate', 'screenPower', 'screenshot', 'record', 'devMenu', 'reload']);

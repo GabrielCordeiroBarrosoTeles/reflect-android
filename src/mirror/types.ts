@@ -5,7 +5,7 @@ import type { ActionServices } from '../actions/types';
 import type { CaptureKind, ICaptureStore } from '../capture/types';
 import type { IRecorder } from '../recording/types';
 import type { ActionId } from '../shared/actions';
-import type { HostToWebviewMessage, InspectHighlight, WebviewToHostMessage } from '../shared/protocol';
+import type { DeviceFrame, HostToWebviewMessage, InspectHighlight, WebviewToHostMessage } from '../shared/protocol';
 import type { DeviceAvailability, ReconnectTiming } from './AutoReconnect';
 
 export type MirrorErrorHandler = (error: unknown) => void;
@@ -43,6 +43,7 @@ export interface MirrorServices {
   readonly availability: DeviceAvailability;
   readonly reconnectTiming: ReconnectTiming;
   readonly capabilities: (device: Device) => PlatformCapabilities;
+  readonly frame: (device: Device) => DeviceFrame;
 }
 
 export interface IWebviewChannel {

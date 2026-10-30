@@ -2,6 +2,8 @@ import type { ILogger } from '../core/types';
 import type { Device } from '../devices/types';
 import type { DeviceAvailability } from '../mirror/AutoReconnect';
 import type { IMirrorSession, IPlatform, PlatformCapabilities } from '../platform/types';
+import type { DeviceFrame } from '../shared/protocol';
+import { frameForModel } from './deviceFrames';
 import { HelperMirrorSession } from './HelperMirrorSession';
 import { IosDeviceControl } from './IosDeviceControl';
 import type { SimulatorAppWindow } from './SimulatorAppWindow';
@@ -31,6 +33,10 @@ export class IosPlatform implements IPlatform {
 
   capabilities(): PlatformCapabilities {
     return CAPABILITIES;
+  }
+
+  frame(device: Device): DeviceFrame {
+    return frameForModel(device.name);
   }
 
   createMirrorSession(device: Device): IMirrorSession {

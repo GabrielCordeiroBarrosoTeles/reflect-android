@@ -60,6 +60,7 @@ const setup = () => {
     copy: { reconnecting: 'Reconnecting… plug the cable back in', gaveUp: 'Device not found. Check the cable and USB debugging.' },
     videoDecoder: 'software' as const,
   }));
+  const frame = vi.fn(() => ({ screenCornerRadius: 0.14, bezel: 0.04, chin: 0 }));
   const surface = new FakeSurface();
   const controller = new MirrorController(device({ name: 'Pixel 8', model: 'Pixel 8' }), surface, session, {
     logger,
@@ -73,6 +74,7 @@ const setup = () => {
     availability,
     reconnectTiming: { baseDelayMs: 100, maxDelayMs: 400, giveUpAfterMs: 1000 },
     capabilities,
+    frame,
   });
   const reasons: MirrorCloseReason[] = [];
   controller.onDidDispose((reason) => reasons.push(reason));
@@ -80,7 +82,7 @@ const setup = () => {
     surface.channel.messages.fire(message);
     await flushPromises();
   };
-  return { session, logger, clipboard, onError, inspector, actions, captures, recorders, createRecorder, onCaptured, availability, availabilityChanges, capabilities, surface, controller, send, reasons, posted: surface.channel.posted };
+  return { session, logger, clipboard, onError, inspector, actions, captures, recorders, createRecorder, onCaptured, availability, availabilityChanges, capabilities, frame, surface, controller, send, reasons, posted: surface.channel.posted };
 };
 
 describe('MirrorController', () => {
@@ -125,6 +127,7 @@ describe('MirrorController', () => {
     await send({ type: 'ready' });
     expect(posted).toEqual([
       { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software' },
+      { type: 'device-frame', frame: { screenCornerRadius: 0.14, bezel: 0.04, chin: 0 } },
       { type: 'session-state', state: 'streaming', deviceName: 'Pixel 8' },
       { type: 'inspect-mode', active: false },
       { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } },
@@ -206,6 +209,7 @@ describe('MirrorController', () => {
     expect(posted).toEqual([
       { type: 'inspect-mode', active: true },
       { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software' },
+      { type: 'device-frame', frame: { screenCornerRadius: 0.14, bezel: 0.04, chin: 0 } },
       { type: 'session-state', state: 'idle', deviceName: 'Pixel 8' },
       { type: 'inspect-mode', active: true },
       { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } },

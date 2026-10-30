@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { GENERIC_FRAME } from '../../src/shared/deviceFrame';
 import { ViewOptions } from '../../src/webview/ViewOptions';
 
 const flushMutations = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -17,6 +18,64 @@ const setup = (saved?: unknown) => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+const IPHONE = { screenCornerRadius: 0.14, bezel: 0.04, chin: 0 };
+const HOME_BUTTON = { screenCornerRadius: 0, bezel: 0.06, chin: 0.3 };
+
+const sizeCanvas = (canvas: HTMLCanvasElement, width: number, height: number, left = 0, top = 0) => {
+  for (const [key, value] of Object.entries({ offsetWidth: width, offsetHeight: height, offsetLeft: left, offsetTop: top })) {
+    Object.defineProperty(canvas, key, { value, configurable: true });
+  }
+};
+
+const property = (stage: HTMLElement, name: string) => stage.style.getPropertyValue(name);
+
+describe('ViewOptions device frame', () => {
+  it('sets the three custom properties from the frame and the canvas width', () => {
+    const { stage, canvas, options } = setup();
+    sizeCanvas(canvas, 400, 800);
+    options.setFrame(IPHONE);
+    expect([property(stage, '--reflect-frame-radius'), property(stage, '--reflect-frame-bezel-width'), property(stage, '--reflect-frame-chin')]).toEqual(['56px', '16px', '0px']);
+  });
+
+  it('follows the canvas size on resize', () => {
+    const { stage, canvas, options } = setup();
+    sizeCanvas(canvas, 400, 800);
+    options.setFrame(IPHONE);
+    sizeCanvas(canvas, 200, 400);
+    window.dispatchEvent(new Event('resize'));
+    expect(property(stage, '--reflect-frame-radius')).toBe('28px');
+  });
+
+  it('leaves the stylesheet defaults in place for the generic frame so Android looks as before', () => {
+    const { stage, canvas, options } = setup();
+    sizeCanvas(canvas, 400, 800);
+    options.setFrame(IPHONE);
+    options.setFrame(GENERIC_FRAME);
+    expect([property(stage, '--reflect-frame-radius'), property(stage, '--reflect-frame-bezel-width'), property(stage, '--reflect-frame-chin')]).toEqual(['', '', '']);
+    expect(document.querySelector('.home-button')).toBeNull();
+  });
+
+  it('draws a home button in the chin only while the frame is shown', () => {
+    const { stage, canvas, options, frame } = setup();
+    sizeCanvas(canvas, 400, 800, 20, 30);
+    options.setFrame(HOME_BUTTON);
+    const button = () => document.querySelector<HTMLElement>('.home-button');
+    expect(button()).toBeNull();
+    frame.click();
+    expect(property(stage, '--reflect-frame-chin')).toBe('120px');
+    expect([button()?.style.left, button()?.style.top]).toEqual(['220px', '890px']);
+    frame.click();
+    expect(button()).toBeNull();
+  });
+
+  it('applies the frame before the toggle is switched on', () => {
+    const { stage, canvas, options } = setup({ frame: true });
+    sizeCanvas(canvas, 100, 200);
+    options.setFrame(HOME_BUTTON);
+    expect(stage.querySelector('.home-button')).not.toBeNull();
+  });
 });
 
 describe('ViewOptions', () => {
