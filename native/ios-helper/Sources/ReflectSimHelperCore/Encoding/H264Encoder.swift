@@ -13,7 +13,7 @@ public protocol VideoSink: AnyObject, Sendable {
 extension FrameWriter: VideoSink {}
 
 /// Real-time H.264 over VideoToolbox: Baseline, `RealTime`, no frame reordering, a keyframe
-/// at least every `fps * 2` frames. Session setup adapted from luispadron/baguette
+/// at least every `fps * 2` frames and every 2 s. Session setup adapted from luispadron/baguette
 /// `H264Encoder.swift` (Apache-2.0); the copy-don't-wrap rule comes from our spike (§4.3).
 ///
 /// Frames are encoded when the screen changes (`submit`), throttled to `fps` with a trailing
@@ -24,6 +24,8 @@ extension FrameWriter: VideoSink {}
 /// frames never interleave. The first failed write calls `onOutputClosed` once (ruling R7).
 public final class H264Encoder: @unchecked Sendable {
     static let idleRefreshNanos: UInt64 = 1_000_000_000
+    /// A keyframe at least this often (seconds), whatever the frame rate (R11).
+    static let maxKeyFrameIntervalSeconds = 2
     /// How often the idle refresh is checked: a static screen is re-encoded 1–1.25 s after
     /// the last frame (a 1 s check could leave a gap of almost 2 s).
     static let idleCheckInterval = DispatchTimeInterval.milliseconds(250)
@@ -45,7 +47,7 @@ public final class H264Encoder: @unchecked Sendable {
     private var lastBuffer: CVPixelBuffer?
     private var lastEncodeNanos: UInt64 = 0
     private var captureScheduled = false
-    private var forceKeyframe = false
+    private var keyframeRequest = KeyframeRequest()
     private var lastPts: UInt64 = 0
     private var startNanos: UInt64 = 0
     private var idleTimer: DispatchSourceTimer?
@@ -90,12 +92,12 @@ public final class H264Encoder: @unchecked Sendable {
         }
     }
 
-    /// Forces the next encoded frame to be a keyframe; re-encodes the last frame right away
-    /// (within the fps throttle) so a static screen answers too.
+    /// Forces frames to be keyframes until one is emitted (R11); re-encodes the last frame
+    /// right away (within the fps throttle) so a static screen answers too.
     public func requestKeyframe() {
         queue.async { [self] in
             guard !stopped else { return }
-            forceKeyframe = true
+            keyframeRequest.request()
             scheduleCapture()
         }
     }
@@ -178,7 +180,7 @@ public final class H264Encoder: @unchecked Sendable {
         // Microseconds since capture start, strictly increasing.
         let pts = max((Self.now() - startNanos) / 1_000, lastPts + 1)
         lastPts = pts
-        let properties = forceKeyframe
+        let properties = keyframeRequest.pending
             ? [kVTEncodeFrameOptionKey_ForceKeyFrame: kCFBooleanTrue!] as CFDictionary
             : nil
         let width = UInt16(sessionOutputSize.width), height = UInt16(sessionOutputSize.height)
@@ -195,9 +197,9 @@ public final class H264Encoder: @unchecked Sendable {
             self.emit(sample, width: width, height: height, pts: pts)
         }
         lastEncodeNanos = Self.now()
-        if status == noErr {
-            forceKeyframe = false
-        } else {
+        // The keyframe request is cleared by `emit` when a keyframe comes out, not here: a
+        // frame accepted now may still be dropped by VideoToolbox.
+        if status != noErr {
             log("encode failed (\(status)); recreating the encoder")
             tearDownSession()
         }
@@ -230,6 +232,7 @@ public final class H264Encoder: @unchecked Sendable {
             (kVTCompressionPropertyKey_ProfileLevel, kVTProfileLevel_H264_Baseline_AutoLevel),
             (kVTCompressionPropertyKey_AllowFrameReordering, kCFBooleanFalse),
             (kVTCompressionPropertyKey_MaxKeyFrameInterval, settings.maxKeyFrameInterval as CFNumber),
+            (kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, Self.maxKeyFrameIntervalSeconds as CFNumber),
             (kVTCompressionPropertyKey_ExpectedFrameRate, settings.fps as CFNumber),
             (kVTCompressionPropertyKey_AverageBitRate, settings.bitrate as CFNumber),
         ]
@@ -256,6 +259,9 @@ public final class H264Encoder: @unchecked Sendable {
 
     private func emit(_ sample: CMSampleBuffer, width: UInt16, height: UInt16, pts: UInt64) {
         guard let parsed = Self.parse(sample) else { return }
+        if parsed.keyframe {
+            queue.async { [self] in keyframeRequest.emitted(keyframe: true) }
+        }
         outputQueue.async { [self] in
             guard !closed else { return }
             do {
