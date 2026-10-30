@@ -41,9 +41,7 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
 
   private readonly handlers: MessageHandlers = {
     ready: () => {
-      const { actions, videoDecoder } = this.services.capabilities(this.device);
-      this.surface.channel.post({ type: 'capabilities', actions, videoDecoder });
-      this.surface.channel.post({ type: 'device-frame', frame: this.services.frame(this.device) });
+      this.postPlatformInfo();
       this.postState({ state: this.session.state });
       this.surface.channel.post({ type: 'inspect-mode', active: this.inspecting });
       this.postToolbarState();
@@ -105,7 +103,14 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
 
   start(): void {
     this.surface.reveal();
+    this.postPlatformInfo();
     void this.session.start().catch((error: unknown) => this.services.onError(error));
+  }
+
+  private postPlatformInfo(): void {
+    const { actions, videoDecoder } = this.services.capabilities(this.device);
+    this.surface.channel.post({ type: 'capabilities', actions, videoDecoder });
+    this.surface.channel.post({ type: 'device-frame', frame: this.services.frame(this.device) });
   }
 
   private reconnectNow(): void {

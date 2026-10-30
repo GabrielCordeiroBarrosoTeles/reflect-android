@@ -117,6 +117,10 @@ body {
     0 14px 36px rgb(0 0 0 / 45%);
 }
 
+.stage--framed.stage--actual .screen {
+  margin: auto auto var(--reflect-frame-chin, 0px);
+}
+
 .home-button {
   position: absolute;
   z-index: 1;

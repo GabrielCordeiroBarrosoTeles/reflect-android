@@ -104,6 +104,7 @@ const bootstrap = async (): Promise<void> => {
     'device-list': ({ devices }) => overlay.setDevices(devices),
     'simulator-hidden': ({ hidden }) => overlay.setSimulatorHidden(hidden),
     idle: () => {
+      viewOptions.resetFrame();
       overlay.showIdle();
       canvas.hidden = true;
       renderer.dispose();

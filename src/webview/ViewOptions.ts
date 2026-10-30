@@ -70,7 +70,13 @@ export class ViewOptions implements Disposable {
     this.applyFrame();
   }
 
+  resetFrame(): void {
+    this.deviceFrame = undefined;
+    this.applyFrame();
+  }
+
   dispose(): void {
+    this.homeButton?.remove();
     this.observer.disconnect();
     this.abort.abort();
   }
@@ -115,11 +121,26 @@ export class ViewOptions implements Disposable {
       this.clearFrame();
       return;
     }
-    const width = this.canvas.offsetWidth;
+    const width = this.displayWidth(frame.chin);
     this.stage.style.setProperty('--reflect-frame-radius', pixels(frame.screenCornerRadius * width));
     this.stage.style.setProperty('--reflect-frame-bezel-width', pixels(frame.bezel * width));
     this.stage.style.setProperty('--reflect-frame-chin', pixels(frame.chin * width));
     this.placeHomeButton(frame.chin > 0 && this.state.frame, frame.chin * width);
+  }
+
+  private displayWidth(chin: number): number {
+    const { canvas, stage } = this;
+    if (canvas.width <= 0 || canvas.height <= 0) {
+      return 0;
+    }
+    if (this.state.zoom === 'actual') {
+      return canvas.width / (window.devicePixelRatio || 1);
+    }
+    const style = getComputedStyle(stage);
+    const availableWidth = stage.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+    const availableHeight = stage.clientHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0);
+    const aspect = canvas.width / canvas.height;
+    return Math.min(availableWidth, (availableHeight * aspect) / (1 + chin * aspect));
   }
 
   private clearFrame(): void {

@@ -96,6 +96,15 @@ describe('MirrorController', () => {
     expect(onError).toHaveBeenCalledWith(session.startFailure);
   });
 
+  it('posts capabilities and the device frame when it starts on a possibly reused view', () => {
+    const { controller, posted } = setup();
+    controller.start();
+    expect(posted.slice(0, 2)).toEqual([
+      { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software' },
+      { type: 'device-frame', frame: { screenCornerRadius: 0.14, bezel: 0.04, chin: 0 } },
+    ]);
+  });
+
   it('forwards session state with and without detail', () => {
     const { session, posted } = setup();
     session.stateEmitter.fire({ state: 'connecting' });

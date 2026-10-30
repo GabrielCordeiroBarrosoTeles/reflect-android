@@ -272,6 +272,13 @@ describe('webview main', () => {
     expect(document.querySelector<HTMLElement>('.stage')?.style.getPropertyValue('--reflect-frame-radius')).toBe('0px');
   });
 
+  it('clears the device frame when the view goes idle', async () => {
+    await boot();
+    deliver({ type: 'device-frame', frame: { screenCornerRadius: 0.14, bezel: 0.04, chin: 0 } });
+    deliver({ type: 'idle' });
+    expect(document.querySelector<HTMLElement>('.stage')?.style.getPropertyValue('--reflect-frame-radius')).toBe('');
+  });
+
   it('hides toolbar buttons the host did not list as available', async () => {
     await boot();
     deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'hardware' });
