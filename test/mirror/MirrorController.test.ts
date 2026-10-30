@@ -58,6 +58,7 @@ const setup = () => {
     actions: ['home', 'back'] as const,
     tools: ['device'] as const,
     copy: { reconnecting: 'Reconnecting… plug the cable back in', gaveUp: 'Device not found. Check the cable and USB debugging.' },
+    videoDecoder: 'software' as const,
   }));
   const surface = new FakeSurface();
   const controller = new MirrorController(device({ name: 'Pixel 8', model: 'Pixel 8' }), surface, session, {
@@ -123,7 +124,7 @@ describe('MirrorController', () => {
     posted.length = 0;
     await send({ type: 'ready' });
     expect(posted).toEqual([
-      { type: 'capabilities', actions: ['home', 'back'] },
+      { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software' },
       { type: 'session-state', state: 'streaming', deviceName: 'Pixel 8' },
       { type: 'inspect-mode', active: false },
       { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } },
@@ -204,7 +205,7 @@ describe('MirrorController', () => {
     await send({ type: 'ready' });
     expect(posted).toEqual([
       { type: 'inspect-mode', active: true },
-      { type: 'capabilities', actions: ['home', 'back'] },
+      { type: 'capabilities', actions: ['home', 'back'], videoDecoder: 'software' },
       { type: 'session-state', state: 'idle', deviceName: 'Pixel 8' },
       { type: 'inspect-mode', active: true },
       { type: 'toolbar-state', state: { recordingSince: undefined, screenOff: false } },

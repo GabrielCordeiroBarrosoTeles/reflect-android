@@ -31,6 +31,10 @@ describe('AndroidPlatform', () => {
     });
   });
 
+  it('decodes the scrcpy stream with the hardware decoder', () => {
+    expect(build().capabilities().videoDecoder).toBe('hardware');
+  });
+
   it('creates a scrcpy mirror session', () => {
     expect(build().createMirrorSession(device())).toBeInstanceOf(MirrorSession);
   });

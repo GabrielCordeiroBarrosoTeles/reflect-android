@@ -25,6 +25,10 @@ vi.mock('../../src/webview/VideoRenderer', () => ({
     rendered: unknown[] = [];
     disposed = 0;
     framesRendered = 12;
+    accelerations: string[] = [];
+    useAcceleration(acceleration: string) {
+      this.accelerations.push(acceleration);
+    }
     snapshotResult: Promise<Uint8Array | undefined> = Promise.resolve(new Uint8Array([4]));
     snapshot() {
       return this.snapshotResult;
@@ -254,9 +258,17 @@ describe('webview main', () => {
     expect(envelopes.at(-1)).toEqual({ deviceId: undefined, message: { type: 'action', id: 'home' } });
   });
 
+  it('switches the decoder acceleration to what the device prefers', async () => {
+    await boot();
+    const renderer = fakes.renderers.at(-1) as unknown as { accelerations: string[] };
+    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'software' });
+    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'hardware' });
+    expect(renderer.accelerations).toEqual(['prefer-software', 'prefer-hardware']);
+  });
+
   it('hides toolbar buttons the host did not list as available', async () => {
     await boot();
-    deliver({ type: 'capabilities', actions: ['home'] });
+    deliver({ type: 'capabilities', actions: ['home'], videoDecoder: 'hardware' });
     expect([document.querySelector<HTMLElement>('[aria-label="Back"]')?.hidden, document.querySelector<HTMLElement>('[aria-label="Home"]')?.hidden]).toEqual([true, false]);
   });
 });

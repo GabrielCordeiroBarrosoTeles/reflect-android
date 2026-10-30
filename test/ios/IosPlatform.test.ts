@@ -32,6 +32,10 @@ describe('IosPlatform', () => {
     expect(tools).not.toContain('logs');
   });
 
+  it('decodes the simulator stream in software, which the hardware decoder delays by ~100 ms', () => {
+    expect(build().platform.capabilities().videoDecoder).toBe('software');
+  });
+
   it('explains reconnects in simulator terms', () => {
     expect(build().platform.capabilities().copy).toEqual({
       reconnecting: 'Simulator was shut down — it will reconnect when it boots again',

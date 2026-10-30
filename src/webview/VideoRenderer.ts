@@ -25,7 +25,7 @@ export class VideoRenderer {
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly acceleration: HardwareAcceleration,
+    private acceleration: HardwareAcceleration,
     private readonly listener: VideoRendererListener,
   ) {}
 
@@ -45,6 +45,18 @@ export class VideoRenderer {
       return;
     }
     this.createDecoder(config.codec);
+  }
+
+  useAcceleration(acceleration: HardwareAcceleration): void {
+    if (acceleration === this.acceleration) {
+      return;
+    }
+    this.acceleration = acceleration;
+    const active = this.active;
+    if (active) {
+      this.createDecoder(active.codec);
+      this.listener.onResyncNeeded();
+    }
   }
 
   render(packet: VideoPacket): void {

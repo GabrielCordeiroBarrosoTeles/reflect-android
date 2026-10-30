@@ -96,7 +96,10 @@ const bootstrap = async (): Promise<void> => {
         .catch(() => undefined)
         .then((data) => vscode.postMessage({ type: 'screenshot', requestId, data }));
     },
-    capabilities: ({ actions }) => toolbar.setAvailable(actions),
+    capabilities: ({ actions, videoDecoder }) => {
+      toolbar.setAvailable(actions);
+      renderer.useAcceleration(videoDecoder === 'software' ? 'prefer-software' : preferredAcceleration(support));
+    },
     'device-list': ({ devices }) => overlay.setDevices(devices),
     'simulator-hidden': ({ hidden }) => overlay.setSimulatorHidden(hidden),
     idle: () => {

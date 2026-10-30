@@ -1,5 +1,7 @@
 import type { ActionId } from './actions';
 
+export type VideoDecoderPreference = 'hardware' | 'software';
+
 export type SessionStateKind = 'idle' | 'connecting' | 'streaming' | 'disconnected' | 'error' | 'closed';
 
 export interface VideoConfig {
@@ -57,7 +59,7 @@ export type HostToWebviewMessage =
   | { readonly type: 'idle' }
   | { readonly type: 'device-list'; readonly devices: readonly DeviceListItem[] }
   | { readonly type: 'simulator-hidden'; readonly hidden: boolean }
-  | { readonly type: 'capabilities'; readonly actions: readonly ActionId[] }
+  | { readonly type: 'capabilities'; readonly actions: readonly ActionId[]; readonly videoDecoder: VideoDecoderPreference }
   | { readonly type: 'toolbar-state'; readonly state: ToolbarState }
   | { readonly type: 'capture-screenshot'; readonly requestId: number }
   | { readonly type: 'inspect-mode'; readonly active: boolean }

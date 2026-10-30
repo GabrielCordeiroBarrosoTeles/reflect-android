@@ -41,7 +41,8 @@ export class MirrorController implements IMirrorController, MirrorCapabilities {
 
   private readonly handlers: MessageHandlers = {
     ready: () => {
-      this.surface.channel.post({ type: 'capabilities', actions: this.services.capabilities(this.device).actions });
+      const { actions, videoDecoder } = this.services.capabilities(this.device);
+      this.surface.channel.post({ type: 'capabilities', actions, videoDecoder });
       this.postState({ state: this.session.state });
       this.surface.channel.post({ type: 'inspect-mode', active: this.inspecting });
       this.postToolbarState();

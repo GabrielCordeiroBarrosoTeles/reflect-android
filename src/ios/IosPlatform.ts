@@ -15,6 +15,7 @@ const CAPABILITIES: PlatformCapabilities = {
     reconnecting: 'Simulator was shut down — it will reconnect when it boots again',
     gaveUp: 'Simulator not found. Boot it from the Reflect side bar.',
   },
+  videoDecoder: 'software',
 };
 
 export class IosPlatform implements IPlatform {

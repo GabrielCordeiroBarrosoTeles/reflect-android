@@ -1,7 +1,7 @@
 import type { Event, IDisposable } from '../core/types';
 import type { Device, Platform } from '../devices/types';
 import type { ActionId } from '../shared/actions';
-import type { KeyInput, ScrollInput, SessionStateKind, TouchInput, VideoConfig, VideoPacket } from '../shared/protocol';
+import type { KeyInput, ScrollInput, SessionStateKind, TouchInput, VideoConfig, VideoDecoderPreference, VideoPacket } from '../shared/protocol';
 import type { ToolsTab } from '../shared/toolsProtocol';
 
 export type HardwareButton = 'back' | 'home' | 'recents' | 'menu' | 'lock' | 'volumeUp' | 'volumeDown' | 'siri' | 'shake';
@@ -49,6 +49,7 @@ export interface PlatformCapabilities {
   readonly actions: readonly ActionId[];
   readonly tools: readonly ToolsTab[];
   readonly copy: PlatformCopy;
+  readonly videoDecoder: VideoDecoderPreference;
 }
 
 export interface IPlatform {

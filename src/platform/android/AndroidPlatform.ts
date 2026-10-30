@@ -26,7 +26,7 @@ export class AndroidPlatform implements IPlatform {
   ) {}
 
   capabilities(): PlatformCapabilities {
-    return { actions: ACTION_IDS, tools: ALL_TABS, copy: COPY };
+    return { actions: ACTION_IDS, tools: ALL_TABS, copy: COPY, videoDecoder: 'hardware' };
   }
 
   createMirrorSession(device: Device): IMirrorSession {
