@@ -74,6 +74,20 @@ jobs:
 
       - run: npx vsce package --out reflect-android.vsix
 
+      - name: Check that the VSIX contains the iOS helper
+        if: runner.os != 'Windows'
+        run: unzip -l reflect-android.vsix | grep -q 'extension/assets/ios-helper/reflect-sim-helper'
+
+      - name: Check that the VSIX contains the iOS helper (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path reflect-android.vsix))
+          $found = $zip.Entries | Where-Object FullName -eq 'extension/assets/ios-helper/reflect-sim-helper'
+          $zip.Dispose()
+          if (-not $found) { throw 'reflect-sim-helper is missing from the VSIX' }
+
       - if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v7.0.2
         with:

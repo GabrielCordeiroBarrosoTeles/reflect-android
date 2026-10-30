@@ -20,3 +20,7 @@ examples/**
 assets/demo.gif
 assets/pix-card.png
 native/**
+docs/superpowers/**
+.superpowers/**
+# the iOS helper (built by `npm run build:ios-helper`) must ship in the VSIX
+!assets/ios-helper/**

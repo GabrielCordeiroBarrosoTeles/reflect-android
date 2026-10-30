@@ -73,6 +73,9 @@ jobs:
 
       - run: npx vsce package --out "reflect-android-${GITHUB_REF_NAME}.vsix"
 
+      - name: Check that the VSIX contains the iOS helper
+        run: unzip -l "reflect-android-${GITHUB_REF_NAME}.vsix" | grep -q 'extension/assets/ios-helper/reflect-sim-helper'
+
       - uses: softprops/action-gh-release@v3.0.3
         with:
           files: reflect-android-${{ github.ref_name }}.vsix
