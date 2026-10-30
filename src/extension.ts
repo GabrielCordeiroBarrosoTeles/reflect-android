@@ -6,6 +6,9 @@ import * as vscode from 'vscode';
 import { AdbServerGateway, DEFAULT_ADB_ENDPOINT } from './adb/AdbServerGateway';
 import { DeviceSelectionService } from './adb/DeviceSelectionService';
 import { DeviceTracker } from './adb/DeviceTracker';
+import { createHelperProcessFactory } from './ios/HelperProcess';
+import { IosPlatform } from './ios/IosPlatform';
+import { assertExecutable, spawnHelper } from './ios/nodeAdapters';
 import { SimctlRunner } from './ios/SimctlRunner';
 import { SimulatorDiscovery } from './ios/SimulatorDiscovery';
 import type { SimctlExecFile } from './ios/types';
@@ -14,6 +17,7 @@ import { PlatformScopedDeviceContext } from './device/PlatformScopedDeviceContex
 import { AndroidPlatform } from './platform/android/AndroidPlatform';
 import { PlatformRegistry } from './platform/PlatformRegistry';
 import type { Device, IDeviceDiscovery } from './devices/types';
+import type { IPlatform } from './platform/types';
 import { isReady } from './devices/types';
 import { ExecFileProcessRunner } from './adb/ExecFileProcessRunner';
 import { createAdbLocator } from './adb/locator/createAdbLocator';
@@ -82,6 +86,8 @@ import { StatusBarPresenter } from './ui/StatusBarPresenter';
 const ADB_START_TIMEOUT_MS = 15_000;
 const DEVICE_INFO_INTERVAL_MS = 5_000;
 const SIMCTL_TIMEOUT_MS = 15_000;
+const XATTR_TIMEOUT_MS = 5_000;
+const IOS_HELPER_ASSET = ['assets', 'ios-helper', 'reflect-sim-helper'];
 const SIMULATOR_POLL_INTERVAL_MS = 2_000;
 const COPY_FEEDBACK_MS = 2_000;
 const METRO_TIMEOUT_MS = 3_000;
@@ -157,20 +163,30 @@ export function activate(context: vscode.ExtensionContext): void {
   const launcher = new AdbScrcpyLauncher();
   const pool = new DeviceLeasePool(gateway, logger);
   const tracker = new DeviceTracker(gateway);
+  const serverBinary = new FileServerBinary(
+    vscode.Uri.joinPath(context.extensionUri, SCRCPY_SERVER_ASSET).fsPath,
+    SCRCPY_SERVER_VERSION,
+  );
   const discoverySources: IDeviceDiscovery[] = [tracker];
+  const platformList: IPlatform[] = [new AndroidPlatform(pool, launcher, serverBinary, MIRROR_OPTIONS, logger)];
   if (process.platform === 'darwin') {
-    discoverySources.push(new SimulatorDiscovery(new SimctlRunner(execFile as SimctlExecFile, SIMCTL_TIMEOUT_MS), logger, SIMULATOR_POLL_INTERVAL_MS));
+    const simctl = new SimctlRunner(execFile as SimctlExecFile, SIMCTL_TIMEOUT_MS);
+    discoverySources.push(new SimulatorDiscovery(simctl, logger, SIMULATOR_POLL_INTERVAL_MS));
+    const spawnHelperProcess = createHelperProcessFactory({
+      helperPath: vscode.Uri.joinPath(context.extensionUri, ...IOS_HELPER_ASSET).fsPath,
+      assertExecutable,
+      runner: new ExecFileProcessRunner(promisify(execFile), XATTR_TIMEOUT_MS),
+      spawn: spawnHelper,
+      logger,
+    });
+    platformList.push(new IosPlatform(spawnHelperProcess, simctl, logger));
   }
   const discovery = new CompositeDeviceDiscovery(discoverySources);
   const activeDevice = new ActiveDeviceContext(discovery);
   const androidDevice = new PlatformScopedDeviceContext(activeDevice, 'android');
   const statusBar = new StatusBarPresenter(activeDevice, CommandIds.openDevice);
   const errors = new ErrorPresenter(CommandIds.openDevice, () => outputChannel.show());
-  const serverBinary = new FileServerBinary(
-    vscode.Uri.joinPath(context.extensionUri, SCRCPY_SERVER_ASSET).fsPath,
-    SCRCPY_SERVER_VERSION,
-  );
-  const platforms = new PlatformRegistry([new AndroidPlatform(pool, launcher, serverBinary, MIRROR_OPTIONS, logger)]);
+  const platforms = new PlatformRegistry(platformList);
   const clipboard = {
     readText: () => Promise.resolve(vscode.env.clipboard.readText()),
     writeText: (text: string) => Promise.resolve(vscode.env.clipboard.writeText(text)),
