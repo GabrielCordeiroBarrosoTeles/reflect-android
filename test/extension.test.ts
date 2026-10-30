@@ -36,6 +36,7 @@ vi.mock('../src/ios/nodeAdapters', () => ({
   assertExecutable: () => Promise.resolve(),
   pathExists: (path: string) => Promise.resolve(path === '/Library/Developer/PrivateFrameworks/CoreSimulator.framework'),
   spawnHelper: () => io.child,
+  dropStagingFiles: { mkdir: () => Promise.resolve(), writeFile: () => Promise.resolve(), rm: () => Promise.resolve() },
   simctlFiles: { tempPath: () => '/tmp/x.png', readFile: () => Promise.resolve(new Uint8Array()), rm: () => Promise.resolve() },
 }));
 
@@ -161,7 +162,7 @@ describe('extension', () => {
     expect(commands.registered.has('reflect.bootSimulator')).toBe(true);
     expect(commands.registered.has('reflect.showInSimulator')).toBe(true);
     expect(commands.registered.has('reflect.showDeviceWindow')).toBe(true);
-    expect(context.subscriptions).toHaveLength(56);
+    expect(context.subscriptions).toHaveLength(57);
   });
 
   it('mirrors in the secondary side bar by default', async () => {

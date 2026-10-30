@@ -9,7 +9,7 @@ const parseUriList = (text: string): string[] =>
     .filter((line) => line !== '' && !line.startsWith('#'));
 
 const lastSegment = (uri: string): string => {
-  const segment = uri.replace(/\/+$/, '').split('/').at(-1) ?? '';
+  const segment = uri.replace(/\/+$/, '').replace(/^.*\//, '');
   try {
     return decodeURIComponent(segment);
   } catch {

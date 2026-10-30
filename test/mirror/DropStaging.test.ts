@@ -55,4 +55,11 @@ describe('DropStaging', () => {
     await expect(staging.stage([{ name: 'a.png', data: new Uint8Array([1]) }])).rejects.toThrow('disk full');
     expect(fs.rm).toHaveBeenCalledWith('/tmp/reflect-drops/uuid-1');
   });
+
+  it('still reports the write failure when the cleanup also fails', async () => {
+    const { fs, staging } = setup();
+    fs.writeFile.mockRejectedValueOnce(new Error('disk full'));
+    fs.rm.mockRejectedValueOnce(new Error('busy'));
+    await expect(staging.stage([{ name: 'a.png', data: new Uint8Array([1]) }])).rejects.toThrow('disk full');
+  });
 });
