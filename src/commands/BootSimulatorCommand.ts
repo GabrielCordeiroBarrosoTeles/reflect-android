@@ -6,6 +6,12 @@ import type { ISimctl } from '../ios/types';
 import { CommandIds } from './commandIds';
 import type { ICommand } from './types';
 
+interface ReadinessWait {
+  readonly promise: Promise<void>;
+  readonly cancel: () => void;
+  readonly startTimeout: () => void;
+}
+
 interface ErrorSink {
   present(error: unknown): Promise<void>;
 }
@@ -58,6 +64,7 @@ export class BootSimulatorCommand implements ICommand {
       ready.cancel();
       throw error;
     }
+    ready.startTimeout();
     await ready.promise;
   }
 
@@ -65,10 +72,14 @@ export class BootSimulatorCommand implements ICommand {
     return devices.some((device) => device.id === deviceId && isReady(device));
   }
 
-  private waitUntilReady(deviceId: string): { readonly promise: Promise<void>; readonly cancel: () => void } {
+  private waitUntilReady(deviceId: string): ReadinessWait {
     let cancel!: () => void;
+    let startTimeout!: () => void;
     const promise = new Promise<void>((resolve, reject) => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let settled = false;
       const finish = (settle: () => void): void => {
+        settled = true;
         clearTimeout(timer);
         subscription.dispose();
         settle();
@@ -78,9 +89,14 @@ export class BootSimulatorCommand implements ICommand {
           finish(resolve);
         }
       });
-      const timer = setTimeout(() => finish(() => reject(new Error('The simulator did not finish booting'))), this.timeoutMs);
       cancel = () => finish(resolve);
+      startTimeout = () => {
+        if (settled) {
+          return;
+        }
+        timer = setTimeout(() => finish(() => reject(new Error('The simulator did not finish booting'))), this.timeoutMs);
+      };
     });
-    return { promise, cancel };
+    return { promise, cancel, startTimeout };
   }
 }

@@ -68,14 +68,16 @@ describe('SimulatorDiscovery', () => {
     expect(changes).not.toHaveBeenCalled();
   });
 
-  it('clears devices when simctl starts failing after succeeding', async () => {
+  it('keeps the last known devices when a poll fails, so a hiccup does not drop a live mirror', async () => {
     let fail = false;
     const { discovery, changes } = setup(() => (fail ? Promise.reject(new Error('x')) : Promise.resolve(simctlDevicesJson())));
     await discovery.start();
+    const known = discovery.devices;
     fail = true;
     await vi.advanceTimersByTimeAsync(2000);
-    expect(discovery.devices).toEqual([]);
-    expect(changes).toHaveBeenCalledTimes(2);
+    expect(discovery.devices).toBe(known);
+    expect(known.length).toBeGreaterThan(0);
+    expect(changes).toHaveBeenCalledTimes(1);
   });
 
   it('stops polling on dispose and ignores late results', async () => {

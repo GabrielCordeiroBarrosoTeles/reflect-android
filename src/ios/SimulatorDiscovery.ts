@@ -82,7 +82,6 @@ export class SimulatorDiscovery implements IDeviceDiscovery {
       this.failures = 0;
     } catch (error) {
       this.reportFailure(error);
-      this.update([]);
     }
   }
 

@@ -44,6 +44,7 @@ describe('BootSimulatorCommand', () => {
     finishBoot();
     await done;
     expect(open).toHaveBeenCalledWith('UDID-1');
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('ignores discovery changes for other devices', async () => {
@@ -61,6 +62,20 @@ describe('BootSimulatorCommand', () => {
     const { command, simctl, open } = setup([sim({ state: 'ready' })]);
     await command.execute('UDID-1');
     expect(simctl.run).not.toHaveBeenCalled();
+    expect(open).toHaveBeenCalledWith('UDID-1');
+  });
+
+  it('starts the readiness timeout only once simctl boot returns, so a slow boot is not reported as failed', async () => {
+    const { command, discovery, simctl, open, errors } = setup();
+    let finishBoot = (): void => undefined;
+    simctl.run.mockImplementation(() => new Promise<string>((resolve) => (finishBoot = () => resolve(''))));
+    const done = command.execute('UDID-1');
+    await vi.advanceTimersByTimeAsync(90_000);
+    finishBoot();
+    await vi.advanceTimersByTimeAsync(1_000);
+    discovery.setDevices([sim({ state: 'ready' })]);
+    await done;
+    expect(errors.present).not.toHaveBeenCalled();
     expect(open).toHaveBeenCalledWith('UDID-1');
   });
 
