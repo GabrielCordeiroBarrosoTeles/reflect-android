@@ -84,7 +84,7 @@ On a Mac, Reflect also mirrors the iOS Simulators you already have in Xcode, in 
 - Tools: Component inspector, Network and Storage for React Native apps in development mode.
 - Closing and booting a simulator from the terminal is picked up within a couple of seconds: the mirror shows **Disconnected** and returns by itself when the simulator boots again.
 
-**The Simulator app window.** While a simulator is mirrored in Reflect, the Simulator app is hidden so it does not cover your editor. Hiding applies to the whole app, so **all** Simulator windows are hidden, not just the mirrored one. Change this with `reflect.ios.simulatorWindow`: `hide` (default), `quit` (quits Simulator; booted simulators stay booted) or `leave`. After you close the mirror, the empty Device view offers **Show in Simulator** (also **Reflect: Show in Simulator**) to bring the app back.
+**The Simulator app window.** When you bring a simulator into Reflect, the Simulator app quits so the device lives only in your editor. The simulator itself keeps running: Reflect first turns on Simulator's `DetachOnAppQuit` preference, which makes quitting the app leave booted devices running. Change this with `reflect.ios.simulatorWindow`: `quit` (default), `hide` (hides the whole app, so **all** its windows) or `leave`. **Show in Simulator** in the empty Device view (also **Reflect: Show in Simulator**) opens the app again.
 
 Android devices and iOS Simulators can be connected at the same time. When you have several, the device picker lists both.
 
@@ -160,7 +160,7 @@ Every toolbar action is also a command (**Reflect: Back**, **Reflect: Take Scree
 | `reflect.privacy.maskIpAddress` | `false` | Hide the last part of the IP address in the Device tab (handy for screenshots). |
 | `reflect.capturesDirectory` | `reflect-captures` | Folder for screenshots and recordings. Relative paths use the first workspace folder; without a workspace they go to `~/Pictures/Reflect`. |
 | `reflect.copyCapturesToClipboard` | `true` | Copy screenshots (as images) and recordings (as files) to the clipboard. |
-| `reflect.ios.simulatorWindow` | `hide` | What to do with the Simulator app when a simulator is brought into Reflect: `hide`, `quit` or `leave`. |
+| `reflect.ios.simulatorWindow` | `quit` | What to do with the Simulator app when a simulator is brought into Reflect: `quit` (the simulator keeps running), `hide` or `leave`. |
 
 When `reflect.adbPath` is empty, Reflect looks for `adb` in this order: `$ANDROID_HOME/platform-tools` (or `$ANDROID_SDK_ROOT`), the default SDK location for your OS, then your `PATH`.
 

@@ -3,7 +3,7 @@ public enum TouchPhase: String, Equatable, Sendable {
 }
 
 public enum SimulatorAppAction: String, Equatable, Sendable {
-    case hide, show
+    case hide, show, quit
 }
 
 /// Commands read from stdin, one JSON object per line. Coordinates are device points.

@@ -35,6 +35,7 @@ import Testing
     @Test func simulatorApp() {
         #expect(parse(#"{"type":"simulatorApp","action":"hide"}"#) == .command(.simulatorApp(action: .hide)))
         #expect(parse(#"{"type":"simulatorApp","action":"show"}"#) == .command(.simulatorApp(action: .show)))
+        #expect(parse(#"{"type":"simulatorApp","action":"quit"}"#) == .command(.simulatorApp(action: .quit)))
     }
 
     @Test func unknownType() {

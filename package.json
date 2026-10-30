@@ -276,10 +276,10 @@
           ],
           "enumDescriptions": [
             "Hide the Simulator app (all its windows) while a simulator is mirrored in Reflect.",
-            "Quit the Simulator app. Booted simulators stay booted.",
+            "Quit the Simulator app. Reflect turns on Simulator's DetachOnAppQuit preference first, so booted simulators keep running.",
             "Leave the Simulator app as it is."
           ],
-          "default": "hide",
+          "default": "quit",
           "markdownDescription": "What to do with the Simulator app window when a simulator is brought into Reflect."
         }
       }

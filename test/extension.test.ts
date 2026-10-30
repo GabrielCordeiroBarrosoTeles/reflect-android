@@ -484,7 +484,7 @@ describe('extension', () => {
       }
     };
 
-    it('brings a booted simulator into Reflect and hides the Simulator app', async () => {
+    it('brings a booted simulator into Reflect and quits the Simulator app', async () => {
       io.simctlJson = simulatorsJson('Booted');
       const child = new FakeChildProcess();
       io.child = child;
@@ -504,14 +504,14 @@ describe('extension', () => {
       child.stdout.emit(videoConfigBytes(884, 1920, [0, 0, 0, 1, 0x67]));
       child.stdout.emit(videoFrameBytes(true, 0, [0, 0, 0, 1, 0x65]));
       await flushPromises();
-      expect(child.written).toContain('{"type":"simulatorApp","action":"hide"}\n');
+      expect(child.written).toContain('{"type":"simulatorApp","action":"quit"}\n');
       expect(view.webview.posted).toContainEqual({ deviceId: 'UDID-1', message: { type: 'session-state', state: 'streaming', deviceName: 'iPhone 15' } });
       await commands.registered.get('reflect.showInSimulator')?.();
       expect(io.execFile).toHaveBeenCalledWith('open', ['-a', 'Simulator'], expect.anything(), expect.any(Function));
     });
 
-    it('quits the Simulator app when configured', async () => {
-      workspace.configuration.set('reflect.ios.simulatorWindow', 'quit');
+    it('only hides the Simulator app when configured to', async () => {
+      workspace.configuration.set('reflect.ios.simulatorWindow', 'hide');
       io.simctlJson = simulatorsJson('Booted');
       const child = new FakeChildProcess();
       io.child = child;
@@ -522,7 +522,8 @@ describe('extension', () => {
       child.stdout.emit(videoConfigBytes(884, 1920, [0, 0, 0, 1, 0x67]));
       child.stdout.emit(videoFrameBytes(true, 0, [0, 0, 0, 1, 0x65]));
       await flushPromises();
-      expect(io.execFile).toHaveBeenCalledWith('osascript', ['-e', 'quit app "Simulator"'], expect.anything(), expect.any(Function));
+      expect(child.written).toContain('{"type":"simulatorApp","action":"hide"}\n');
+      expect(io.execFile).not.toHaveBeenCalledWith('osascript', expect.anything(), expect.anything(), expect.anything());
     });
 
     it('boots a shut-down simulator headless and opens it when discovery reports it ready', async () => {

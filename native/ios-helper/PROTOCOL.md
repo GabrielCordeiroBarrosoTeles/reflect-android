@@ -58,7 +58,7 @@ One JSON object per line. Coordinates are device points.
 | `rotate` | - |
 | `keyframe` | - |
 | `quality` | `bitrate`, `fps`, `maxSize` (integers) |
-| `simulatorApp` | `action` (`hide`\|`show`) |
+| `simulatorApp` | `action` (`hide`\|`show`\|`quit`) |
 | `stop` | - (helper exits 0; EOF also exits 0) |
 
 An unknown `type` produces an `event` frame `{"type":"warning","message":"unknown command <type>"}`;
@@ -87,7 +87,7 @@ malformed lines produce a `warning` event. The helper never crashes on bad input
   `{"type":"orientation-changed","orientation":"landscapeLeft"}` (`portrait`, `landscapeLeft`,
   `portraitUpsideDown`, `landscapeRight`). The helper assumes portrait at start. Apps choose
   which orientations they follow (iPhones with Face ID ignore `portraitUpsideDown`).
-- `simulatorApp` hides or shows Simulator.app's windows; nothing happens when it is not running.
+- `simulatorApp` hides or shows Simulator.app's windows, or quits it. `quit` first sets Simulator's `DetachOnAppQuit` preference so booted devices keep running. Nothing happens when Simulator.app is not running.
 - If input cannot reach the simulator (a missing private API, a SimulatorKit exception), the
   helper reports one `{"type":"error","code":"framework-unavailable",…}` event and keeps
   streaming video; later input failures are only logged on stderr.

@@ -46,8 +46,11 @@ import Testing
 
     @Test func reportsAChangeWhenTheSurfaceIsReplaced() throws {
         var tracker = SurfaceChangeTracker()
-        _ = tracker.hasChanged(try makeSurface())
-        let replaced = tracker.hasChanged(try makeSurface())
+        let original = try makeSurface()
+        _ = tracker.hasChanged(original)
+        let replacement = try makeSurface()
+        let replaced = tracker.hasChanged(replacement)
         #expect(replaced)
+        withExtendedLifetime(original) {}
     }
 }

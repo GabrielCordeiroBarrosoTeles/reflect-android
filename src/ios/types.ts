@@ -48,7 +48,7 @@ export type HelperCommand =
   | { readonly type: 'rotate' }
   | { readonly type: 'keyframe' }
   | { readonly type: 'quality'; readonly bitrate: number; readonly fps: number; readonly maxSize: number }
-  | { readonly type: 'simulatorApp'; readonly action: 'hide' | 'show' }
+  | { readonly type: 'simulatorApp'; readonly action: 'hide' | 'show' | 'quit' }
   | { readonly type: 'stop' };
 
 export type HelperFrame =

@@ -3,7 +3,7 @@ import { SimulatorAppWindow } from '../../src/ios/SimulatorAppWindow';
 import { FakeLogger } from '../fakes/FakeLogger';
 import { FakeProcessRunner } from '../fakes/FakeProcessRunner';
 
-const setup = (mode: unknown = 'hide') => {
+const setup = (mode: unknown = undefined) => {
   const runner = new FakeProcessRunner();
   const logger = new FakeLogger();
   const window = new SimulatorAppWindow(() => mode, runner, logger);
@@ -14,37 +14,28 @@ const setup = (mode: unknown = 'hide') => {
 };
 
 describe('SimulatorAppWindow', () => {
-  it('asks the helper to hide Simulator by default', async () => {
+  it('asks the helper to quit Simulator by default, keeping the simulator booted', async () => {
     const { window, send, runner, changes, logger } = setup();
     await window.makeRoom(send);
-    expect(logger.infos).toEqual(['Simulator app window: hide']);
-    expect(send).toHaveBeenCalledWith({ type: 'simulatorApp', action: 'hide' });
+    expect(logger.infos).toEqual(['Simulator app window: quit']);
+    expect(send).toHaveBeenCalledWith({ type: 'simulatorApp', action: 'quit' });
     expect(runner.calls).toEqual([]);
     expect(window.hidden).toBe(true);
     expect(changes).toEqual([true]);
   });
 
-  it('falls back to hide for unknown setting values', async () => {
+  it('falls back to quit for unknown setting values', async () => {
     const { window, send } = setup('nonsense');
     await window.makeRoom(send);
+    expect(send).toHaveBeenCalledWith({ type: 'simulatorApp', action: 'quit' });
+  });
+
+  it('asks the helper to hide Simulator when configured to', async () => {
+    const { window, send, runner } = setup('hide');
+    await window.makeRoom(send);
     expect(send).toHaveBeenCalledWith({ type: 'simulatorApp', action: 'hide' });
-  });
-
-  it('quits Simulator through osascript', async () => {
-    const { window, send, runner } = setup('quit');
-    await window.makeRoom(send);
-    expect(runner.calls).toEqual([{ executable: 'osascript', args: ['-e', 'quit app "Simulator"'] }]);
-    expect(send).not.toHaveBeenCalled();
+    expect(runner.calls).toEqual([]);
     expect(window.hidden).toBe(true);
-  });
-
-  it('logs a failed quit and does not claim the window is hidden', async () => {
-    const { window, send, runner, logger, changes } = setup('quit');
-    runner.failure = new Error('denied');
-    await window.makeRoom(send);
-    expect(logger.errors[0]?.message).toBe('Could not quit the Simulator app');
-    expect(window.hidden).toBe(false);
-    expect(changes).toEqual([]);
   });
 
   it('leaves the window alone', async () => {
