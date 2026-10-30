@@ -1,6 +1,7 @@
 import type { HardwareButton, IDeviceControl } from '../platform/types';
 import type { KeyInput, KeyModifiers, ScrollInput, TouchInput } from '../shared/protocol';
-import { META_USAGE, R_USAGE, SHIFT_USAGE, V_USAGE, charToKeystroke, modifierUsages, toHidUsage } from './hidUsages';
+import type { Keystroke } from './hidUsages';
+import { META_USAGE, OPTION_USAGE, R_USAGE, SHIFT_USAGE, V_USAGE, charToKeystrokes, modifierUsages, toHidUsage } from './hidUsages';
 import type { HelperCommand, HelperHello, ISimulatorPasteboard } from './types';
 
 const WHEEL_POINTS = 40;
@@ -83,9 +84,9 @@ export class IosDeviceControl implements IDeviceControl {
 
   text(text: string): Promise<void> {
     return this.enqueue(async () => {
-      const keystrokes = Array.from(text, charToKeystroke);
-      if (keystrokes.every((keystroke) => keystroke !== undefined)) {
-        keystrokes.forEach((keystroke) => this.type(keystroke.usage, keystroke.shift));
+      const sequences = Array.from(text, charToKeystrokes);
+      if (sequences.every((sequence) => sequence !== undefined)) {
+        sequences.flat().forEach((keystroke) => this.type(keystroke));
         return;
       }
       await this.pasteboard.lend(text, () => this.pressPaste());
@@ -177,12 +178,11 @@ export class IosDeviceControl implements IDeviceControl {
     this.send({ type: 'scroll', ...batch });
   }
 
-  private type(usage: number, shift: boolean): void {
-    if (shift) {
-      this.chord(SHIFT_USAGE, usage);
-      return;
-    }
+  private type({ usage, shift, option }: Keystroke): void {
+    const modifiers = [...(option ? [OPTION_USAGE] : []), ...(shift ? [SHIFT_USAGE] : [])];
+    modifiers.forEach((modifier) => this.send({ type: 'key', usage: modifier, down: true }));
     this.tap(usage);
+    [...modifiers].reverse().forEach((modifier) => this.send({ type: 'key', usage: modifier, down: false }));
   }
 
   private tap(usage: number): void {

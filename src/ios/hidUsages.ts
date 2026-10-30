@@ -65,6 +65,7 @@ export const toHidUsage = (code: string): number | undefined => NAMED_USAGES[cod
 export interface Keystroke {
   readonly usage: number;
   readonly shift: boolean;
+  readonly option?: true;
 }
 
 const UNSHIFTED_PUNCTUATION = '-=[]\\;\'`,./';
@@ -108,7 +109,39 @@ export const charToKeystroke = (char: string): Keystroke | undefined => {
   return undefined;
 };
 
+const optionKey = (code: string, shift = false): Keystroke => ({ ...keystrokeFor(code, shift), option: true });
+
+const DEAD_KEYS: Readonly<Record<string, { readonly code: string; readonly bases: string }>> = {
+  '\u0301': { code: 'KeyE', bases: 'aeiou' },
+  '\u0300': { code: 'Backquote', bases: 'aeiou' },
+  '\u0302': { code: 'KeyI', bases: 'aeiou' },
+  '\u0303': { code: 'KeyN', bases: 'aon' },
+  '\u0308': { code: 'KeyU', bases: 'aeiouy' },
+};
+
+const deadKeySequence = (char: string): readonly Keystroke[] | undefined => {
+  const [base = '', mark = '', ...rest] = char.normalize('NFD');
+  const deadKey = DEAD_KEYS[mark];
+  const letter = charToKeystroke(base);
+  if (!deadKey || rest.length > 0 || !letter || !deadKey.bases.includes(base.toLowerCase())) {
+    return undefined;
+  }
+  return [optionKey(deadKey.code), letter];
+};
+
+export const charToKeystrokes = (char: string): readonly Keystroke[] | undefined => {
+  const plain = charToKeystroke(char);
+  if (plain) {
+    return [plain];
+  }
+  if (char === 'ç' || char === 'Ç') {
+    return [optionKey('KeyC', char === 'Ç')];
+  }
+  return deadKeySequence(char);
+};
+
 export const SHIFT_USAGE = toHidUsage('ShiftLeft') as number;
+export const OPTION_USAGE = toHidUsage('AltLeft') as number;
 export const META_USAGE = toHidUsage('MetaLeft') as number;
 export const V_USAGE = toHidUsage('KeyV') as number;
 export const R_USAGE = toHidUsage('KeyR') as number;

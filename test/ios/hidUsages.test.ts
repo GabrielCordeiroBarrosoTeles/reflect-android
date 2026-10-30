@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { charToKeystroke, toHidUsage } from '../../src/ios/hidUsages';
+import { charToKeystroke, charToKeystrokes, toHidUsage } from '../../src/ios/hidUsages';
 
 describe('toHidUsage', () => {
   it.each([
@@ -58,5 +58,26 @@ describe('charToKeystroke', () => {
 
   it.each(['á', '€', '', 'ab', '\u0001'])('cannot type %j', (char) => {
     expect(charToKeystroke(char)).toBeUndefined();
+  });
+});
+
+describe('charToKeystrokes', () => {
+  it.each([
+    ['a', [{ usage: 4, shift: false }]],
+    ['ç', [{ usage: 6, shift: false, option: true }]],
+    ['Ç', [{ usage: 6, shift: true, option: true }]],
+    ['á', [{ usage: 8, shift: false, option: true }, { usage: 4, shift: false }]],
+    ['à', [{ usage: 53, shift: false, option: true }, { usage: 4, shift: false }]],
+    ['ê', [{ usage: 12, shift: false, option: true }, { usage: 8, shift: false }]],
+    ['ã', [{ usage: 17, shift: false, option: true }, { usage: 4, shift: false }]],
+    ['Õ', [{ usage: 17, shift: false, option: true }, { usage: 18, shift: true }]],
+    ['ñ', [{ usage: 17, shift: false, option: true }, { usage: 17, shift: false }]],
+    ['ü', [{ usage: 24, shift: false, option: true }, { usage: 24, shift: false }]],
+  ])('types %s', (char, keystrokes) => {
+    expect(charToKeystrokes(char)).toEqual(keystrokes);
+  });
+
+  it.each(['ẽ', 'ǘ', '中', '😀', 'ŝ'])('has no keyboard sequence for %s', (char) => {
+    expect(charToKeystrokes(char)).toBeUndefined();
   });
 });

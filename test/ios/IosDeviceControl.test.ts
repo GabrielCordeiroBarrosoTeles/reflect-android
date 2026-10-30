@@ -104,23 +104,44 @@ describe('IosDeviceControl', () => {
     expect(keys(sent)).toEqual([[18, true], [18, false], [225, true], [14, true], [14, false], [225, false]]);
   });
 
+  it('types Portuguese accents with US-layout Option sequences instead of pasting', async () => {
+    const { control, sent, simctl } = setup();
+    await control.text('ação');
+    expect(simctl.run).not.toHaveBeenCalled();
+    expect(keys(sent)).toEqual([
+      [4, true], [4, false],
+      [226, true], [6, true], [6, false], [226, false],
+      [226, true], [17, true], [17, false], [226, false], [4, true], [4, false],
+      [18, true], [18, false],
+    ]);
+  });
+
+  it('holds Shift inside Option for uppercase accented letters', async () => {
+    const { control, sent } = setup();
+    await control.text('ÇÉ');
+    expect(keys(sent)).toEqual([
+      [226, true], [225, true], [6, true], [6, false], [225, false], [226, false],
+      [226, true], [8, true], [8, false], [226, false], [225, true], [8, true], [8, false], [225, false],
+    ]);
+  });
+
   it('sends four key commands for two lowercase characters', async () => {
     const { control, sent } = setup();
     await control.text('ok');
     expect(sent).toHaveLength(4);
   });
 
-  it('pastes non-ASCII text through the simulator pasteboard and restores what was there', async () => {
+  it('pastes text with no keyboard sequence through the simulator pasteboard and restores what was there', async () => {
     const { control, order, simctl } = setup('before');
-    await settle(control.text('olá'));
-    expect(simctl.run).toHaveBeenNthCalledWith(2, ['pbcopy', 'UDID-1'], 'olá');
+    await settle(control.text('中文'));
+    expect(simctl.run).toHaveBeenNthCalledWith(2, ['pbcopy', 'UDID-1'], '中文');
     expect(simctl.run).toHaveBeenNthCalledWith(3, ['pbcopy', 'UDID-1'], 'before');
     expect(order).toEqual(['simctl pbpaste', 'simctl pbcopy', 'key 227 down', 'key 25 down', 'key 25 up', 'key 227 up', 'simctl pbcopy']);
   });
 
   it('waits for the simulator to consume Cmd+V before restoring the pasteboard', async () => {
     const { control, order } = setup();
-    const typed = control.text('ç');
+    const typed = control.text('中');
     await vi.advanceTimersByTimeAsync(299);
     expect(order.at(-1)).toBe('key 227 up');
     await vi.advanceTimersByTimeAsync(1);
@@ -133,7 +154,7 @@ describe('IosDeviceControl', () => {
     const changes: string[] = [];
     pasteboard.onDidChange((text) => changes.push(text));
     await pasteboard.poll();
-    await settle(control.text('ação'));
+    await settle(control.text('中文'));
     await settle(control.paste('from host'));
     await pasteboard.poll();
     expect(changes).toEqual([]);
@@ -149,7 +170,7 @@ describe('IosDeviceControl', () => {
 
   it('keeps text, keys and pastes in the order they were sent', async () => {
     const { control, order } = setup();
-    const done = Promise.all([control.text('a'), control.text('çã'), control.text('o'), control.key(key('down', 'Enter')), control.key(key('up', 'Enter'))]);
+    const done = Promise.all([control.text('a'), control.text('中'), control.text('o'), control.key(key('down', 'Enter')), control.key(key('up', 'Enter'))]);
     await settle(done);
     expect(order).toEqual([
       'key 4 down',
@@ -171,7 +192,7 @@ describe('IosDeviceControl', () => {
   it('keeps the queue running after a failed paste', async () => {
     const { control, simctl, order } = setup();
     vi.mocked(simctl.run).mockRejectedValueOnce(new Error('pbpaste failed')).mockRejectedValueOnce(new Error('pbcopy failed'));
-    await expect(settle(control.text('ç'))).rejects.toThrow('pbcopy failed');
+    await expect(settle(control.text('中'))).rejects.toThrow('pbcopy failed');
     await control.text('a');
     expect(order.slice(-2)).toEqual(['key 4 down', 'key 4 up']);
   });
@@ -188,7 +209,7 @@ describe('IosDeviceControl', () => {
       new SimulatorPasteboard(simctl, 'UDID-1'),
       { setTimeout },
     );
-    await expect(control.text('ç')).rejects.toThrow('helper gone');
+    await expect(control.text('中')).rejects.toThrow('helper gone');
     expect(simctl.run).toHaveBeenLastCalledWith(['pbcopy', 'UDID-1'], 'before');
   });
 
