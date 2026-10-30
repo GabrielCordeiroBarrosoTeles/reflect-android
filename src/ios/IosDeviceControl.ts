@@ -1,12 +1,12 @@
 import type { HardwareButton, IDeviceControl } from '../platform/types';
-import type { KeyInput, ScrollInput, TouchInput } from '../shared/protocol';
-import { META_USAGE, SHIFT_USAGE, V_USAGE, charToKeystroke, toHidUsage } from './hidUsages';
-import type { HelperCommand, HelperHello, ISimctl } from './types';
+import type { KeyInput, KeyModifiers, ScrollInput, TouchInput } from '../shared/protocol';
+import { META_USAGE, R_USAGE, SHIFT_USAGE, V_USAGE, charToKeystroke, modifierUsages, toHidUsage } from './hidUsages';
+import type { HelperCommand, HelperHello, ISimulatorPasteboard } from './types';
 
 const WHEEL_POINTS = 40;
 const SCROLL_INTERVAL_MS = 100;
+const PASTE_SETTLE_MS = 300;
 const PRIMARY_TOUCH_ID = 1;
-const VIRTUAL_TOUCH_ID = 2;
 
 const BUTTON_NAMES: Readonly<Record<HardwareButton, string | undefined>> = {
   back: undefined,
@@ -19,6 +19,8 @@ const BUTTON_NAMES: Readonly<Record<HardwareButton, string | undefined>> = {
   volumeDown: 'volumeDown',
   siri: 'siri',
 };
+
+const MODIFIER_FLAGS: readonly (keyof KeyModifiers)[] = ['meta', 'ctrl', 'alt', 'shift'];
 
 export interface ScrollTimers {
   setTimeout(callback: () => void, delayMs: number): unknown;
@@ -33,67 +35,69 @@ interface PendingScroll {
 
 export class IosDeviceControl implements IDeviceControl {
   private pendingScroll: PendingScroll | undefined;
+  private queue: Promise<void> = Promise.resolve();
+  private readonly heldUsages = new Set<number>();
+  private readonly addedModifiers = new Map<string, readonly number[]>();
 
   constructor(
     private readonly send: (command: HelperCommand) => void,
     private readonly hello: HelperHello,
-    private readonly simctl: ISimctl,
-    private readonly udid: string,
+    private readonly pasteboard: ISimulatorPasteboard,
     private readonly timers: ScrollTimers,
   ) {}
 
   touch(input: TouchInput): Promise<void> {
+    if (input.pointer === 'virtual') {
+      return Promise.resolve();
+    }
     const { pointWidth, pointHeight } = this.hello.device;
     this.send({
       type: 'touch',
       phase: input.action === 'cancel' ? 'up' : input.action,
       x: input.x * pointWidth,
       y: input.y * pointHeight,
-      id: input.pointer === 'virtual' ? VIRTUAL_TOUCH_ID : PRIMARY_TOUCH_ID,
+      id: PRIMARY_TOUCH_ID,
     });
     return Promise.resolve();
   }
 
-  /** Wheel input is coalesced: each helper scroll is a ~110 ms drag, and iOS adds momentum on lift. */
   scroll(input: ScrollInput): Promise<void> {
     const { pointWidth, pointHeight } = this.hello.device;
-    // ScrollInput follows scrcpy: +y reveals content above (finger moves down), +x reveals content to the right (finger moves left).
-    const dx = -input.scrollX * WHEEL_POINTS;
-    const dy = input.scrollY * WHEEL_POINTS;
+    const fingerDx = -input.scrollX * WHEEL_POINTS;
+    const fingerDy = input.scrollY * WHEEL_POINTS;
     const pending = this.pendingScroll;
     if (pending) {
-      pending.dx += dx;
-      pending.dy += dy;
+      pending.dx += fingerDx;
+      pending.dy += fingerDy;
       return Promise.resolve();
     }
-    const batch = { x: input.x * pointWidth, y: input.y * pointHeight, dx, dy };
+    const batch = { x: input.x * pointWidth, y: input.y * pointHeight, dx: fingerDx, dy: fingerDy };
     this.pendingScroll = batch;
     this.timers.setTimeout(() => this.flushScroll(batch), SCROLL_INTERVAL_MS);
     return Promise.resolve();
   }
 
   key(input: KeyInput): Promise<void> {
-    const usage = toHidUsage(input.code);
-    if (usage !== undefined) {
-      this.send({ type: 'key', usage, down: input.action === 'down' });
-    }
-    return Promise.resolve();
+    return this.enqueue(() => this.sendKey(input));
   }
 
-  async text(text: string): Promise<void> {
-    const keystrokes = Array.from(text, charToKeystroke);
-    if (keystrokes.every((keystroke) => keystroke !== undefined)) {
-      keystrokes.forEach((keystroke) => this.type(keystroke.usage, keystroke.shift));
-      return;
-    }
-    await this.paste(text);
+  text(text: string): Promise<void> {
+    return this.enqueue(async () => {
+      const keystrokes = Array.from(text, charToKeystroke);
+      if (keystrokes.every((keystroke) => keystroke !== undefined)) {
+        keystrokes.forEach((keystroke) => this.type(keystroke.usage, keystroke.shift));
+        return;
+      }
+      await this.pasteboard.lend(text, () => this.pressPaste());
+    });
   }
 
-  async paste(text: string): Promise<void> {
-    await this.simctl.run(['pbcopy', this.udid], text);
-    this.send({ type: 'key', usage: META_USAGE, down: true });
-    this.tap(V_USAGE);
-    this.send({ type: 'key', usage: META_USAGE, down: false });
+  paste(text: string): Promise<void> {
+    return this.enqueue(() => this.pasteboard.push(text, () => this.pressPaste()));
+  }
+
+  reloadShortcut(): Promise<void> {
+    return this.enqueue(() => this.chord(META_USAGE, R_USAGE));
   }
 
   pressButton(button: HardwareButton): Promise<void> {
@@ -114,6 +118,60 @@ export class IosDeviceControl implements IDeviceControl {
     return Promise.resolve();
   }
 
+  private enqueue(task: () => Promise<void> | void): Promise<void> {
+    const run = this.queue.then(task);
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
+  private sendKey(input: KeyInput): void {
+    const usage = toHidUsage(input.code);
+    if (usage === undefined) {
+      return;
+    }
+    if (input.action === 'down') {
+      this.pressWithModifiers(input, usage);
+      return;
+    }
+    this.release(usage);
+    const added = this.addedModifiers.get(input.code) ?? [];
+    this.addedModifiers.delete(input.code);
+    [...added].reverse().forEach((modifier) => this.release(modifier));
+  }
+
+  private pressWithModifiers(input: KeyInput, usage: number): void {
+    const missing = MODIFIER_FLAGS.filter((flag) => input.modifiers[flag])
+      .map(modifierUsages)
+      .filter((usages) => !usages.includes(usage) && !usages.some((candidate) => this.heldUsages.has(candidate)))
+      .map(([left]) => left as number);
+    missing.forEach((modifier) => this.press(modifier));
+    if (missing.length > 0) {
+      this.addedModifiers.set(input.code, missing);
+    }
+    this.press(usage);
+  }
+
+  private press(usage: number): void {
+    this.heldUsages.add(usage);
+    this.send({ type: 'key', usage, down: true });
+  }
+
+  private release(usage: number): void {
+    this.heldUsages.delete(usage);
+    this.send({ type: 'key', usage, down: false });
+  }
+
+  private async pressPaste(): Promise<void> {
+    this.chord(META_USAGE, V_USAGE);
+    await new Promise<void>((resolve) => this.timers.setTimeout(resolve, PASTE_SETTLE_MS));
+  }
+
+  private chord(modifier: number, usage: number): void {
+    this.send({ type: 'key', usage: modifier, down: true });
+    this.tap(usage);
+    this.send({ type: 'key', usage: modifier, down: false });
+  }
+
   private flushScroll(batch: PendingScroll): void {
     this.pendingScroll = undefined;
     this.send({ type: 'scroll', ...batch });
@@ -121,12 +179,10 @@ export class IosDeviceControl implements IDeviceControl {
 
   private type(usage: number, shift: boolean): void {
     if (shift) {
-      this.send({ type: 'key', usage: SHIFT_USAGE, down: true });
+      this.chord(SHIFT_USAGE, usage);
+      return;
     }
     this.tap(usage);
-    if (shift) {
-      this.send({ type: 'key', usage: SHIFT_USAGE, down: false });
-    }
   }
 
   private tap(usage: number): void {

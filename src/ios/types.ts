@@ -4,6 +4,13 @@ export interface ISimctl {
   run(args: readonly string[], input?: string): Promise<string>;
 }
 
+export interface ISimulatorPasteboard extends IDisposable {
+  readonly onDidChange: Event<string>;
+  poll(): Promise<void>;
+  push(text: string, use: () => Promise<void>): Promise<void>;
+  lend(text: string, use: () => Promise<void>): Promise<void>;
+}
+
 export interface ChildInput {
   end(data: string): void;
 }

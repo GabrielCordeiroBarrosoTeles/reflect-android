@@ -71,6 +71,9 @@ malformed lines produce a `warning` event. The helper never crashes on bad input
   `id` is an unsigned 32-bit integer. Use ids in `0..0xFFFF` (65535): the helper reserves
   `0x10000` and above (counting up from `0x10000`) for the touches it generates for `scroll`,
   so a client id in that range could collide with a scroll in flight.
+  Multi-touch is not supported yet: the simulator receives a single finger, so keep one
+  touch down at a time (Reflect drops the second, virtual pinch finger before it reaches
+  the helper).
 - `scroll`: a drag by (`dx`, `dy`) points starting at (`x`, `y`): `down`, 6 moves 16 ms apart,
   `up`, with a touch id of its own. A negative `dy` moves the finger up (the content scrolls
   down). Each `scroll` takes about 110 ms and input is handled in order, so coalesce wheel

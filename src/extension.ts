@@ -14,6 +14,7 @@ import { SimulatorAppWindow } from './ios/SimulatorAppWindow';
 import { SimulatorDiscovery } from './ios/SimulatorDiscovery';
 import type { SimctlExecFile } from './ios/types';
 import { CompositeDeviceDiscovery } from './devices/CompositeDeviceDiscovery';
+import { DiscoveryAvailability } from './devices/DiscoveryAvailability';
 import { PlatformScopedDeviceContext } from './device/PlatformScopedDeviceContext';
 import { AndroidPlatform } from './platform/android/AndroidPlatform';
 import { PlatformRegistry } from './platform/PlatformRegistry';
@@ -182,7 +183,8 @@ export function activate(context: vscode.ExtensionContext): void {
     logger,
   );
   if (process.platform === 'darwin') {
-    discoverySources.push(new SimulatorDiscovery(simctl, logger, SIMULATOR_POLL_INTERVAL_MS));
+    const simulators = new SimulatorDiscovery(simctl, logger, SIMULATOR_POLL_INTERVAL_MS);
+    discoverySources.push(simulators);
     const spawnHelperProcess = createHelperProcessFactory({
       helperPath: vscode.Uri.joinPath(context.extensionUri, ...IOS_HELPER_ASSET).fsPath,
       assertExecutable,
@@ -190,7 +192,7 @@ export function activate(context: vscode.ExtensionContext): void {
       spawn: spawnHelper,
       logger,
     });
-    platformList.push(new IosPlatform(spawnHelperProcess, simctl, logger, simulatorWindow));
+    platformList.push(new IosPlatform(spawnHelperProcess, simctl, logger, simulatorWindow, new DiscoveryAvailability(simulators)));
   }
   const discovery = new CompositeDeviceDiscovery(discoverySources);
   const activeDevice = new ActiveDeviceContext(discovery);

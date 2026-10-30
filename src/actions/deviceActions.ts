@@ -1,16 +1,11 @@
 import type { ActionId } from '../shared/actions';
 import type { ActionContext, DeviceAction } from './types';
 
-const NO_MODIFIERS = { shift: false, alt: false, ctrl: false, meta: false };
-
 const reload = async ({ device, control, services }: ActionContext): Promise<void> => {
   if (await services.reloadApp(device)) {
     return;
   }
-  for (let press = 0; press < 2; press += 1) {
-    await control.key({ action: 'down', code: 'KeyR', repeat: 0, modifiers: NO_MODIFIERS });
-    await control.key({ action: 'up', code: 'KeyR', repeat: 0, modifiers: NO_MODIFIERS });
-  }
+  await control.reloadShortcut();
 };
 
 const reverseMetro = async ({ device, services }: ActionContext): Promise<void> => {

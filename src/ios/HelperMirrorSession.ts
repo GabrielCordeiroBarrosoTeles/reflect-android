@@ -3,10 +3,11 @@ import { Emitter } from '../core/Emitter';
 import { MirrorStartError, SimulatorNotBootedError, XcodeUnsupportedError, isReflectError } from '../core/errors';
 import type { IDisposable, ILogger } from '../core/types';
 import type { Device } from '../devices/types';
+import type { DeviceAvailability } from '../mirror/AutoReconnect';
 import type { IDeviceControl, IMirrorSession } from '../platform/types';
 import { SessionStateMachine } from '../platform/SessionStateMachine';
 import type { SessionStateKind, VideoConfig, VideoPacket } from '../shared/protocol';
-import type { HelperCommand, HelperEvent, HelperFrame, HelperHello, HelperProcessFactory, IHelperProcess, ISimctl } from './types';
+import type { HelperCommand, HelperEvent, HelperFrame, HelperHello, HelperProcessFactory, IHelperProcess, ISimulatorPasteboard } from './types';
 
 const START_TIMEOUT_MS = 15_000;
 const CLIPBOARD_POLL_MS = 1000;
@@ -19,12 +20,22 @@ const NO_CONTROL: IDeviceControl = {
   key: resolved,
   text: resolved,
   paste: resolved,
+  reloadShortcut: resolved,
   pressButton: resolved,
   rotate: resolved,
   setScreenPower: resolved,
 };
 
 type ControlFactory = (send: (command: HelperCommand) => void, hello: HelperHello) => IDeviceControl;
+
+export interface HelperSessionDependencies {
+  readonly spawn: HelperProcessFactory;
+  readonly createControl: ControlFactory;
+  readonly logger: ILogger;
+  readonly pasteboard: ISimulatorPasteboard;
+  readonly availability: DeviceAvailability;
+  readonly onStreaming: (send: (command: HelperCommand) => void) => void;
+}
 
 interface PendingStart {
   readonly resolve: () => void;
@@ -43,7 +54,7 @@ export class HelperMirrorSession implements IMirrorSession {
   private pendingStart: PendingStart | undefined;
   private startTimer: ReturnType<typeof setTimeout> | undefined;
   private clipboardTimer: ReturnType<typeof setTimeout> | undefined;
-  private clipboardText: string | undefined;
+  private readonly subscriptions: IDisposable[];
   private currentVideoConfig: VideoConfig | undefined;
   private disposed = false;
 
@@ -58,14 +69,18 @@ export class HelperMirrorSession implements IMirrorSession {
     },
   });
 
+  private readonly logger: ILogger;
+
   constructor(
     private readonly device: Device,
-    private readonly spawn: HelperProcessFactory,
-    private readonly createControl: ControlFactory,
-    private readonly logger: ILogger,
-    private readonly simctl: ISimctl,
-    private readonly onStreaming: (send: (command: HelperCommand) => void) => void,
-  ) {}
+    private readonly dependencies: HelperSessionDependencies,
+  ) {
+    this.logger = dependencies.logger;
+    this.subscriptions = [
+      dependencies.pasteboard.onDidChange((text) => this.forwardClipboard(text)),
+      dependencies.availability.onDidChange(() => this.checkAvailability()),
+    ];
+  }
 
   get state(): SessionStateKind {
     return this.stateMachine.state;
@@ -80,7 +95,7 @@ export class HelperMirrorSession implements IMirrorSession {
       return;
     }
     try {
-      const helper = await this.spawn(this.device.id);
+      const helper = await this.dependencies.spawn(this.device.id);
       if (this.disposed) {
         helper.dispose();
         return;
@@ -109,6 +124,8 @@ export class HelperMirrorSession implements IMirrorSession {
     this.stateMachine.transitionTo('closed');
     this.settleStart((pending) => pending.resolve());
     this.teardown();
+    this.subscriptions.forEach((subscription) => subscription.dispose());
+    this.dependencies.pasteboard.dispose();
     this.stateMachine.dispose();
     this.videoConfigEmitter.dispose();
     this.packetEmitter.dispose();
@@ -143,7 +160,7 @@ export class HelperMirrorSession implements IMirrorSession {
     switch (frame.kind) {
       case 'hello':
         this.xcodeVersion = frame.hello.xcodeVersion;
-        this.realControl = this.createControl((command) => this.helper?.send(command), frame.hello);
+        this.realControl = this.dependencies.createControl((command) => this.helper?.send(command), frame.hello);
         break;
       case 'video-config':
         this.handleVideoConfig(frame.width, frame.height, frame.data);
@@ -171,7 +188,7 @@ export class HelperMirrorSession implements IMirrorSession {
     if (this.stateMachine.transitionTo('streaming')) {
       this.settleStart((pending) => pending.resolve());
       this.pollClipboard();
-      this.onStreaming((command) => this.helper?.send(command));
+      this.dependencies.onStreaming((command) => this.helper?.send(command));
     }
   }
 
@@ -201,26 +218,31 @@ export class HelperMirrorSession implements IMirrorSession {
     this.stateMachine.transitionTo('disconnected');
   }
 
+  private checkAvailability(): void {
+    if (this.stateMachine.state !== 'streaming' || this.dependencies.availability.isReady(this.device.id)) {
+      return;
+    }
+    this.logger.info(`Simulator ${this.device.id} is no longer booted; stopping its mirror`);
+    this.teardown();
+    this.stateMachine.transitionTo('disconnected');
+  }
+
   private pollClipboard(): void {
     this.clipboardTimer = setTimeout(() => {
-      void this.readClipboard().then(() => {
-        if (this.stateMachine.state === 'streaming') {
-          this.pollClipboard();
-        }
-      });
+      void this.dependencies.pasteboard
+        .poll()
+        .catch(() => undefined)
+        .then(() => {
+          if (this.stateMachine.state === 'streaming') {
+            this.pollClipboard();
+          }
+        });
     }, CLIPBOARD_POLL_MS);
   }
 
-  private async readClipboard(): Promise<void> {
-    try {
-      const text = await this.simctl.run(['pbpaste', this.device.id]);
-      const changed = this.clipboardText !== undefined && text !== this.clipboardText && text !== '';
-      this.clipboardText = text;
-      if (changed && this.stateMachine.state === 'streaming') {
-        this.clipboardEmitter.fire(text);
-      }
-    } catch {
-      return;
+  private forwardClipboard(text: string): void {
+    if (this.stateMachine.state === 'streaming') {
+      this.clipboardEmitter.fire(text);
     }
   }
 

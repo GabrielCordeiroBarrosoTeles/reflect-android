@@ -55,6 +55,17 @@ describe('ControlChannel', () => {
     expect(writer.calls[1]?.args[0]).toMatchObject({ action: AndroidKeyEventAction.Up });
   });
 
+  it('reloads React Native by pressing R twice', async () => {
+    const { writer, channel } = setup();
+    await channel.reloadShortcut();
+    expect(writer.calls.map((call) => call.args[0])).toEqual([
+      expect.objectContaining({ action: AndroidKeyEventAction.Down, keyCode: AndroidKeyCode.KeyR, repeat: 0, metaState: 0 }),
+      expect.objectContaining({ action: AndroidKeyEventAction.Up, keyCode: AndroidKeyCode.KeyR }),
+      expect.objectContaining({ action: AndroidKeyEventAction.Down, keyCode: AndroidKeyCode.KeyR }),
+      expect.objectContaining({ action: AndroidKeyEventAction.Up, keyCode: AndroidKeyCode.KeyR }),
+    ]);
+  });
+
   it('ignores keys without an Android equivalent', async () => {
     const { writer, channel } = setup();
     await channel.key({ action: 'down', code: 'ShiftLeft', repeat: 0, modifiers: none });

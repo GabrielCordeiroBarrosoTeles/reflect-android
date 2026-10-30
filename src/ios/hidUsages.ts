@@ -1,4 +1,4 @@
-/** DOM `KeyboardEvent.code` to USB HID keyboard usage (usage page 0x07). */
+import type { KeyModifiers } from '../shared/protocol';
 
 const NAMED_USAGES: Readonly<Record<string, number>> = {
   Enter: 40,
@@ -111,3 +111,14 @@ export const charToKeystroke = (char: string): Keystroke | undefined => {
 export const SHIFT_USAGE = toHidUsage('ShiftLeft') as number;
 export const META_USAGE = toHidUsage('MetaLeft') as number;
 export const V_USAGE = toHidUsage('KeyV') as number;
+export const R_USAGE = toHidUsage('KeyR') as number;
+
+const MODIFIER_CODES: Readonly<Record<keyof KeyModifiers, readonly [string, string]>> = {
+  meta: ['MetaLeft', 'MetaRight'],
+  ctrl: ['ControlLeft', 'ControlRight'],
+  alt: ['AltLeft', 'AltRight'],
+  shift: ['ShiftLeft', 'ShiftRight'],
+};
+
+export const modifierUsages = (modifier: keyof KeyModifiers): readonly number[] =>
+  MODIFIER_CODES[modifier].map((code) => toHidUsage(code) as number);

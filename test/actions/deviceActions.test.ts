@@ -4,8 +4,6 @@ import type { ActionContext } from '../../src/actions/types';
 import { device } from '../fakes/devices';
 import { FakeDeviceControl } from '../fakes/FakeMirrorSession';
 
-const none = { shift: false, alt: false, ctrl: false, meta: false };
-
 const setup = (reloaded = true) => {
   const control = new FakeDeviceControl();
   const mirror = { takeScreenshot: vi.fn(() => Promise.resolve()), toggleRecording: vi.fn(() => Promise.resolve()), toggleScreenPower: vi.fn(() => Promise.resolve()) };
@@ -47,18 +45,13 @@ describe('DEVICE_ACTIONS', () => {
     expect(mirror[method]).toHaveBeenCalledOnce();
   });
 
-  it('reloads through the debugger and falls back to pressing R twice', async () => {
+  it('reloads through the debugger and falls back to the platform reload shortcut', async () => {
     const debuggerReload = setup(true);
     await DEVICE_ACTIONS.reload(debuggerReload.context);
     expect(debuggerReload.control.calls).toEqual([]);
     const fallback = setup(false);
     await DEVICE_ACTIONS.reload(fallback.context);
-    expect(fallback.control.calls).toEqual([
-      { method: 'key', arg: { action: 'down', code: 'KeyR', repeat: 0, modifiers: none } },
-      { method: 'key', arg: { action: 'up', code: 'KeyR', repeat: 0, modifiers: none } },
-      { method: 'key', arg: { action: 'down', code: 'KeyR', repeat: 0, modifiers: none } },
-      { method: 'key', arg: { action: 'up', code: 'KeyR', repeat: 0, modifiers: none } },
-    ]);
+    expect(fallback.control.calls).toEqual([{ method: 'reloadShortcut' }]);
   });
 
   it('reverses the Metro port and confirms it', async () => {

@@ -34,6 +34,8 @@ const ANDROID_KEYS: Readonly<Record<Exclude<HardwareButton, 'back' | 'siri' | 's
   volumeDown: AndroidKeyCode.VolumeDown,
 };
 
+const NO_MODIFIERS = { shift: false, alt: false, ctrl: false, meta: false };
+
 const clampUnit = (value: number): number => Math.min(1, Math.max(0, value));
 
 const clampScroll = (value: number): number => Math.min(1, Math.max(-1, value));
@@ -110,6 +112,13 @@ export class ControlChannel implements IDeviceControl {
     }
     for (const action of [AndroidKeyEventAction.Down, AndroidKeyEventAction.Up]) {
       await writer.injectKeyCode({ action, keyCode, repeat: 0, metaState: AndroidKeyEventMeta.None });
+    }
+  }
+
+  async reloadShortcut(): Promise<void> {
+    for (let press = 0; press < 2; press += 1) {
+      await this.key({ action: 'down', code: 'KeyR', repeat: 0, modifiers: NO_MODIFIERS });
+      await this.key({ action: 'up', code: 'KeyR', repeat: 0, modifiers: NO_MODIFIERS });
     }
   }
 

@@ -18,6 +18,7 @@ export class FakeDeviceControl implements IDeviceControl {
   rotate = () => this.record('rotate');
   setScreenPower = (on: boolean) => this.record('setScreenPower', on);
   paste = (text: string) => this.record('paste', text);
+  reloadShortcut = () => this.record('reloadShortcut');
 }
 
 export class FakeMirrorSession implements IMirrorSession {

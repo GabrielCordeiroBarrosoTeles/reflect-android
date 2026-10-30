@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Emitter } from '../../src/core/Emitter';
 import { HelperMirrorSession } from '../../src/ios/HelperMirrorSession';
 import { IosPlatform } from '../../src/ios/IosPlatform';
 import type { HelperCommand } from '../../src/ios/types';
@@ -16,8 +17,10 @@ describe('IosPlatform', () => {
     const helper = new FakeHelperProcess();
     const simctl = { run: vi.fn(() => Promise.resolve('')) };
     const window = { makeRoom: vi.fn((_send: (command: HelperCommand) => void) => Promise.resolve()) };
-    const platform = new IosPlatform(() => Promise.resolve(helper), simctl, new FakeLogger(), window);
-    return { platform, helper, simctl, window };
+    const availabilityEmitter = new Emitter<void>();
+    const availability = { ready: true, onDidChange: availabilityEmitter.event, isReady: () => availability.ready };
+    const platform = new IosPlatform(() => Promise.resolve(helper), simctl, new FakeLogger(), window, availability);
+    return { platform, helper, simctl, window, availability, availabilityEmitter };
   };
 
   it('has no back, reverse Metro or logs', () => {
@@ -74,8 +77,26 @@ describe('IosPlatform', () => {
     helper.config(884, 1920);
     helper.frame();
     await started;
-    await session.control.paste('olá');
+    const pasted = session.control.paste('olá');
+    await vi.advanceTimersByTimeAsync(1000);
+    await pasted;
     expect(simctl.run).toHaveBeenCalledWith(['pbcopy', 'UDID-1'], 'olá');
+    session.dispose();
+  });
+
+  it('disconnects the session when the simulator stops being ready', async () => {
+    const { platform, helper, availability, availabilityEmitter } = build();
+    const session = platform.createMirrorSession(simulator);
+    const started = session.start();
+    await vi.advanceTimersByTimeAsync(0);
+    helper.hello();
+    helper.config(884, 1920);
+    helper.frame();
+    await started;
+    availability.ready = false;
+    availabilityEmitter.fire();
+    expect(session.state).toBe('disconnected');
+    expect(helper.disposed).toBe(true);
     session.dispose();
   });
 });

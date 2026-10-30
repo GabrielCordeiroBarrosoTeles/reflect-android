@@ -2,7 +2,9 @@ import { ScrcpyVideoCodecId } from '@yume-chan/scrcpy';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MirrorStartError, SimulatorNotBootedError, XcodeUnsupportedError } from '../../src/core/errors';
 import type { Device } from '../../src/devices/types';
+import { Emitter } from '../../src/core/Emitter';
 import { HelperMirrorSession } from '../../src/ios/HelperMirrorSession';
+import { SimulatorPasteboard } from '../../src/ios/SimulatorPasteboard';
 import type { ISimctl } from '../../src/ios/types';
 import type { SessionStateChange } from '../../src/platform/types';
 import type { VideoConfig, VideoPacket } from '../../src/shared/protocol';
@@ -27,8 +29,11 @@ const setup = (pbpaste: () => Promise<string> = () => Promise.resolve('')) => {
   const createControl = vi.fn(() => control);
   const logger = new FakeLogger();
   const simctl: ISimctl = { run: vi.fn(pbpaste) };
+  const pasteboard = new SimulatorPasteboard(simctl, device.id);
   const onStreaming = vi.fn();
-  const session = new HelperMirrorSession(device, spawn, createControl, logger, simctl, onStreaming);
+  const availabilityEmitter = new Emitter<void>();
+  const availability = { ready: true, onDidChange: availabilityEmitter.event, isReady: vi.fn((_serial: string) => availability.ready) };
+  const session = new HelperMirrorSession(device, { spawn, createControl, logger, pasteboard, availability, onStreaming });
   const states: SessionStateChange[] = [];
   const configs: VideoConfig[] = [];
   const packets: VideoPacket[] = [];
@@ -37,7 +42,7 @@ const setup = (pbpaste: () => Promise<string> = () => Promise.resolve('')) => {
   session.onDidChangeVideoConfig((config) => configs.push(config));
   session.onVideoPacket((packet) => packets.push(packet));
   session.onDeviceClipboard((text) => clipboard.push(text));
-  return { session, helper, spawn, control, createControl, logger, simctl, onStreaming, states, configs, packets, clipboard };
+  return { session, helper, spawn, control, createControl, logger, simctl, pasteboard, onStreaming, states, configs, packets, clipboard, availability, availabilityEmitter };
 };
 
 const startStreaming = async (context: ReturnType<typeof setup>) => {
@@ -368,5 +373,65 @@ describe('HelperMirrorSession', () => {
       expect(context.clipboard).toEqual([]);
       expect(context.simctl.run).toHaveBeenCalledTimes(2);
     });
+  });
+
+  describe('simulator availability', () => {
+    it('tears the helper down and disconnects when discovery reports the simulator not ready', async () => {
+      const context = setup();
+      await startStreaming(context);
+      context.availabilityEmitter.fire();
+      expect(context.session.state).toBe('streaming');
+      context.availability.ready = false;
+      context.availabilityEmitter.fire();
+      expect(context.availability.isReady).toHaveBeenCalledWith('UDID-1');
+      expect(context.helper.disposed).toBe(true);
+      expect(context.session.state).toBe('disconnected');
+      expect(context.states.at(-1)).toEqual({ state: 'disconnected' });
+      expect(context.logger.infos.some((line) => line.includes('no longer booted'))).toBe(true);
+      context.session.dispose();
+    });
+
+    it('ignores availability changes while not streaming and after dispose', async () => {
+      const context = setup();
+      context.availability.ready = false;
+      context.availabilityEmitter.fire();
+      expect(context.session.state).toBe('idle');
+      expect(context.availability.isReady).not.toHaveBeenCalled();
+      context.session.dispose();
+      context.availabilityEmitter.fire();
+      expect(context.session.state).toBe('closed');
+    });
+
+    it('streams again on a new start after an availability disconnect', async () => {
+      const context = setup();
+      await startStreaming(context);
+      context.availability.ready = false;
+      context.availabilityEmitter.fire();
+      context.availability.ready = true;
+      const next = new FakeHelperProcess();
+      context.spawn.mockResolvedValueOnce(next);
+      const started = context.session.start();
+      await vi.advanceTimersByTimeAsync(0);
+      next.hello();
+      next.config(884, 1920);
+      next.frame(true, 1);
+      await started;
+      expect(context.session.state).toBe('streaming');
+      context.session.dispose();
+    });
+  });
+
+  it('forwards pasteboard changes only while streaming', async () => {
+    let text = 'base';
+    const context = setup(() => Promise.resolve(text));
+    await context.pasteboard.poll();
+    text = 'early';
+    await context.pasteboard.poll();
+    expect(context.clipboard).toEqual([]);
+    await startStreaming(context);
+    text = 'late';
+    await context.pasteboard.poll();
+    expect(context.clipboard).toEqual(['late']);
+    context.session.dispose();
   });
 });
