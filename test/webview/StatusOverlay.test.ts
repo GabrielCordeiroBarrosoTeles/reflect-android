@@ -132,6 +132,17 @@ describe('StatusOverlay', () => {
     expect(onAction).toHaveBeenLastCalledWith('boot-device', 'SIM-OFF');
   });
 
+  it('offers Show Window on rows whose window Reflect hid', () => {
+    const onAction = vi.fn();
+    const overlay = new StatusOverlay(root, onAction);
+    overlay.setDevices([item({ id: 'EMU', name: 'Pixel_7_API_34', kind: 'emulator', windowHidden: true }), item({ id: 'PHONE' })]);
+    overlay.showIdle();
+    const show = [...root.querySelectorAll<HTMLButtonElement>('.status__row-show')];
+    expect(show.map((button) => [button.dataset.deviceId, button.textContent, button.title])).toEqual([['EMU', 'Show Window', 'Show the window Reflect hid while mirroring']]);
+    show[0]?.click();
+    expect(onAction).toHaveBeenLastCalledWith('show-device-window', 'EMU');
+  });
+
   it('re-renders the list when it changes while idle and falls back to the empty state', () => {
     const overlay = new StatusOverlay(root, () => undefined);
     overlay.showIdle();

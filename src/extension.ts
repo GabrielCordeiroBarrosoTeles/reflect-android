@@ -12,6 +12,10 @@ import { assertExecutable, pathExists, spawnHelper } from './ios/nodeAdapters';
 import { SimctlRunner } from './ios/SimctlRunner';
 import { SimulatorAppWindow } from './ios/SimulatorAppWindow';
 import { SimulatorDiscovery } from './ios/SimulatorDiscovery';
+import { AdbEmulatorConsole } from './emulator/AdbEmulatorConsole';
+import { EmulatorWindows } from './emulator/EmulatorWindows';
+import { MacAppVisibility } from './emulator/MacAppVisibility';
+import type { EmulatorExecFile } from './emulator/types';
 import type { SimctlExecFile } from './ios/types';
 import { CompositeDeviceDiscovery } from './devices/CompositeDeviceDiscovery';
 import { DiscoveryAvailability } from './devices/DiscoveryAvailability';
@@ -29,6 +33,7 @@ import { InspectCommand, OpenComponentSourceCommand, StopInspectingCommand } fro
 import { MoveMirrorCommand } from './commands/MoveMirrorCommand';
 import { BootSimulatorCommand } from './commands/BootSimulatorCommand';
 import { ShowInSimulatorCommand } from './commands/ShowInSimulatorCommand';
+import { ShowDeviceWindowCommand } from './commands/ShowDeviceWindowCommand';
 import { OpenDeviceCommand } from './commands/OpenDeviceCommand';
 import { RefreshDeviceInfoCommand } from './commands/RefreshDeviceInfoCommand';
 import { RunActionCommand } from './commands/RunActionCommand';
@@ -92,6 +97,8 @@ const DEVICE_INFO_INTERVAL_MS = 5_000;
 const SIMCTL_TIMEOUT_MS = 15_000;
 const XATTR_TIMEOUT_MS = 5_000;
 const SIMULATOR_APP_TIMEOUT_MS = 10_000;
+const EMULATOR_CONSOLE_TIMEOUT_MS = 5_000;
+const APP_VISIBILITY_TIMEOUT_MS = 10_000;
 const SIMULATOR_BOOT_TIMEOUT_MS = 60_000;
 const SIMCTL_BOOT_TIMEOUT_MS = 120_000;
 const IOS_HELPER_ASSET = ['assets', 'ios-helper', 'reflect-sim-helper'];
@@ -176,7 +183,14 @@ export function activate(context: vscode.ExtensionContext): void {
     SCRCPY_SERVER_VERSION,
   );
   const discoverySources: IDeviceDiscovery[] = [tracker];
-  const platformList: IPlatform[] = [new AndroidPlatform(pool, launcher, serverBinary, MIRROR_OPTIONS, logger)];
+  const hidesEmulatorWindows = process.platform === 'darwin';
+  const emulatorWindows = new EmulatorWindows(
+    () => (hidesEmulatorWindows ? reflectSetting<string>('android.emulatorWindow') : 'leave'),
+    new AdbEmulatorConsole(locator, execFile as EmulatorExecFile, EMULATOR_CONSOLE_TIMEOUT_MS),
+    new MacAppVisibility(new ExecFileProcessRunner(promisify(execFile), APP_VISIBILITY_TIMEOUT_MS)),
+    logger,
+  );
+  const platformList: IPlatform[] = [new AndroidPlatform(pool, launcher, serverBinary, MIRROR_OPTIONS, logger, emulatorWindows)];
   const simctl = new SimctlRunner(execFile as SimctlExecFile, SIMCTL_TIMEOUT_MS);
   const simulatorWindow = new SimulatorAppWindow(
     () => reflectSetting<string>('ios.simulatorWindow'),
@@ -293,7 +307,7 @@ export function activate(context: vscode.ExtensionContext): void {
     reconnectTiming: RECONNECT_TIMING,
     capabilities: (device) => platforms.capabilities(device),
   };
-  const sidebar = new MirrorViewProvider(context.extensionUri, discovery, simulatorWindow);
+  const sidebar = new MirrorViewProvider(context.extensionUri, discovery, simulatorWindow, emulatorWindows);
   const createSurface = (device: Device, location: MirrorLocation): IMirrorSurface =>
     location === 'editor' ? new MirrorPanel(device, context.extensionUri) : sidebar.claim(device);
   const mirrors = new MirrorManager(
@@ -321,6 +335,8 @@ export function activate(context: vscode.ExtensionContext): void {
     appConnection,
     discovery,
     simulatorWindow,
+    emulatorWindows,
+    discovery.onDidChangeDevices((devices) => emulatorWindows.retain(devices.map((device) => device.id))),
     selection,
     activeDevice,
     statusBar,
@@ -359,6 +375,7 @@ export function activate(context: vscode.ExtensionContext): void {
       SIMULATOR_BOOT_TIMEOUT_MS,
     ),
     new ShowInSimulatorCommand(simulatorWindow, errors),
+    new ShowDeviceWindowCommand(emulatorWindows, errors),
     new RefreshDeviceInfoCommand(deviceTab),
     new InspectCommand(inspectController, () => mirrors.hasOpenMirror, () => Promise.resolve(vscode.commands.executeCommand(CommandIds.openDevice))),
     new StopInspectingCommand(inspectController),

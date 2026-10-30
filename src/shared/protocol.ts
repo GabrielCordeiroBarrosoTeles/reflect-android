@@ -48,6 +48,7 @@ export interface DeviceListItem {
   readonly platform: 'android' | 'ios';
   readonly kind: 'physical' | 'emulator' | 'simulator';
   readonly state: 'ready' | 'unauthorized' | 'offline' | 'shutdown';
+  readonly windowHidden?: boolean;
 }
 
 export interface MirrorEnvelope<T> {
@@ -122,6 +123,7 @@ export type WebviewToHostMessage =
   | { readonly type: 'open-device'; readonly deviceId?: string }
   | { readonly type: 'boot-device'; readonly deviceId: string }
   | { readonly type: 'show-in-simulator' }
+  | { readonly type: 'show-device-window'; readonly deviceId: string }
   | { readonly type: 'reconnect' }
   | { readonly type: 'inspect-at'; readonly x: number; readonly y: number }
   | { readonly type: 'inspect-hover'; readonly x: number; readonly y: number }

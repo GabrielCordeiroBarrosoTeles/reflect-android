@@ -16,7 +16,10 @@ export interface SimulatorWindowState {
   readonly onDidChangeHidden: Event<boolean>;
 }
 
-const toListItem = ({ id, name, detail, platform, kind, state }: Device): DeviceListItem => ({ id, name, detail, platform, kind, state });
+export interface DeviceWindowState {
+  isHidden(deviceId: string): boolean;
+  readonly onDidChange: Event<void>;
+}
 
 export class MirrorViewProvider implements vscode.WebviewViewProvider, IDisposable {
   private readonly visibilityEmitter = new Emitter<boolean>();
@@ -32,11 +35,13 @@ export class MirrorViewProvider implements vscode.WebviewViewProvider, IDisposab
     private readonly extensionUri: vscode.Uri,
     private readonly discovery: Pick<IDeviceDiscovery, 'devices' | 'onDidChangeDevices'>,
     private readonly simulatorWindow: SimulatorWindowState,
+    private readonly deviceWindows: DeviceWindowState,
   ) {
     this.subscriptions = [
       this.channel.onMessage((message) => this.handleMessage(message)),
       discovery.onDidChangeDevices(() => this.postDeviceList()),
       simulatorWindow.onDidChangeHidden(() => this.postSimulatorHidden()),
+      deviceWindows.onDidChange(() => this.postDeviceList()),
     ];
   }
 
@@ -97,8 +102,12 @@ export class MirrorViewProvider implements vscode.WebviewViewProvider, IDisposab
 
   private postDeviceList(): void {
     if (!this.owner) {
-      this.channel.post({ type: 'device-list', devices: this.discovery.devices.map(toListItem) });
+      this.channel.post({ type: 'device-list', devices: this.discovery.devices.map((device) => this.toListItem(device)) });
     }
+  }
+
+  private toListItem({ id, name, detail, platform, kind, state }: Device): DeviceListItem {
+    return { id, name, detail, platform, kind, state, ...(this.deviceWindows.isHidden(id) ? { windowHidden: true } : {}) };
   }
 
   private postSimulatorHidden(): void {
@@ -127,6 +136,10 @@ export class MirrorViewProvider implements vscode.WebviewViewProvider, IDisposab
     }
     if (message.type === 'show-in-simulator') {
       void vscode.commands.executeCommand(CommandIds.showInSimulator);
+      return;
+    }
+    if (message.type === 'show-device-window') {
+      void vscode.commands.executeCommand(CommandIds.showDeviceWindow, message.deviceId);
       return;
     }
     if (message.type === 'ready' && !this.owner) {

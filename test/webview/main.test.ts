@@ -174,6 +174,7 @@ describe('webview main', () => {
       devices: [
         { id: 'S1', name: 'iPhone 15', detail: 'iOS 26.0', platform: 'ios', kind: 'simulator', state: 'ready' },
         { id: 'S2', name: 'iPhone SE', detail: 'iOS 26.0', platform: 'ios', kind: 'simulator', state: 'shutdown' },
+        { id: 'emulator-5554', name: 'Small Phone', detail: 'sdk_gphone64_arm64', platform: 'android', kind: 'emulator', state: 'ready', windowHidden: true },
       ],
     });
     deliver({ type: 'simulator-hidden', hidden: true });
@@ -184,6 +185,8 @@ describe('webview main', () => {
     expect(posted.at(-1)).toEqual({ type: 'boot-device', deviceId: 'S2' });
     click('.status__link');
     expect(posted.at(-1)).toEqual({ type: 'show-in-simulator' });
+    click('.status__row-show[data-device-id="emulator-5554"]');
+    expect(posted.at(-1)).toEqual({ type: 'show-device-window', deviceId: 'emulator-5554' });
   });
 
   it('toggles inspect mode from the host and reports inspect clicks', async () => {
