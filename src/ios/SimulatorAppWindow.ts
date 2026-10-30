@@ -27,6 +27,7 @@ export class SimulatorAppWindow implements IDisposable {
 
   async makeRoom(sendToHelper: (command: HelperCommand) => void): Promise<void> {
     const mode = toMode(this.readMode());
+    this.logger.info(`Simulator app window: ${mode}`);
     if (mode === 'hide') {
       sendToHelper({ type: 'simulatorApp', action: 'hide' });
       this.setHidden(true);

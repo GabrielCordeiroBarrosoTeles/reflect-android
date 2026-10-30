@@ -15,8 +15,9 @@ const setup = (mode: unknown = 'hide') => {
 
 describe('SimulatorAppWindow', () => {
   it('asks the helper to hide Simulator by default', async () => {
-    const { window, send, runner, changes } = setup();
+    const { window, send, runner, changes, logger } = setup();
     await window.makeRoom(send);
+    expect(logger.infos).toEqual(['Simulator app window: hide']);
     expect(send).toHaveBeenCalledWith({ type: 'simulatorApp', action: 'hide' });
     expect(runner.calls).toEqual([]);
     expect(window.hidden).toBe(true);
