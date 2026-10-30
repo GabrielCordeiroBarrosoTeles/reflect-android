@@ -10,7 +10,8 @@ export class SimulatorDiscovery implements IDeviceDiscovery {
   private readonly changeEmitter = new Emitter<readonly Device[]>();
   private readonly failEmitter = new Emitter<Error>();
   private current: readonly Device[] = [];
-  private timer: ReturnType<typeof setInterval> | undefined;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private started = false;
   private failureLogged = false;
   private disposed = false;
 
@@ -28,19 +29,29 @@ export class SimulatorDiscovery implements IDeviceDiscovery {
   }
 
   async start(): Promise<void> {
-    if (this.timer || this.disposed) {
+    if (this.started || this.disposed) {
       return;
     }
-    this.timer = setInterval(() => void this.poll(), this.intervalMs);
+    this.started = true;
     await this.poll();
+    this.scheduleNext();
   }
 
   dispose(): void {
     this.disposed = true;
-    clearInterval(this.timer);
+    clearTimeout(this.timer);
     this.timer = undefined;
     this.changeEmitter.dispose();
     this.failEmitter.dispose();
+  }
+
+  private scheduleNext(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.timer = setTimeout(() => {
+      void this.poll().then(() => this.scheduleNext());
+    }, this.intervalMs);
   }
 
   private async poll(): Promise<void> {

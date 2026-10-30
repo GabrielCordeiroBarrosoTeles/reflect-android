@@ -14,7 +14,10 @@ const io = vi.hoisted(() => ({
   reachable: [] as boolean[],
   observer: undefined as unknown,
   trackFailure: undefined as Error | undefined,
-  execFile: vi.fn((_file: string, _args: string[], _options: unknown, callback: (error: Error | null) => void) => callback(null)),
+  execFile: vi.fn((file: string, _args: string[], _options: unknown, callback: (error: Error | null, stdout?: string) => void) => {
+    callback(null, file === 'xcrun' ? '{"devices":{}}' : undefined);
+    return { stdin: null };
+  }),
   scrcpyClient: undefined as unknown,
   startFailure: undefined as Error | undefined,
 }));
@@ -427,13 +430,24 @@ describe('extension', () => {
     it(`${discoversSimulators ? 'polls' : 'does not poll'} simctl for iOS Simulators`, async () => {
       const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
       Object.defineProperty(process, 'platform', { value: platform });
+      let context: Awaited<ReturnType<typeof setup>>['context'];
       try {
-        await setup();
+        ({ context } = await setup());
       } finally {
         Object.defineProperty(process, 'platform', original);
       }
       const simctlCalls = io.execFile.mock.calls.filter(([file]) => file === 'xcrun');
       expect(simctlCalls.length > 0).toBe(discoversSimulators);
+      if (discoversSimulators) {
+        expect(simctlCalls[0]?.[1]).toEqual(['simctl', 'list', 'devices', '-j']);
+      }
+      const clearTimer = vi.spyOn(globalThis, 'clearTimeout');
+      for (const subscription of context.subscriptions) {
+        subscription.dispose();
+      }
+      if (discoversSimulators) {
+        expect(clearTimer).toHaveBeenCalled();
+      }
     });
   });
 

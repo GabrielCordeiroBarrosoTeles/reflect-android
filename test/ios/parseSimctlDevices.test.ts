@@ -38,3 +38,29 @@ describe('parseSimctlDevices', () => {
     ]);
   });
 });
+
+describe('parseSimctlDevices tolerance', () => {
+  const ios = 'com.apple.CoreSimulator.SimRuntime.iOS-18-0';
+
+  it('keeps valid devices when other entries and runtimes are malformed', () => {
+    const json = JSON.stringify({
+      devices: {
+        [ios]: [null, 'x', { udid: 1, name: 'a', isAvailable: true }, { udid: 'u', isAvailable: true }, { udid: 'ok', name: 'Good', isAvailable: true, state: 'Booted' }],
+        'com.apple.CoreSimulator.SimRuntime.iOS-17-0': 'nope',
+      },
+    });
+    expect(parseSimctlDevices(json).map((device) => device.id)).toEqual(['ok']);
+  });
+
+  it('accepts the availability string variant', () => {
+    const json = JSON.stringify({ devices: { [ios]: [{ udid: 'a', name: 'A', availability: '(available)' }, { udid: 'b', name: 'B', availability: '(unavailable)' }] } });
+    expect(parseSimctlDevices(json).map((device) => device.id)).toEqual(['a']);
+  });
+
+  it('returns nothing when devices is missing or the root is not an object, and throws on bad JSON', () => {
+    expect(parseSimctlDevices('{}')).toEqual([]);
+    expect(parseSimctlDevices('[]')).toEqual([]);
+    expect(parseSimctlDevices('{"devices":[]}')).toEqual([]);
+    expect(() => parseSimctlDevices('not json')).toThrow();
+  });
+});

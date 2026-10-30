@@ -36,6 +36,19 @@ describe('SimulatorDiscovery', () => {
     expect(discovery.devices[0]?.state).toBe('shutdown');
   });
 
+  it('never overlaps polls and schedules the next one after the current settles', async () => {
+    let resolveRun: (value: string) => void = () => undefined;
+    const { discovery, simctl } = setup(() => new Promise((resolve) => (resolveRun = resolve)));
+    void discovery.start();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(simctl.run).toHaveBeenCalledTimes(1);
+    resolveRun(simctlDevicesJson());
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(simctl.run).toHaveBeenCalledTimes(2);
+    discovery.dispose();
+  });
+
   it('start is idempotent', async () => {
     const { discovery, simctl } = setup(() => Promise.resolve(simctlDevicesJson()));
     await discovery.start();
