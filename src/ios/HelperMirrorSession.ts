@@ -4,7 +4,7 @@ import { MirrorStartError, SimulatorNotBootedError, XcodeUnsupportedError, isRef
 import type { IDisposable, ILogger } from '../core/types';
 import type { Device } from '../devices/types';
 import type { IDeviceControl, IMirrorSession } from '../platform/types';
-import { SessionStateMachine } from '../scrcpy/SessionStateMachine';
+import { SessionStateMachine } from '../platform/SessionStateMachine';
 import type { SessionStateKind, VideoConfig, VideoPacket } from '../shared/protocol';
 import type { HelperCommand, HelperEvent, HelperFrame, HelperHello, HelperProcessFactory, IHelperProcess, ISimctl } from './types';
 

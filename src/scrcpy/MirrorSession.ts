@@ -9,7 +9,7 @@ import { MirrorStartError, isReflectError } from '../core/errors';
 import type { ILogger } from '../core/types';
 import type { SessionStateKind, VideoConfig, VideoPacket } from '../shared/protocol';
 import { ControlChannel } from './ControlChannel';
-import { SessionStateMachine } from './SessionStateMachine';
+import { SessionStateMachine } from '../platform/SessionStateMachine';
 import { toVideoPacket } from './toVideoPacket';
 import type { IDeviceControl, IMirrorSession } from '../platform/types';
 import type { IScrcpyLauncher, IServerBinary, MirrorOptions, ScrcpyClientLike } from './types';

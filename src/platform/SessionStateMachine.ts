@@ -1,7 +1,7 @@
 import { Emitter } from '../core/Emitter';
 import type { IDisposable } from '../core/types';
 import type { SessionStateKind } from '../shared/protocol';
-import type { SessionStateChange } from '../platform/types';
+import type { SessionStateChange } from './types';
 
 const TRANSITIONS: Readonly<Record<SessionStateKind, readonly SessionStateKind[]>> = {
   idle: ['connecting', 'closed'],
