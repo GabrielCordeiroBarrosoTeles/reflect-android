@@ -530,7 +530,7 @@ describe('extension', () => {
       await setupDarwin();
       commands.executeCommand.mockClear();
       await commands.registered.get('reflect.bootSimulator')?.('UDID-1');
-      expect(io.execFile).toHaveBeenCalledWith('xcrun', ['simctl', 'boot', 'UDID-1'], expect.anything(), expect.any(Function));
+      expect(io.execFile).toHaveBeenCalledWith('xcrun', ['simctl', 'boot', 'UDID-1'], { timeout: 120_000 }, expect.any(Function));
       expect(commands.executeCommand).toHaveBeenCalledWith('reflect.openDevice', 'UDID-1');
     }, 10_000);
   });

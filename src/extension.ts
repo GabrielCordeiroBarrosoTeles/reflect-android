@@ -92,6 +92,7 @@ const SIMCTL_TIMEOUT_MS = 15_000;
 const XATTR_TIMEOUT_MS = 5_000;
 const SIMULATOR_APP_TIMEOUT_MS = 10_000;
 const SIMULATOR_BOOT_TIMEOUT_MS = 60_000;
+const SIMCTL_BOOT_TIMEOUT_MS = 120_000;
 const IOS_HELPER_ASSET = ['assets', 'ios-helper', 'reflect-sim-helper'];
 const SIMULATOR_POLL_INTERVAL_MS = 2_000;
 const COPY_FEEDBACK_MS = 2_000;
@@ -347,7 +348,7 @@ export function activate(context: vscode.ExtensionContext): void {
       Promise.resolve(vscode.commands.executeCommand(CommandIds.openDevice)),
     ),
     new BootSimulatorCommand(
-      simctl,
+      new SimctlRunner(execFile as SimctlExecFile, SIMCTL_BOOT_TIMEOUT_MS),
       discovery,
       picker,
       async (deviceId) => void (await vscode.commands.executeCommand(CommandIds.openDevice, deviceId)),
