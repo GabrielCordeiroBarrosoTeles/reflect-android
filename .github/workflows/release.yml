@@ -41,7 +41,7 @@ jobs:
 
       - run: npx vsce package --out "reflect-android-${GITHUB_REF_NAME}.vsix"
 
-      - uses: softprops/action-gh-release@v3.0.3
+      - uses: softprops/action-gh-release@v3.0.4
         with:
           files: reflect-android-${{ github.ref_name }}.vsix
           generate_release_notes: true
